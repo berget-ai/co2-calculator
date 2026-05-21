@@ -1,0 +1,33 @@
+@import "@berget/ui/styles.css";
+
+body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: 'DM Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+@font-face {
+  font-family: 'DM Sans';
+  src: url('https://fonts.gstatic.com/s/dmsans/v15/rP2tp2ywxg089UriI5-g4vlH9VoD8CmcqZG40F9JadbnoEwAopxRSW3yGg.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'DM Sans';
+  src: url('https://fonts.gstatic.com/s/dmsans/v15/rP2tp2ywxg089UriI5-g4vlH9VoD8CmcqZG40F9JadbnoEwAopxSSS3yGg.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Ovo';
+  src: url('https://fonts.gstatic.com/s/ovo/v12/yYLX0hRb2DqWppGO.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
