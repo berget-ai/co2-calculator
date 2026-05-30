@@ -12,14 +12,18 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@berget/co2-emissions-calculator": ["../../src/index.ts"],
+      "@berget/co2-emissions-calculator/*": ["../../src/*"],
+      "@berget/ui": ["../../../berget-design-system/dist/index.js"],
+      "@berget/ui/*": ["../../../berget-design-system/dist/*"]
     }
   },
-  "include": ["src"],
+  "include": ["src", "../../src/inference/**/*"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

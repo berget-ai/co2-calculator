@@ -43,12 +43,18 @@ export function Select({
   ...props
 }: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
-    <select
-      {...props}
-      className="w-full px-3 py-2.5 border border-[rgba(229,221,213,0.12)] rounded-lg text-sm bg-[rgba(0,0,0,0.3)] text-white cursor-pointer appearance-none bg-[url('data:image/svg+xml,%3Csvg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"%2352B788\" stroke-width=\"2\"%3E%3Cpolyline points=\"6 9 12 15 18 9\"%3E%3C/polyline%3E%3C/svg%3E')] bg-no-repeat bg-[right_0.75rem_center] pr-10 focus:outline-none focus:border-[#52B788]"
-    >
-      {children}
-    </select>
+    <div className="relative">
+      <select
+        {...props}
+        className="w-full px-3 py-2.5 border border-white/10 rounded-lg text-sm bg-[#1a1a1a] text-white cursor-pointer appearance-none pr-10 focus:outline-none focus:border-[#52B788] dark:[color-scheme:dark]"
+        style={{ backgroundColor: '#1a1a1a' }}
+      >
+        {children}
+      </select>
+      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#52B788] text-xs">
+        ▼
+      </div>
+    </div>
   );
 }
 

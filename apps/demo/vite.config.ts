@@ -1,9 +1,10 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 import { resolve } from 'path'
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [tailwindcss(), react()],
   base: './',
   build: {
     outDir: 'dist',
@@ -12,8 +13,6 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
-      '@berget/co2-emissions-calculator': resolve(__dirname, '../../src'),
-      '@berget/ui': resolve(__dirname, '../../../berget-design-system/dist'),
     },
   },
 })

@@ -1,0 +1,47 @@
+{
+  "name": "@berget/co2-calculator",
+  "version": "1.0.0",
+  "description": "Production-calibrated CO₂ emissions calculator for AI inference",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts --clean",
+    "dev": "tsup src/index.ts --format esm --watch",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.2.0",
+    "vitest": "^1.0.0"
+  },
+  "peerDependencies": {},
+  "keywords": [
+    "co2",
+    "carbon",
+    "emissions",
+    "ai",
+    "inference",
+    "sci-ai"
+  ],
+  "author": "Berget <engineering@berget.ai>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/berget-ai/co2-emissions-calculator.git"
+  }
+}
