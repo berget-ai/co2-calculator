@@ -56,13 +56,21 @@ export function calculateInference(params: InferenceParams): InferenceResult {
     hardware,
     deploymentGrid,
     measuredResponseTimeSeconds,
+    inputTokens,
+    outputTokens,
     concurrency,
     hourOfDay,
     includeTraining,
     lifetimeQueries,
   } = params;
 
-  const gpuTimeSec = measuredResponseTimeSeconds;
+  // --- Token-based time adjustment ---
+  // Scale response time based on token count relative to defaults
+  const tokenRatio = (inputTokens + outputTokens) / 
+    (modelProfile.defaultInputTokens + modelProfile.defaultOutputTokens);
+  const adjustedResponseTime = measuredResponseTimeSeconds * Math.sqrt(tokenRatio);
+
+  const gpuTimeSec = adjustedResponseTime;
   const gpuTimeH = gpuTimeSec / SECONDS_IN_HOUR;
 
   const gpusUsed = Math.min(
@@ -76,7 +84,7 @@ export function calculateInference(params: InferenceParams): InferenceResult {
   );
 
   // --- Power (per GPU) ---
-  const utilization = Math.min(1.0, measuredResponseTimeSeconds / 10);
+  const utilization = Math.min(1.0, adjustedResponseTime / 10);
   // Base idle power that every GPU draws regardless of load
   const baseGpuPower = hardware.nodeIdleWatts / hardware.gpuCount;
   // Additional power when under load

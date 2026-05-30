@@ -261,8 +261,8 @@ export function CO2Calculator() {
                   
                   <Slider 
                     label="Input Tokens" 
-                    value={[inputTokens]} 
-                    onValueChange={([value]) => setInputTokens(value)} 
+                    value={inputTokens} 
+                    onValueChange={(value) => setInputTokens(value)} 
                     min={1} 
                     max={32000} 
                     step={64} 
@@ -270,8 +270,8 @@ export function CO2Calculator() {
                   />
                   <Slider 
                     label="Output Tokens" 
-                    value={[outputTokens]} 
-                    onValueChange={([value]) => setOutputTokens(value)} 
+                    value={outputTokens} 
+                    onValueChange={(value) => setOutputTokens(value)} 
                     min={1} 
                     max={8000} 
                     step={32} 
@@ -318,8 +318,8 @@ export function CO2Calculator() {
                   
                   <Slider 
                     label="Hour of Day" 
-                    value={[hourOfDay]} 
-                    onValueChange={([value]) => setHourOfDay(value)} 
+                    value={hourOfDay} 
+                    onValueChange={(value) => setHourOfDay(value)} 
                     min={0} 
                     max={23} 
                     step={1} 
