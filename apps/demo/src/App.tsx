@@ -10,6 +10,7 @@ import {
   GRID_REGIONS,
   getModelsByCategory,
   getConcurrencyFromTrafficPattern,
+  applyConcurrencyDelay,
 } from "@berget/co2-calculator";
 import { Slider } from "@/components/ui/slider";
 import {
@@ -150,6 +151,15 @@ export function CO2Calculator() {
     if (!result) return null;
     return calculateComparisons(result.totalCO2Grams, referenceGrid);
   }, [result, referenceGrid]);
+
+  // Beräkna justerad response time för visning
+  const adjustedResponseTime = useMemo(() => {
+    if (!model) return responseTime;
+    const tokenRatio = (inputTokens + outputTokens) / 
+      (model.defaultInputTokens + model.defaultOutputTokens);
+    const tokenAdjustedTime = responseTime * Math.sqrt(tokenRatio);
+    return applyConcurrencyDelay(tokenAdjustedTime, concurrency);
+  }, [model, inputTokens, outputTokens, responseTime, concurrency]);
 
   const modelsByCategory = getModelsByCategory();
 
@@ -331,15 +341,20 @@ export function CO2Calculator() {
                     displayValue={`${String(hourOfDay).padStart(2, '0')}:00`} 
                   />
                   
-                  <Slider 
-                    label="Concurrent Requests" 
-                    value={concurrency} 
-                    onValueChange={(value) => setConcurrency(value)} 
-                    min={1} 
-                    max={64} 
-                    step={1} 
-                    displayValue={`${concurrency} req`} 
-                  />
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    fontSize: '0.875rem',
+                    color: COLORS.muted,
+                    padding: '0.5rem 0',
+                  }}>
+                    <span>Estimated load:</span>
+                    <Badge variant="moss">{concurrency} concurrent requests</Badge>
+                    <span style={{ fontSize: '0.75rem', opacity: 0.6 }}>
+                      (auto from traffic pattern)
+                    </span>
+                  </div>
                   
                   <label style={{ 
                     display: 'flex', 
@@ -421,10 +436,13 @@ export function CO2Calculator() {
                           fontFamily: FONTS.mono,
                           lineHeight: 1.2,
                         }}>
-                          {responseTime.toFixed(1)}s
+                          {adjustedResponseTime.toFixed(2)}s
                         </div>
                         <div style={{ fontSize: '0.75rem', color: COLORS.muted, marginTop: '0.5rem' }}>
-                          Base GPU time
+                          Adjusted GPU time
+                        </div>
+                        <div style={{ fontSize: '0.625rem', color: COLORS.muted, marginTop: '0.25rem', opacity: 0.6 }}>
+                          Base: {responseTime.toFixed(1)}s
                         </div>
                       </div>
                       <div style={{ 
@@ -444,6 +462,9 @@ export function CO2Calculator() {
                         </div>
                         <div style={{ fontSize: '0.75rem', color: COLORS.muted, marginTop: '0.5rem' }}>
                           Concurrent requests
+                        </div>
+                        <div style={{ fontSize: '0.625rem', color: COLORS.muted, marginTop: '0.25rem', opacity: 0.6 }}>
+                          Auto from traffic pattern
                         </div>
                       </div>
                       <div style={{ 
