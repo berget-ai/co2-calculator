@@ -9,6 +9,7 @@ import {
   HARDWARE_CONFIGS,
   GRID_REGIONS,
   getModelsByCategory,
+  getConcurrencyFromTrafficPattern,
 } from "@berget/co2-calculator";
 import { Slider } from "@/components/ui/slider";
 import {
@@ -319,11 +320,25 @@ export function CO2Calculator() {
                   <Slider 
                     label="Hour of Day" 
                     value={hourOfDay} 
-                    onValueChange={(value) => setHourOfDay(value)} 
+                    onValueChange={(value) => {
+                      setHourOfDay(value);
+                      // Auto-adjust concurrency based on traffic pattern
+                      setConcurrency(getConcurrencyFromTrafficPattern(value));
+                    }} 
                     min={0} 
                     max={23} 
                     step={1} 
                     displayValue={`${String(hourOfDay).padStart(2, '0')}:00`} 
+                  />
+                  
+                  <Slider 
+                    label="Concurrent Requests" 
+                    value={concurrency} 
+                    onValueChange={(value) => setConcurrency(value)} 
+                    min={1} 
+                    max={64} 
+                    step={1} 
+                    displayValue={`${concurrency} req`} 
                   />
                   
                   <label style={{ 
@@ -368,7 +383,7 @@ export function CO2Calculator() {
                     
                     <div style={{ 
                       display: 'grid', 
-                      gridTemplateColumns: 'repeat(3, 1fr)', 
+                      gridTemplateColumns: 'repeat(2, 1fr)', 
                       gap: '1rem',
                       marginBottom: '2rem',
                     }}>
@@ -409,7 +424,26 @@ export function CO2Calculator() {
                           {responseTime.toFixed(1)}s
                         </div>
                         <div style={{ fontSize: '0.75rem', color: COLORS.muted, marginTop: '0.5rem' }}>
-                          GPU time
+                          Base GPU time
+                        </div>
+                      </div>
+                      <div style={{ 
+                        textAlign: 'center', 
+                        padding: '1.5rem 1rem',
+                        background: 'rgba(10, 10, 10, 0.6)',
+                        borderRadius: RADIUS.sm,
+                        border: `1px solid ${COLORS.border}`,
+                      }}>
+                        <div style={{ 
+                          fontSize: 'clamp(1.25rem, 1rem + 1vw, 2rem)', 
+                          fontWeight: 700, 
+                          color: COLORS.moss,
+                          lineHeight: 1.2,
+                        }}>
+                          {concurrency}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: COLORS.muted, marginTop: '0.5rem' }}>
+                          Concurrent requests
                         </div>
                       </div>
                       <div style={{ 

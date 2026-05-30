@@ -47,6 +47,43 @@ function applyTimeOfDay(
 }
 
 // ---------------------------------------------------------------------------
+// Concurrency impact on response time (sub-linear, Amdahl's law-ish)
+// ---------------------------------------------------------------------------
+
+export function applyConcurrencyDelay(
+  baseResponseTime: number,
+  concurrency: number,
+): number {
+  // Baseline is concurrency=8 (typical production load)
+  // Sub-linear scaling: doubling concurrency adds ~15% latency
+  const baselineConcurrency = 8;
+  if (concurrency <= baselineConcurrency) return baseResponseTime;
+  
+  const ratio = concurrency / baselineConcurrency;
+  const delayFactor = 1 + Math.log2(ratio) * 0.15;
+  return baseResponseTime * delayFactor;
+}
+
+// ---------------------------------------------------------------------------
+// Default traffic pattern (requests per minute by hour)
+// Based on typical SaaS usage: low at night, peaks during business hours
+// ---------------------------------------------------------------------------
+
+export const DEFAULT_TRAFFIC_PATTERN = [
+  0.05, 0.03, 0.02, 0.02, 0.03, 0.05,  // 00-05: Night (very low)
+  0.10, 0.20, 0.35, 0.50, 0.55, 0.50,  // 06-11: Morning ramp-up
+  0.45, 0.40, 0.42, 0.45, 0.50, 0.48,  // 12-17: Afternoon plateau
+  0.40, 0.30, 0.25, 0.20, 0.15, 0.10,  // 18-23: Evening taper
+];
+
+export function getConcurrencyFromTrafficPattern(hourOfDay: number): number {
+  const normalizedHour = Math.max(0, Math.min(23, hourOfDay));
+  const trafficWeight = DEFAULT_TRAFFIC_PATTERN[normalizedHour];
+  // Scale to realistic concurrency range (1-32)
+  return Math.max(1, Math.round(trafficWeight * 64));
+}
+
+// ---------------------------------------------------------------------------
 // Main calculation
 // ---------------------------------------------------------------------------
 
@@ -68,9 +105,13 @@ export function calculateInference(params: InferenceParams): InferenceResult {
   // Scale response time based on token count relative to defaults
   const tokenRatio = (inputTokens + outputTokens) / 
     (modelProfile.defaultInputTokens + modelProfile.defaultOutputTokens);
-  const adjustedResponseTime = measuredResponseTimeSeconds * Math.sqrt(tokenRatio);
+  const tokenAdjustedTime = measuredResponseTimeSeconds * Math.sqrt(tokenRatio);
 
-  const gpuTimeSec = adjustedResponseTime;
+  // --- Concurrency-based delay ---
+  // Higher concurrency = longer response times due to resource contention
+  const concurrencyAdjustedTime = applyConcurrencyDelay(tokenAdjustedTime, concurrency);
+
+  const gpuTimeSec = concurrencyAdjustedTime;
   const gpuTimeH = gpuTimeSec / SECONDS_IN_HOUR;
 
   const gpusUsed = Math.min(
@@ -84,7 +125,7 @@ export function calculateInference(params: InferenceParams): InferenceResult {
   );
 
   // --- Power (per GPU) ---
-  const utilization = Math.min(1.0, adjustedResponseTime / 10);
+  const utilization = Math.min(1.0, concurrencyAdjustedTime / 10);
   // Base idle power that every GPU draws regardless of load
   const baseGpuPower = hardware.nodeIdleWatts / hardware.gpuCount;
   // Additional power when under load
