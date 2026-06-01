@@ -161,6 +161,15 @@ export function CO2Calculator() {
     return applyConcurrencyDelay(tokenAdjustedTime, concurrency);
   }, [model, inputTokens, outputTokens, responseTime, concurrency]);
 
+  // Beräkna overhead per request (dela på concurrency)
+  const overheadPerRequest = useMemo(() => {
+    if (!result) return 0;
+    // Server infrastructure + datacenter overhead delas mellan alla requests
+    const sharedOverhead = result.components.serverOperational.co2Grams + 
+      result.components.datacenterOverhead.co2Grams;
+    return sharedOverhead;
+  }, [result]);
+
   const modelsByCategory = getModelsByCategory();
 
   return (
@@ -439,10 +448,10 @@ export function CO2Calculator() {
                           {adjustedResponseTime.toFixed(2)}s
                         </div>
                         <div style={{ fontSize: '0.75rem', color: COLORS.muted, marginTop: '0.5rem' }}>
-                          Adjusted GPU time
+                          GPU time per request
                         </div>
                         <div style={{ fontSize: '0.625rem', color: COLORS.muted, marginTop: '0.25rem', opacity: 0.6 }}>
-                          Base: {responseTime.toFixed(1)}s
+                          Base: {responseTime.toFixed(1)}s × {concurrency} req
                         </div>
                       </div>
                       <div style={{ 
@@ -458,13 +467,13 @@ export function CO2Calculator() {
                           color: COLORS.moss,
                           lineHeight: 1.2,
                         }}>
-                          {concurrency}
+                          {overheadPerRequest.toFixed(4)}
                         </div>
                         <div style={{ fontSize: '0.75rem', color: COLORS.muted, marginTop: '0.5rem' }}>
-                          Concurrent requests
+                          Shared overhead/request
                         </div>
                         <div style={{ fontSize: '0.625rem', color: COLORS.muted, marginTop: '0.25rem', opacity: 0.6 }}>
-                          Auto from traffic pattern
+                          Server + PUE / {concurrency}
                         </div>
                       </div>
                       <div style={{ 

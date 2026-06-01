@@ -47,7 +47,15 @@ function applyTimeOfDay(
 }
 
 // ---------------------------------------------------------------------------
-// Concurrency impact on response time (sub-linear, Amdahl's law-ish)
+// Concurrency impact on response time
+// 
+// When many requests hit the server simultaneously, each request takes longer
+// because GPUs are shared. However, the fixed overhead (server infrastructure,
+// datacenter PUE) is divided among all concurrent requests.
+// 
+// This creates a trade-off:
+// - Higher concurrency → longer per-request GPU time → higher per-request CO₂
+// - Higher concurrency → lower overhead per request → shared infrastructure cost
 // ---------------------------------------------------------------------------
 
 export function applyConcurrencyDelay(
@@ -56,6 +64,7 @@ export function applyConcurrencyDelay(
 ): number {
   // Baseline is concurrency=8 (typical production load)
   // Sub-linear scaling: doubling concurrency adds ~15% latency
+  // This reflects queueing and resource contention
   const baselineConcurrency = 8;
   if (concurrency <= baselineConcurrency) return baseResponseTime;
   
