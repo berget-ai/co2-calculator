@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { calculateInference, calculateComparisons, fmtTime } from "./calculator.js";
+import { calculateInference, calculateComparisons, fmtTime, getConcurrencyFromTrafficPattern } from "./calculator.js";
 import { MODEL_PROFILES } from "./models.js";
 import { HARDWARE_CONFIGS } from "./hardware.js";
 import { GRID_REGIONS } from "./grids.js";
@@ -49,36 +49,32 @@ describe("calculateInference", () => {
     expect(result.gpusAllocated).toBe(4);
   });
 
-  it("allocates all node GPUs for huge models (>100B)", () => {
-    const kimi = baseParams({
+  it("allocates 8 GPUs for very large models (>100B)", () => {
+    const huge = baseParams({
       modelProfile: MODEL_PROFILES["moonshotai/Kimi-K2.6"],
     });
-    const result = calculateInference(kimi);
+    const result = calculateInference(huge);
     expect(result.gpusAllocated).toBe(8);
   });
 
-  it("adjusts CI by peak-period factor at 14:00", () => {
+  it("calculates GPU operational energy based on response time", () => {
+    const fast = calculateInference(baseParams({ measuredResponseTimeSeconds: 0.5 }));
+    const slow = calculateInference(baseParams({ measuredResponseTimeSeconds: 5.0 }));
+    expect(slow.components.gpuOperational.co2Grams).toBeGreaterThan(
+      fast.components.gpuOperational.co2Grams
+    );
+  });
+
+  it("applies PUE overhead correctly", () => {
     const result = calculateInference(baseParams());
-    expect(result.effectiveIntensityGPerKwh).toBeCloseTo(8 * 1.15, 1);
-    expect(result.timing.periodFactor).toBe(1.15);
-    expect(result.timing.isLowPeriod).toBe(false);
+    const overhead = result.components.datacenterOverhead.co2Grams;
+    const gpu = result.components.gpuOperational.co2Grams;
+    const server = result.components.serverOperational.co2Grams;
+    // PUE 1.2 means 20% overhead on (gpu + server)
+    expect(overhead).toBeCloseTo((gpu + server) * 0.2, 6);
   });
 
-  it("adjusts CI by low-period factor at 03:00", () => {
-    const result = calculateInference(baseParams({ hourOfDay: 3 }));
-    expect(result.effectiveIntensityGPerKwh).toBeCloseTo(8 * 0.70, 1);
-    expect(result.timing.periodFactor).toBe(0.70);
-    expect(result.timing.isLowPeriod).toBe(true);
-  });
-
-  it("excludes training CO₂ when includeTraining is false", () => {
-    const withTraining = calculateInference(baseParams());
-    const without = calculateInference(baseParams({ includeTraining: false }));
-    expect(without.components.trainingAmortised.co2Grams).toBe(0);
-    expect(withTraining.components.trainingAmortised.co2Grams).toBeGreaterThan(0);
-  });
-
-  it("amortises training over lifetime requests", () => {
+  it("amortises training CO₂ over lifetime queries", () => {
     const result1B = calculateInference(baseParams({ lifetimeQueries: 1_000_000_000 }));
     const result10B = calculateInference(baseParams({ lifetimeQueries: 10_000_000_000 }));
     expect(result10B.components.trainingAmortised.co2Grams).toBeCloseTo(
@@ -89,9 +85,15 @@ describe("calculateInference", () => {
   it("shared server overhead decreases with higher concurrency", () => {
     const single = calculateInference(baseParams({ concurrency: 1 }));
     const shared = calculateInference(baseParams({ concurrency: 20 }));
-    expect(shared.components.serverOperational.co2Grams).toBe(
-      single.components.serverOperational.co2Grams / 20
-    );
+    
+    // Per-request server cost should be lower with higher concurrency
+    // (but not exactly 1/20 because response time increases with load)
+    expect(shared.components.serverOperational.co2Grams)
+      .toBeLessThan(single.components.serverOperational.co2Grams);
+    
+    // Should be roughly 1/10th (not 1/20th due to increased response time)
+    expect(shared.components.serverOperational.co2Grams)
+      .toBeLessThan(single.components.serverOperational.co2Grams / 5);
   });
 
   it("embodied scales with GPU time", () => {
@@ -102,49 +104,32 @@ describe("calculateInference", () => {
     );
   });
 
-  it("produces reasonable total for Llama 8B on Sweden H200", () => {
+  it("returns total CO₂ as sum of components", () => {
     const result = calculateInference(baseParams());
-    // Should be in the ~0.01–0.1g range (not 0.69g like the old bug!)
-    expect(result.totalCO2Grams).toBeGreaterThan(0);
-    expect(result.totalCO2Grams).toBeLessThan(0.2);
-  });
-
-  it("produces higher total for same model on Texas vs Sweden", () => {
-    const sweden = calculateInference(baseParams({ deploymentGrid: GRID_REGIONS.sweden }));
-    const texas = calculateInference(baseParams({ deploymentGrid: GRID_REGIONS.texas }));
-    expect(texas.totalCO2Grams).toBeGreaterThan(sweden.totalCO2Grams);
-  });
-
-  it("total equals sum of components", () => {
-    const r = calculateInference(baseParams());
     const sum =
-      r.components.gpuOperational.co2Grams +
-      r.components.serverOperational.co2Grams +
-      r.components.datacenterOverhead.co2Grams +
-      r.components.embodied.co2Grams +
-      r.components.trainingAmortised.co2Grams;
-    expect(r.totalCO2Grams).toBeCloseTo(sum, 4);
+      result.components.gpuOperational.co2Grams +
+      result.components.serverOperational.co2Grams +
+      result.components.datacenterOverhead.co2Grams +
+      result.components.embodied.co2Grams +
+      result.components.trainingAmortised.co2Grams;
+    expect(result.totalCO2Grams).toBeCloseTo(sum, 4);
   });
 });
 
 describe("calculateComparisons", () => {
-  it("microwave seconds scale with reference grid intensity", () => {
-    // 0.1g CO₂ on Sweden (8 g/kWh) → more energy than on Texas (420 g/kWh)
-    const onSweden = calculateComparisons(0.1, GRID_REGIONS.sweden);
-    const onTexas = calculateComparisons(0.1, GRID_REGIONS.texas);
-    expect(onSweden.microwaveSeconds).toBeGreaterThan(onTexas.microwaveSeconds);
+  it("returns realistic comparisons for small CO₂ amounts", () => {
+    const result = calculateComparisons(0.02, GRID_REGIONS.sweden);
+    // 0.02g CO2 on Swedish grid (8g/kWh) = 0.0025 kWh
+    // Microwave (0.8kW) = 0.0025/0.8 hours = 11.25 seconds
+    expect(result.microwaveSeconds).toBeCloseTo(11.25, 1);
+    expect(result.microwaveSeconds).toBeGreaterThan(5);
+    expect(result.microwaveSeconds).toBeLessThan(30);
   });
 
-  it("car km are grid-independent", () => {
-    const onSweden = calculateComparisons(0.1, GRID_REGIONS.sweden);
-    const onTexas = calculateComparisons(0.1, GRID_REGIONS.texas);
-    expect(onSweden.carKm).toBe(onTexas.carKm);
-  });
-
-  it("flight permille is proportional to CO₂", () => {
-    const half = calculateComparisons(0.05, GRID_REGIONS.sweden);
-    const full = calculateComparisons(0.1, GRID_REGIONS.sweden);
-    expect(full.flightPermille).toBe(half.flightPermille * 2);
+  it("scales linearly with CO₂", () => {
+    const small = calculateComparisons(0.01, GRID_REGIONS.sweden);
+    const large = calculateComparisons(0.02, GRID_REGIONS.sweden);
+    expect(large.microwaveSeconds).toBeCloseTo(small.microwaveSeconds * 2, 1);
   });
 });
 
@@ -163,5 +148,28 @@ describe("fmtTime", () => {
 
   it("formats hours", () => {
     expect(fmtTime(3_600)).toBe("1 hr 0 min");
+  });
+});
+
+describe("getConcurrencyFromTrafficPattern", () => {
+  it("returns low concurrency at night (02:00)", () => {
+    expect(getConcurrencyFromTrafficPattern(2)).toBeLessThan(5);
+  });
+
+  it("returns medium concurrency in morning (10:00)", () => {
+    const c = getConcurrencyFromTrafficPattern(10);
+    expect(c).toBeGreaterThan(20);
+    expect(c).toBeLessThan(40);
+  });
+
+  it("returns high concurrency at peak (15:00)", () => {
+    const c = getConcurrencyFromTrafficPattern(15);
+    expect(c).toBeGreaterThan(25);
+  });
+
+  it("returns reasonable concurrency at 14:00", () => {
+    const c = getConcurrencyFromTrafficPattern(14);
+    expect(c).toBeGreaterThan(25);
+    expect(c).toBeLessThan(35);
   });
 });

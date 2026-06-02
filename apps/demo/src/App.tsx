@@ -4,13 +4,11 @@ import {
   calculateComparisons,
   fmtTime,
   fmtNumber,
-  fmtParams,
   MODEL_PROFILES,
   HARDWARE_CONFIGS,
   GRID_REGIONS,
   getModelsByCategory,
   getConcurrencyFromTrafficPattern,
-  applyConcurrencyDelay,
 } from "@berget/co2-calculator";
 import { Slider } from "@/components/ui/slider";
 import {
@@ -21,607 +19,384 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const PUE = 1.2;
-
-// Berget AI Design Tokens
-const COLORS = {
-  night: '#0A0A0A',
-  slate: '#1A1A1A',
-  moss: '#52B788',
-  lichen: '#8FBC8F',
-  cloud: '#E5DDD5',
-  peak: '#FFFFFF',
-  fjord: '#1A3A4A',
-  spruce: '#2D6B4F',
-  border: 'rgba(255, 255, 255, 0.1)',
-  card: 'rgba(26, 26, 26, 0.4)',
-  muted: 'rgba(255, 255, 255, 0.8)',
+// Provider presets
+const PRESETS = {
+  "american-cloud": {
+    name: "American Cloud Provider",
+    description: "New hardware, average US grid",
+    hardware: "h100",
+    grid: "us-average",
+    icon: "🇺🇸",
+  },
+  "berget-ai": {
+    name: "Berget AI",
+    description: "Refurbished hardware, Swedish grid",
+    hardware: "h200",
+    grid: "sweden",
+    icon: "🇸🇪",
+  },
+  "european-green": {
+    name: "European Green",
+    description: "Efficient hardware, French nuclear",
+    hardware: "mi300x",
+    grid: "france",
+    icon: "🇫🇷",
+  },
+  custom: {
+    name: "Custom",
+    description: "Configure everything",
+    hardware: "h200",
+    grid: "sweden",
+    icon: "⚙️",
+  },
 };
 
-const FONTS = {
-  serif: '"Ovo", Georgia, serif',
-  sans: '"DM Sans", system-ui, sans-serif',
-  mono: '"DM Mono", monospace',
+// Colors
+const C = {
+  night: "#0A0A0A",
+  slate: "#1A1A1A",
+  moss: "#52B788",
+  cloud: "#E5DDD5",
+  peak: "#FFFFFF",
+  muted: "rgba(255,255,255,0.6)",
+  border: "rgba(255,255,255,0.1)",
+  card: "rgba(26,26,26,0.6)",
 };
-
-const RADIUS = {
-  sm: '16px',
-  md: '24px',
-  lg: '32px',
-  xs: '12px',
-};
-
-// Layout Components
-function Container({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{ 
-      maxWidth: '1200px', 
-      margin: '0 auto', 
-      padding: '0 clamp(1rem, 0.82rem + 0.76vw, 1.5rem)' 
-    }}>
-      {children}
-    </div>
-  );
-}
-
-function Stack({ children, gap = 4, style }: { children: React.ReactNode; gap?: number; style?: React.CSSProperties }) {
-  return <div style={{ display: 'flex', flexDirection: 'column', gap: `${gap * 0.25}rem`, ...style }}>{children}</div>;
-}
-
-function Card({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
-  return (
-    <div style={{
-      background: COLORS.card,
-      borderRadius: RADIUS.md,
-      border: `1px solid ${COLORS.border}`,
-      padding: 'clamp(1.5rem, 1.14rem + 1.52vw, 2.5rem)',
-      backdropFilter: 'blur(8px)',
-      ...style,
-    }}>
-      {children}
-    </div>
-  );
-}
-
-function Badge({ children, variant = 'default' }: { children: React.ReactNode; variant?: 'default' | 'moss' }) {
-  const variants = {
-    default: {
-      background: 'rgba(255, 255, 255, 0.1)',
-      color: COLORS.peak,
-    },
-    moss: {
-      background: 'rgba(82, 183, 136, 0.2)',
-      color: COLORS.moss,
-    },
-  };
-  
-  return (
-    <span style={{
-      display: 'inline-flex',
-      alignItems: 'center',
-      padding: '0.25rem 0.75rem',
-      borderRadius: RADIUS.sm,
-      fontSize: '0.75rem',
-      fontWeight: 500,
-      letterSpacing: '0.05em',
-      textTransform: 'uppercase' as const,
-      ...variants[variant],
-    }}>
-      {children}
-    </span>
-  );
-}
 
 export function CO2Calculator() {
+  // Mode
+  const [devMode, setDevMode] = useState(false);
+  const [preset, setPreset] = useState<keyof typeof PRESETS>("berget-ai");
+  
+  // State
   const [modelId, setModelId] = useState("meta-llama/Llama-3.1-8B-Instruct");
   const [hardwareKey, setHardwareKey] = useState("h200");
-  const [deploymentGridKey, setDeploymentGridKey] = useState("sweden");
-  const [referenceGridKey, setReferenceGridKey] = useState("sweden");
-  const [responseTime, setResponseTime] = useState(1.2);
-  const [concurrency, setConcurrency] = useState(8);
-  const [hourOfDay, setHourOfDay] = useState(14);
-  const [includeTraining, setIncludeTraining] = useState(true);
-  const [lifetimeQueries, setLifetimeQueries] = useState(1_000_000_000);
+  const [gridKey, setGridKey] = useState("sweden");
   const [inputTokens, setInputTokens] = useState(800);
   const [outputTokens, setOutputTokens] = useState(400);
-
+  const [hourOfDay, setHourOfDay] = useState(14);
+  const [includeTraining, setIncludeTraining] = useState(true);
+  
+  const concurrency = getConcurrencyFromTrafficPattern(hourOfDay);
+  
   const model = MODEL_PROFILES[modelId];
   const hardware = HARDWARE_CONFIGS[hardwareKey];
-  const deploymentGrid = GRID_REGIONS[deploymentGridKey];
-  const referenceGrid = GRID_REGIONS[referenceGridKey];
-
+  const grid = GRID_REGIONS[gridKey];
+  
   const result = useMemo(() => {
-    if (!model || !hardware || !deploymentGrid) return null;
+    if (!model || !hardware || !grid) return null;
     return calculateInference({
       modelProfile: model,
       hardware,
-      deploymentGrid,
-      referenceGrid,
-      measuredResponseTimeSeconds: responseTime,
+      deploymentGrid: grid,
+      referenceGrid: grid, // Same grid for simplicity
+      measuredResponseTimeSeconds: model.defaultResponseTimeSeconds,
       inputTokens,
       outputTokens,
       concurrency,
       hourOfDay,
       includeTraining,
-      lifetimeQueries,
+      lifetimeQueries: 1_000_000_000,
     });
-  }, [model, hardware, deploymentGrid, referenceGrid, responseTime, inputTokens, outputTokens, concurrency, hourOfDay, includeTraining, lifetimeQueries]);
-
+  }, [model, hardware, grid, inputTokens, outputTokens, concurrency, hourOfDay, includeTraining]);
+  
   const comparisons = useMemo(() => {
     if (!result) return null;
-    return calculateComparisons(result.totalCO2Grams, referenceGrid);
-  }, [result, referenceGrid]);
+    return calculateComparisons(result.totalCO2Grams, grid);
+  }, [result, grid]);
+  
+  // Apply preset
+  const applyPreset = (key: keyof typeof PRESETS) => {
+    const p = PRESETS[key];
+    setPreset(key);
+    if (key !== "custom") {
+      setHardwareKey(p.hardware);
+      setGridKey(p.grid);
+    }
+  };
+  
+  // Generate code snippet
+  const codeSnippet = useMemo(() => {
+    if (!model || !hardware || !grid) return "";
+    return `import { calculateInference } from "@berget/co2-calculator";
 
-  // Beräkna justerad response time för visning
-  const adjustedResponseTime = useMemo(() => {
-    if (!model) return responseTime;
-    const tokenRatio = (inputTokens + outputTokens) / 
-      (model.defaultInputTokens + model.defaultOutputTokens);
-    const tokenAdjustedTime = responseTime * Math.sqrt(tokenRatio);
-    return applyConcurrencyDelay(tokenAdjustedTime, concurrency);
-  }, [model, inputTokens, outputTokens, responseTime, concurrency]);
+const result = calculateInference({
+  modelProfile: MODEL_PROFILES["${modelId}"],
+  hardware: HARDWARE_CONFIGS["${hardwareKey}"],
+  deploymentGrid: GRID_REGIONS["${gridKey}"],
+  measuredResponseTimeSeconds: ${model.defaultResponseTimeSeconds},
+  inputTokens: ${inputTokens},
+  outputTokens: ${outputTokens},
+  concurrency: ${concurrency},
+  hourOfDay: ${hourOfDay},
+  includeTraining: ${includeTraining},
+  lifetimeQueries: 1_000_000_000,
+});
 
-  // Beräkna overhead per request (dela på concurrency)
-  const overheadPerRequest = useMemo(() => {
-    if (!result) return 0;
-    // Server infrastructure + datacenter overhead delas mellan alla requests
-    const sharedOverhead = result.components.serverOperational.co2Grams + 
-      result.components.datacenterOverhead.co2Grams;
-    return sharedOverhead;
-  }, [result]);
-
+// result.totalCO2Grams = ${result?.totalCO2Grams.toFixed(4) ?? "..."}`;
+  }, [modelId, hardwareKey, gridKey, inputTokens, outputTokens, concurrency, hourOfDay, includeTraining, model, result]);
+  
   const modelsByCategory = getModelsByCategory();
-
+  
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      background: COLORS.night, 
-      color: COLORS.cloud, 
-      fontFamily: FONTS.sans,
-      WebkitFontSmoothing: 'antialiased',
-    }}>
+    <div style={{ minHeight: "100vh", background: C.night, color: C.cloud, fontFamily: "system-ui, sans-serif" }}>
       {/* Header */}
-      <header style={{
-        borderBottom: `1px solid ${COLORS.border}`,
-        padding: 'clamp(1rem, 0.82rem + 0.76vw, 1.5rem) 0',
-      }}>
-        <Container>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              background: `linear-gradient(135deg, ${COLORS.moss}, ${COLORS.spruce})`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '1rem',
-            }}>
-              🌿
-            </div>
-            <span style={{
-              fontFamily: FONTS.sans,
-              fontWeight: 600,
-              fontSize: '1.125rem',
-              color: COLORS.peak,
-            }}>
-              Berget AI
-            </span>
+      <header style={{ borderBottom: `1px solid ${C.border}`, padding: "1rem 0" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 1rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <span style={{ fontSize: "1.5rem" }}>🌿</span>
+            <span style={{ fontWeight: 600, color: C.peak }}>Berget AI CO₂ Calculator</span>
           </div>
-        </Container>
+          <button
+            onClick={() => setDevMode(!devMode)}
+            style={{
+              background: devMode ? C.moss : "transparent",
+              color: devMode ? C.night : C.moss,
+              border: `1px solid ${C.moss}`,
+              padding: "0.5rem 1rem",
+              borderRadius: 8,
+              cursor: "pointer",
+              fontSize: "0.875rem",
+            }}
+          >
+            {devMode ? "✓ Dev Mode" : "Dev Mode"}
+          </button>
+        </div>
       </header>
-
-      <Container>
-        <Stack gap={8} style={{ padding: 'clamp(2.5rem, 1.96rem + 2.29vw, 4rem) 0' }}>
-          {/* Hero Section */}
-          <div>
-            <Badge variant="moss">CO₂ Impact Calculator</Badge>
-            <h1 style={{ 
-              fontFamily: FONTS.serif,
-              fontSize: 'clamp(1.875rem, 0.714rem + 4.76vw, 5rem)',
-              fontWeight: 400,
-              lineHeight: 1.5,
-              color: COLORS.peak,
-              margin: '1rem 0 0.5rem',
-              letterSpacing: '-0.01em',
-            }}>
-              AI Carbon Footprint
-            </h1>
-            <p style={{ 
-              fontSize: '1.125rem',
-              lineHeight: 1.6,
-              color: COLORS.muted,
-              maxWidth: '600px',
-              margin: 0,
-            }}>
-              Estimate the environmental impact of AI inference with production-calibrated data. 
-              Compare models, hardware, and energy grids.
-            </p>
+      
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "2rem 1rem" }}>
+        {/* Presets */}
+        <div style={{ marginBottom: "2rem" }}>
+          <h2 style={{ fontSize: "0.875rem", textTransform: "uppercase", letterSpacing: "0.05em", color: C.moss, marginBottom: "1rem" }}>
+            Provider Preset
+          </h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem" }}>
+            {Object.entries(PRESETS).map(([key, p]) => (
+              <button
+                key={key}
+                onClick={() => applyPreset(key as keyof typeof PRESETS)}
+                style={{
+                  background: preset === key ? "rgba(82,183,136,0.2)" : C.card,
+                  border: `1px solid ${preset === key ? C.moss : C.border}`,
+                  borderRadius: 12,
+                  padding: "1rem",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  color: C.cloud,
+                }}
+              >
+                <div style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>{p.icon}</div>
+                <div style={{ fontWeight: 600, color: C.peak }}>{p.name}</div>
+                <div style={{ fontSize: "0.875rem", color: C.muted }}>{p.description}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+        
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2rem" }}>
+          {/* Controls */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+            <div style={{ background: C.card, borderRadius: 12, padding: "1.5rem", border: `1px solid ${C.border}` }}>
+              <h3 style={{ marginTop: 0, color: C.moss }}>Model & Workload</h3>
+              
+              <Select value={modelId} onValueChange={(v) => {
+                setModelId(v);
+                const m = MODEL_PROFILES[v];
+                if (m) {
+                  setInputTokens(m.defaultInputTokens);
+                  setOutputTokens(m.defaultOutputTokens);
+                }
+              }}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {modelsByCategory.text.map((m) => (
+                    <SelectItem key={m.modelId} value={m.modelId}>{m.displayName}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <div style={{ marginTop: "1rem" }}>
+                <Slider label="Input Tokens" value={inputTokens} onValueChange={setInputTokens} min={1} max={32000} step={64} displayValue={String(inputTokens)} />
+              </div>
+              <div style={{ marginTop: "1rem" }}>
+                <Slider label="Output Tokens" value={outputTokens} onValueChange={setOutputTokens} min={1} max={8000} step={32} displayValue={String(outputTokens)} />
+              </div>
+            </div>
+            
+            <div style={{ background: C.card, borderRadius: 12, padding: "1.5rem", border: `1px solid ${C.border}` }}>
+              <h3 style={{ marginTop: 0, color: C.moss }}>Infrastructure</h3>
+              
+              {preset === "custom" && (
+                <>
+                  <Select value={hardwareKey} onValueChange={setHardwareKey}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(HARDWARE_CONFIGS).map(([k, h]) => (
+                        <SelectItem key={k} value={k}>{h.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  
+                  <div style={{ marginTop: "1rem" }}>
+                    <Select value={gridKey} onValueChange={setGridKey}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(GRID_REGIONS).map(([k, g]) => (
+                          <SelectItem key={k} value={k}>{g.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
+              
+              {preset !== "custom" && (
+                <div style={{ padding: "0.75rem", background: "rgba(82,183,136,0.1)", borderRadius: 8, marginBottom: "1rem" }}>
+                  <div style={{ fontSize: "0.875rem", color: C.muted }}>
+                    {hardware?.name} · {grid?.name} ({grid?.intensityGPerKwh} g/kWh)
+                  </div>
+                </div>
+              )}
+              
+              <div style={{ marginTop: "1rem" }}>
+                <Slider label="Hour of Day" value={hourOfDay} onValueChange={setHourOfDay} min={0} max={23} step={1} displayValue={`${String(hourOfDay).padStart(2, "0")}:00`} />
+              </div>
+              
+              <div style={{ marginTop: "0.5rem", fontSize: "0.875rem", color: C.muted }}>
+                Estimated load: <span style={{ color: C.moss, fontWeight: 600 }}>{concurrency} concurrent requests</span>
+              </div>
+              
+              <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "1rem", cursor: "pointer", fontSize: "0.875rem" }}>
+                <input type="checkbox" checked={includeTraining} onChange={(e) => setIncludeTraining(e.target.checked)} />
+                Include training CO₂
+              </label>
+            </div>
           </div>
           
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 500px), 1fr))', 
-            gap: 'clamp(1.5rem, 1.14rem + 1.52vw, 2.5rem)' 
-          }}>
-            {/* Controls */}
-            <Stack gap={6}>
-              <Card>
-                <h2 style={{ 
-                  fontFamily: FONTS.serif,
-                  fontSize: 'clamp(1.25rem, 1.16rem + 0.38vw, 1.5rem)',
-                  fontWeight: 400,
-                  color: COLORS.moss,
-                  marginTop: 0,
-                  marginBottom: '1.5rem',
-                  lineHeight: 1.5,
-                }}>
-                  Model & Workload
-                </h2>
-                
-                <Stack gap={4}>
-                  <Select value={modelId} onValueChange={(value) => {
-                    setModelId(value);
-                    const m = MODEL_PROFILES[value];
-                    if (m) {
-                      setInputTokens(m.defaultInputTokens);
-                      setOutputTokens(m.defaultOutputTokens);
-                      setResponseTime(m.defaultResponseTimeSeconds);
-                    }
-                  }}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select model" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {modelsByCategory.text.map((m) => (
-                        <SelectItem key={m.modelId} value={m.modelId}>{m.displayName}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+          {/* Results */}
+          <div>
+            {result && comparisons && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+                {/* Main Result */}
+                <div style={{ background: "linear-gradient(135deg, rgba(82,183,136,0.1), rgba(26,26,26,0.4))", borderRadius: 12, padding: "1.5rem", border: `1px solid rgba(82,183,136,0.3)` }}>
+                  <h3 style={{ marginTop: 0, color: C.moss }}>Carbon Impact</h3>
                   
-                  <Slider 
-                    label="Input Tokens" 
-                    value={inputTokens} 
-                    onValueChange={(value) => setInputTokens(value)} 
-                    min={1} 
-                    max={32000} 
-                    step={64} 
-                    displayValue={String(inputTokens)} 
-                  />
-                  <Slider 
-                    label="Output Tokens" 
-                    value={outputTokens} 
-                    onValueChange={(value) => setOutputTokens(value)} 
-                    min={1} 
-                    max={8000} 
-                    step={32} 
-                    displayValue={String(outputTokens)} 
-                  />
-                </Stack>
-              </Card>
-              
-              <Card>
-                <h2 style={{ 
-                  fontFamily: FONTS.serif,
-                  fontSize: 'clamp(1.25rem, 1.16rem + 0.38vw, 1.5rem)',
-                  fontWeight: 400,
-                  color: COLORS.moss,
-                  marginTop: 0,
-                  marginBottom: '1.5rem',
-                  lineHeight: 1.5,
-                }}>
-                  Infrastructure
-                </h2>
-                
-                <Stack gap={4}>
-                  <Select value={hardwareKey} onValueChange={setHardwareKey}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select hardware" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(HARDWARE_CONFIGS).map(([key, hw]) => (
-                        <SelectItem key={key} value={key}>{hw.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  
-                  <Select value={deploymentGridKey} onValueChange={setDeploymentGridKey}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select grid region" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(GRID_REGIONS).map(([key, g]) => (
-                        <SelectItem key={key} value={key}>{g.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  
-                  <Slider 
-                    label="Hour of Day" 
-                    value={hourOfDay} 
-                    onValueChange={(value) => {
-                      setHourOfDay(value);
-                      // Auto-adjust concurrency based on traffic pattern
-                      setConcurrency(getConcurrencyFromTrafficPattern(value));
-                    }} 
-                    min={0} 
-                    max={23} 
-                    step={1} 
-                    displayValue={`${String(hourOfDay).padStart(2, '0')}:00`} 
-                  />
-                  
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    fontSize: '0.875rem',
-                    color: COLORS.muted,
-                    padding: '0.5rem 0',
-                  }}>
-                    <span>Estimated load:</span>
-                    <Badge variant="moss">{concurrency} concurrent requests</Badge>
-                    <span style={{ fontSize: '0.75rem', opacity: 0.6 }}>
-                      (auto from traffic pattern)
-                    </span>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1.5rem" }}>
+                    <div style={{ textAlign: "center", padding: "1rem", background: "rgba(0,0,0,0.3)", borderRadius: 8 }}>
+                      <div style={{ fontSize: "2rem", fontWeight: 700, color: C.moss }}>
+                        {result.totalCO2Grams < 1 
+                          ? `${(result.totalCO2Grams * 1000).toFixed(1)} mg`
+                          : `${result.totalCO2Grams.toFixed(2)} g`
+                        }
+                      </div>
+                      <div style={{ fontSize: "0.75rem", color: C.muted }}>CO₂e per request</div>
+                    </div>
+                    <div style={{ textAlign: "center", padding: "1rem", background: "rgba(0,0,0,0.3)", borderRadius: 8 }}>
+                      <div style={{ fontSize: "2rem", fontWeight: 700, color: C.moss }}>
+                        {((result.totalEnergyKwh || 0) * 1000).toFixed(1)}
+                      </div>
+                      <div style={{ fontSize: "0.75rem", color: C.muted }}>Wh energy</div>
+                    </div>
                   </div>
                   
-                  <label style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '0.75rem', 
-                    cursor: 'pointer',
-                    fontSize: '0.875rem',
-                    color: COLORS.muted,
-                  }}>
-                    <input 
-                      type="checkbox" 
-                      checked={includeTraining} 
-                      onChange={(e) => setIncludeTraining(e.target.checked)}
-                      style={{ accentColor: COLORS.moss }}
-                    />
-                    Include training CO₂ amortization
-                  </label>
-                </Stack>
-              </Card>
-            </Stack>
-            
-            {/* Results */}
-            <div>
-              {result && comparisons && (
-                <Stack gap={6}>
-                  {/* Main Result Card */}
-                  <Card style={{
-                    background: `linear-gradient(135deg, rgba(82, 183, 136, 0.1), rgba(26, 26, 26, 0.4))`,
-                    borderColor: 'rgba(82, 183, 136, 0.3)',
-                  }}>
-                    <h2 style={{ 
-                      fontFamily: FONTS.serif,
-                      fontSize: 'clamp(1.25rem, 1.16rem + 0.38vw, 1.5rem)',
-                      fontWeight: 400,
-                      color: COLORS.moss,
-                      marginTop: 0,
-                      marginBottom: '1.5rem',
-                    }}>
-                      Carbon Impact
-                    </h2>
-                    
-                    <div style={{ 
-                      display: 'grid', 
-                      gridTemplateColumns: 'repeat(2, 1fr)', 
-                      gap: '1rem',
-                      marginBottom: '2rem',
-                    }}>
-                      <div style={{ 
-                        textAlign: 'center', 
-                        padding: '1.5rem 1rem',
-                        background: 'rgba(10, 10, 10, 0.6)',
-                        borderRadius: RADIUS.sm,
-                        border: `1px solid ${COLORS.border}`,
-                      }}>
-                        <div style={{ 
-                          fontSize: 'clamp(1.5rem, 1.2rem + 1.2vw, 2.5rem)', 
-                          fontWeight: 700, 
-                          color: COLORS.moss,
-                          fontFamily: FONTS.mono,
-                          lineHeight: 1.2,
-                        }}>
-                          {result.totalCO2Grams.toFixed(4)}
-                        </div>
-                        <div style={{ fontSize: '0.75rem', color: COLORS.muted, marginTop: '0.5rem' }}>
-                          g CO₂e
-                        </div>
-                      </div>
-                      <div style={{ 
-                        textAlign: 'center', 
-                        padding: '1.5rem 1rem',
-                        background: 'rgba(10, 10, 10, 0.6)',
-                        borderRadius: RADIUS.sm,
-                        border: `1px solid ${COLORS.border}`,
-                      }}>
-                        <div style={{ 
-                          fontSize: 'clamp(1.5rem, 1.2rem + 1.2vw, 2.5rem)', 
-                          fontWeight: 700, 
-                          color: COLORS.moss,
-                          fontFamily: FONTS.mono,
-                          lineHeight: 1.2,
-                        }}>
-                          {adjustedResponseTime.toFixed(2)}s
-                        </div>
-                        <div style={{ fontSize: '0.75rem', color: COLORS.muted, marginTop: '0.5rem' }}>
-                          GPU time per request
-                        </div>
-                        <div style={{ fontSize: '0.625rem', color: COLORS.muted, marginTop: '0.25rem', opacity: 0.6 }}>
-                          Base: {responseTime.toFixed(1)}s × {concurrency} req
-                        </div>
-                      </div>
-                      <div style={{ 
-                        textAlign: 'center', 
-                        padding: '1.5rem 1rem',
-                        background: 'rgba(10, 10, 10, 0.6)',
-                        borderRadius: RADIUS.sm,
-                        border: `1px solid ${COLORS.border}`,
-                      }}>
-                        <div style={{ 
-                          fontSize: 'clamp(1.25rem, 1rem + 1vw, 2rem)', 
-                          fontWeight: 700, 
-                          color: COLORS.moss,
-                          lineHeight: 1.2,
-                        }}>
-                          {overheadPerRequest.toFixed(4)}
-                        </div>
-                        <div style={{ fontSize: '0.75rem', color: COLORS.muted, marginTop: '0.5rem' }}>
-                          Shared overhead/request
-                        </div>
-                        <div style={{ fontSize: '0.625rem', color: COLORS.muted, marginTop: '0.25rem', opacity: 0.6 }}>
-                          Server + PUE / {concurrency}
-                        </div>
-                      </div>
-                      <div style={{ 
-                        textAlign: 'center', 
-                        padding: '1.5rem 1rem',
-                        background: 'rgba(10, 10, 10, 0.6)',
-                        borderRadius: RADIUS.sm,
-                        border: `1px solid ${COLORS.border}`,
-                      }}>
-                        <div style={{ 
-                          fontSize: 'clamp(1.25rem, 1rem + 1vw, 2rem)', 
-                          fontWeight: 700, 
-                          color: COLORS.moss,
-                          lineHeight: 1.2,
-                        }}>
-                          {deploymentGrid.name}
-                        </div>
-                        <div style={{ fontSize: '0.75rem', color: COLORS.muted, marginTop: '0.5rem' }}>
-                          {deploymentGrid.intensityGPerKwh} g/kWh
-                        </div>
+                  {/* Comparisons - show on deployment grid */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                    <div style={{ padding: "0.75rem", background: "rgba(0,0,0,0.3)", borderRadius: 8, display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                      <span style={{ fontSize: "1.25rem" }}>☕</span>
+                      <div>
+                        <div style={{ fontSize: "0.875rem" }}>Microwave: <strong style={{ color: C.moss }}>{fmtTime(comparisons.microwaveSeconds)}</strong></div>
+                        <div style={{ fontSize: "0.75rem", color: C.muted }}>on {grid.name} grid</div>
                       </div>
                     </div>
-                  </Card>
-
-                  {/* Breakdown Card */}
-                  <Card>
-                    <h3 style={{ 
-                      fontSize: '0.875rem',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                      color: COLORS.moss,
-                      marginBottom: '1rem',
-                      fontWeight: 600,
-                    }}>
-                      Component Breakdown
-                    </h3>
-                    
-                    <table style={{ width: '100%', fontSize: '0.875rem', borderCollapse: 'collapse' }}>
-                      <tbody>
-                        {[
-                          { label: 'GPU energy', value: result.components.gpuOperational.co2Grams },
-                          { label: 'Server infrastructure', value: result.components.serverOperational.co2Grams },
-                          { label: 'Datacenter overhead', value: result.components.datacenterOverhead.co2Grams },
-                          { label: 'Hardware embodied', value: result.components.embodied.co2Grams },
-                          ...(includeTraining ? [{ label: 'Training CO₂', value: result.components.trainingAmortised.co2Grams }] : []),
-                        ].map((item, i, arr) => (
-                          <tr key={item.label} style={{
-                            borderBottom: i < arr.length - 1 ? `1px solid ${COLORS.border}` : 'none',
-                          }}>
-                            <td style={{ padding: '0.75rem 0', color: COLORS.muted }}>{item.label}</td>
-                            <td style={{ padding: '0.75rem 0', textAlign: 'right', fontFamily: FONTS.mono }}>
-                              {item.value.toFixed(4)}
-                            </td>
-                          </tr>
-                        ))}
-                        <tr style={{ fontWeight: 'bold' }}>
-                          <td style={{ 
-                            padding: '1rem 0', 
-                            borderTop: `2px solid ${COLORS.moss}`,
-                            color: COLORS.peak,
-                          }}>
-                            Total
-                          </td>
-                          <td style={{ 
-                            padding: '1rem 0', 
-                            borderTop: `2px solid ${COLORS.moss}`,
-                            textAlign: 'right', 
-                            color: COLORS.moss, 
-                            fontSize: '1.125rem',
-                            fontFamily: FONTS.mono,
-                          }}>
-                            {result.totalCO2Grams.toFixed(4)}
+                    <div style={{ padding: "0.75rem", background: "rgba(0,0,0,0.3)", borderRadius: 8, display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                      <span style={{ fontSize: "1.25rem" }}>💡</span>
+                      <div>
+                        <div style={{ fontSize: "0.875rem" }}>LED bulb: <strong style={{ color: C.moss }}>{fmtTime(comparisons.ledBulbSeconds)}</strong></div>
+                        <div style={{ fontSize: "0.75rem", color: C.muted }}>on {grid.name} grid</div>
+                      </div>
+                    </div>
+                    <div style={{ padding: "0.75rem", background: "rgba(0,0,0,0.3)", borderRadius: 8, display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                      <span style={{ fontSize: "1.25rem" }}>📱</span>
+                      <div style={{ fontSize: "0.875rem" }}>Phone charge: <strong style={{ color: C.moss }}>{comparisons.phoneChargePercent.toFixed(1)}%</strong></div>
+                    </div>
+                    <div style={{ padding: "0.75rem", background: "rgba(0,0,0,0.3)", borderRadius: 8, display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                      <span style={{ fontSize: "1.25rem" }}>🚗</span>
+                      <div style={{ fontSize: "0.875rem" }}>Driving: <strong style={{ color: C.moss }}>{(comparisons.carKm * 1000).toFixed(1)} m</strong></div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Breakdown */}
+                <div style={{ background: C.card, borderRadius: 12, padding: "1.5rem", border: `1px solid ${C.border}` }}>
+                  <h3 style={{ marginTop: 0, color: C.moss, fontSize: "0.875rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>Component Breakdown</h3>
+                  
+                  <table style={{ width: "100%", fontSize: "0.875rem", borderCollapse: "collapse" }}>
+                    <tbody>
+                      {[
+                        { label: "GPU energy", value: result.components.gpuOperational.co2Grams },
+                        { label: "Server infrastructure", value: result.components.serverOperational.co2Grams },
+                        { label: "Datacenter overhead", value: result.components.datacenterOverhead.co2Grams },
+                        { label: "Hardware embodied", value: result.components.embodied.co2Grams },
+                        ...(includeTraining ? [{ label: "Training CO₂", value: result.components.trainingAmortised.co2Grams }] : []),
+                      ].map((item, i, arr) => (
+                        <tr key={item.label} style={{ borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : "none" }}>
+                          <td style={{ padding: "0.5rem 0", color: C.muted }}>{item.label}</td>
+                          <td style={{ padding: "0.5rem 0", textAlign: "right", fontFamily: "monospace" }}>
+                            {item.value < 0.01 ? `${(item.value * 1000).toFixed(1)} mg` : `${item.value.toFixed(4)} g`}
                           </td>
                         </tr>
-                      </tbody>
-                    </table>
-                  </Card>
-
-                  {/* Comparisons Card */}
-                  <Card>
-                    <h3 style={{ 
-                      fontSize: '0.875rem',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                      color: COLORS.moss,
-                      marginBottom: '1rem',
-                      fontWeight: 600,
-                    }}>
-                      Everyday Equivalent
-                    </h3>
-                    
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                      {[
-                        { icon: '☕', label: 'Microwave', value: fmtTime(comparisons.microwaveSeconds), sub: referenceGrid.name },
-                        { icon: '💡', label: 'LED bulb', value: fmtTime(comparisons.ledBulbSeconds), sub: referenceGrid.name },
-                        { icon: '🚗', label: 'Car', value: `${comparisons.carKm.toFixed(3)} km`, sub: null },
-                        { icon: '📱', label: 'Phone', value: `${comparisons.phoneChargePercent.toFixed(2)}%`, sub: null },
-                      ].map((item) => (
-                        <div key={item.label} style={{
-                          padding: '1rem',
-                          background: 'rgba(10, 10, 10, 0.6)',
-                          borderRadius: RADIUS.sm,
-                          border: `1px solid ${COLORS.border}`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.75rem',
-                        }}>
-                          <span style={{ fontSize: '1.5rem' }}>{item.icon}</span>
-                          <div>
-                            <div style={{ fontSize: '0.875rem', color: COLORS.peak }}>
-                              {item.label}: <strong style={{ color: COLORS.moss }}>{item.value}</strong>
-                            </div>
-                            {item.sub && (
-                              <div style={{ fontSize: '0.75rem', color: COLORS.muted, marginTop: '0.25rem' }}>
-                                ({item.sub})
-                              </div>
-                            )}
-                          </div>
-                        </div>
                       ))}
-                    </div>
-                  </Card>
-                </Stack>
-              )}
-            </div>
+                      <tr style={{ fontWeight: "bold" }}>
+                        <td style={{ padding: "0.75rem 0", borderTop: `2px solid ${C.moss}`, color: C.peak }}>Total</td>
+                        <td style={{ padding: "0.75rem 0", borderTop: `2px solid ${C.moss}`, textAlign: "right", color: C.moss, fontSize: "1.125rem" }}>
+                          {result.totalCO2Grams < 1 
+                            ? `${(result.totalCO2Grams * 1000).toFixed(1)} mg`
+                            : `${result.totalCO2Grams.toFixed(2)} g`
+                          }
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                
+                {/* Dev Mode Code */}
+                {devMode && (
+                  <div style={{ background: C.card, borderRadius: 12, padding: "1.5rem", border: `1px solid ${C.border}` }}>
+                    <h3 style={{ marginTop: 0, color: C.moss, fontSize: "0.875rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Code Snippet
+                    </h3>
+                    <pre style={{ 
+                      background: "#000", 
+                      padding: "1rem", 
+                      borderRadius: 8, 
+                      overflow: "auto",
+                      fontSize: "0.75rem",
+                      lineHeight: 1.5,
+                    }}>
+                      <code style={{ color: "#52B788" }}>{codeSnippet}</code>
+                    </pre>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(codeSnippet)}
+                      style={{
+                        marginTop: "0.5rem",
+                        background: "transparent",
+                        border: `1px solid ${C.moss}`,
+                        color: C.moss,
+                        padding: "0.5rem 1rem",
+                        borderRadius: 6,
+                        cursor: "pointer",
+                        fontSize: "0.875rem",
+                      }}
+                    >
+                      Copy to clipboard
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        </Stack>
-      </Container>
-
-      {/* Footer */}
-      <footer style={{
-        borderTop: `1px solid ${COLORS.border}`,
-        padding: '2rem 0',
-        marginTop: 'auto',
-      }}>
-        <Container>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            fontSize: '0.875rem',
-            color: COLORS.muted,
-          }}>
-            <span>© 2025 Berget AI. All rights reserved.</span>
-            <span>Methodology based on MLCommons Power Benchmark</span>
-          </div>
-        </Container>
-      </footer>
+        </div>
+      </div>
     </div>
   );
 }
