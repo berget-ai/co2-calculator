@@ -1,402 +1,705 @@
 import { useState, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   calculateInference,
   calculateComparisons,
   fmtTime,
-  fmtNumber,
   MODEL_PROFILES,
   HARDWARE_CONFIGS,
   GRID_REGIONS,
-  getModelsByCategory,
   getConcurrencyFromTrafficPattern,
 } from "@berget/co2-calculator";
-import { Slider } from "@/components/ui/slider";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
-// Provider presets
-const PRESETS = {
-  "american-cloud": {
-    name: "American Cloud Provider",
-    description: "New hardware, average US grid",
-    hardware: "h100",
-    grid: "us-average",
-    icon: "🇺🇸",
-  },
-  "berget-ai": {
-    name: "Berget AI",
-    description: "Refurbished hardware, Swedish grid",
-    hardware: "h200",
-    grid: "sweden",
-    icon: "🇸🇪",
-  },
-  "european-green": {
-    name: "European Green",
-    description: "Efficient hardware, French nuclear",
-    hardware: "mi300x",
-    grid: "france",
-    icon: "🇫🇷",
-  },
-  custom: {
-    name: "Custom",
-    description: "Configure everything",
-    hardware: "h200",
-    grid: "sweden",
-    icon: "⚙️",
-  },
-};
-
-// Colors
+// ─── Design Tokens ───
 const C = {
   night: "#0A0A0A",
-  slate: "#1A1A1A",
+  slate: "#141414",
   moss: "#52B788",
+  mossDim: "rgba(82,183,136,0.15)",
   cloud: "#E5DDD5",
   peak: "#FFFFFF",
-  muted: "rgba(255,255,255,0.6)",
-  border: "rgba(255,255,255,0.1)",
-  card: "rgba(26,26,26,0.6)",
+  muted: "rgba(255,255,255,0.5)",
+  border: "rgba(255,255,255,0.08)",
+  card: "rgba(255,255,255,0.03)",
+  danger: "#FF6B6B",
 };
 
+// ─── Model Categories ───
+const MODEL_CATEGORIES = {
+  small: {
+    label: "Small & Fast",
+    description: "Quick responses, everyday tasks",
+    icon: "⚡",
+    models: [
+      { id: "meta-llama/Llama-3.1-8B-Instruct", name: "Llama 3.1 8B", tokens: "8B" },
+      { id: "mistralai/Mistral-Small-3.2-24B-Instruct-2506", name: "Mistral Small 24B", tokens: "24B" },
+    ],
+    defaultModel: "meta-llama/Llama-3.1-8B-Instruct",
+    responseTime: 0.8,
+  },
+  large: {
+    label: "Large & Reasoning",
+    description: "Complex reasoning, coding, analysis",
+    icon: "🧠",
+    models: [
+      { id: "meta-llama/Llama-3.3-70B-Instruct", name: "Llama 3.3 70B", tokens: "70B" },
+      { id: "moonshotai/Kimi-K2.6", name: "Kimi K2.6", tokens: "1.1T" },
+    ],
+    defaultModel: "meta-llama/Llama-3.3-70B-Instruct",
+    responseTime: 3.5,
+  },
+};
+
+// ─── Providers ───
+const PROVIDERS = {
+  american: {
+    name: "American Cloud",
+    flag: "🇺🇸",
+    hardware: "h100",
+    grid: "us-average",
+    trainingLocation: "USA",
+    hardwareType: "new",
+    color: C.danger,
+  },
+  berget: {
+    name: "Berget AI",
+    flag: "🇸🇪",
+    hardware: "h200",
+    grid: "sweden",
+    trainingLocation: "China",
+    hardwareType: "refurbished",
+    color: C.moss,
+  },
+};
+
+// ─── Comparison Bar ───
+function ComparisonBar({ label, value1, value2, unit, color1 = C.danger, color2 = C.moss }: {
+  label: string;
+  value1: number;
+  value2: number;
+  unit: string;
+  color1?: string;
+  color2?: string;
+}) {
+  const max = Math.max(value1, value2);
+  const pct1 = (value1 / max) * 100;
+  const pct2 = (value2 / max) * 100;
+  const savings = ((value1 - value2) / value1) * 100;
+
+  return (
+    <div style={{ marginBottom: "1.5rem" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem", fontSize: "0.875rem" }}>
+        <span style={{ color: C.muted }}>{label}</span>
+        <span style={{ color: savings > 0 ? C.moss : C.peak, fontWeight: 600 }}>
+          {savings > 0 ? `-${savings.toFixed(0)}%` : "Same"}
+        </span>
+      </div>
+      <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", marginBottom: "0.25rem" }}>
+            <span style={{ color: color1 }}>🇺🇸 {value1.toFixed(2)} {unit}</span>
+          </div>
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${pct1}%` }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            style={{ height: 8, background: color1, borderRadius: 4 }}
+          />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", marginBottom: "0.25rem" }}>
+            <span style={{ color: color2 }}>🇸🇪 {value2.toFixed(2)} {unit}</span>
+          </div>
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${pct2}%` }}
+            transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
+            style={{ height: 8, background: color2, borderRadius: 4 }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── CO₂ Display ───
+function CO2Display({ value, label, delay = 0 }: { value: number; label: string; delay?: number }) {
+  const isMg = value < 1;
+  const displayValue = isMg ? (value * 1000).toFixed(1) : value.toFixed(2);
+  const unit = isMg ? "mg" : "g";
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay }}
+      style={{ textAlign: "center" }}
+    >
+      <motion.div
+        key={value}
+        initial={{ scale: 0.8 }}
+        animate={{ scale: 1 }}
+        transition={{ type: "spring", stiffness: 200 }}
+        style={{ fontSize: "3rem", fontWeight: 700, color: C.moss, fontFamily: "monospace" }}
+      >
+        {displayValue}<span style={{ fontSize: "1.5rem" }}>{unit}</span>
+      </motion.div>
+      <div style={{ fontSize: "0.875rem", color: C.muted, marginTop: "0.5rem" }}>{label}</div>
+    </motion.div>
+  );
+}
+
+// ─── Equivalents ───
+function Equivalents({ co2Grams, grid }: { co2Grams: number; grid: typeof GRID_REGIONS[keyof typeof GRID_REGIONS] }) {
+  const comps = useMemo(() => calculateComparisons(co2Grams, grid), [co2Grams, grid]);
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+      {[
+        { icon: "☕", label: "Microwave", value: fmtTime(comps.microwaveSeconds) },
+        { icon: "💡", label: "LED bulb", value: fmtTime(comps.ledBulbSeconds) },
+        { icon: "📱", label: "Phone charge", value: `${comps.phoneChargePercent.toFixed(1)}%` },
+        { icon: "🚗", label: "Driving", value: `${(comps.carKm * 1000).toFixed(0)} m` },
+      ].map((item, i) => (
+        <motion.div
+          key={item.label}
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: i * 0.1 }}
+          style={{
+            padding: "1rem",
+            background: C.card,
+            borderRadius: 12,
+            border: `1px solid ${C.border}`,
+            display: "flex",
+            alignItems: "center",
+            gap: "0.75rem",
+          }}
+        >
+          <span style={{ fontSize: "1.5rem" }}>{item.icon}</span>
+          <div>
+            <div style={{ fontSize: "0.875rem", color: C.peak }}>
+              {item.label}: <strong style={{ color: C.moss }}>{item.value}</strong>
+            </div>
+            <div style={{ fontSize: "0.75rem", color: C.muted }}>on {grid.name} grid</div>
+          </div>
+        </motion.div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Main Wizard ───
 export function CO2Calculator() {
-  // Mode
-  const [devMode, setDevMode] = useState(false);
-  const [preset, setPreset] = useState<keyof typeof PRESETS>("berget-ai");
-  
-  // State
-  const [modelId, setModelId] = useState("meta-llama/Llama-3.1-8B-Instruct");
-  const [hardwareKey, setHardwareKey] = useState("h200");
-  const [gridKey, setGridKey] = useState("sweden");
-  const [inputTokens, setInputTokens] = useState(800);
-  const [outputTokens, setOutputTokens] = useState(400);
-  const [hourOfDay, setHourOfDay] = useState(14);
-  const [includeTraining, setIncludeTraining] = useState(true);
-  
-  const concurrency = getConcurrencyFromTrafficPattern(hourOfDay);
-  
-  const model = MODEL_PROFILES[modelId];
-  const hardware = HARDWARE_CONFIGS[hardwareKey];
-  const grid = GRID_REGIONS[gridKey];
-  
-  const result = useMemo(() => {
-    if (!model || !hardware || !grid) return null;
+  const [step, setStep] = useState(1);
+  const [modelCategory, setModelCategory] = useState<"small" | "large">("small");
+  const [selectedModel, setSelectedModel] = useState(MODEL_CATEGORIES.small.defaultModel);
+  const [region, setRegion] = useState("us-average");
+
+  // Calculate for American provider
+  const americanResult = useMemo(() => {
+    const model = MODEL_PROFILES[selectedModel];
+    const hw = HARDWARE_CONFIGS[PROVIDERS.american.hardware];
+    const grid = GRID_REGIONS[PROVIDERS.american.grid];
+    if (!model || !hw || !grid) return null;
+
     return calculateInference({
       modelProfile: model,
-      hardware,
+      hardware: hw,
       deploymentGrid: grid,
-      referenceGrid: grid, // Same grid for simplicity
-      measuredResponseTimeSeconds: model.defaultResponseTimeSeconds,
-      inputTokens,
-      outputTokens,
-      concurrency,
-      hourOfDay,
-      includeTraining,
-      lifetimeQueries: 1_000_000_000,
+      referenceGrid: grid,
+      measuredResponseTimeSeconds: modelCategory === "small" ? 0.8 : 3.5,
+      inputTokens: model.defaultInputTokens,
+      outputTokens: model.defaultOutputTokens,
+      concurrency: getConcurrencyFromTrafficPattern(14),
+      hourOfDay: 14,
+      includeTraining: true,
+      lifetimeQueries: 100_000_000,
     });
-  }, [model, hardware, grid, inputTokens, outputTokens, concurrency, hourOfDay, includeTraining]);
-  
-  const comparisons = useMemo(() => {
-    if (!result) return null;
-    return calculateComparisons(result.totalCO2Grams, grid);
-  }, [result, grid]);
-  
-  // Apply preset
-  const applyPreset = (key: keyof typeof PRESETS) => {
-    const p = PRESETS[key];
-    setPreset(key);
-    if (key !== "custom") {
-      setHardwareKey(p.hardware);
-      setGridKey(p.grid);
-    }
-  };
-  
-  // Generate code snippet
-  const codeSnippet = useMemo(() => {
-    if (!model || !hardware || !grid) return "";
-    return `import { calculateInference } from "@berget/co2-calculator";
+  }, [selectedModel, modelCategory]);
 
-const result = calculateInference({
-  modelProfile: MODEL_PROFILES["${modelId}"],
-  hardware: HARDWARE_CONFIGS["${hardwareKey}"],
-  deploymentGrid: GRID_REGIONS["${gridKey}"],
-  measuredResponseTimeSeconds: ${model.defaultResponseTimeSeconds},
-  inputTokens: ${inputTokens},
-  outputTokens: ${outputTokens},
-  concurrency: ${concurrency},
-  hourOfDay: ${hourOfDay},
-  includeTraining: ${includeTraining},
-  lifetimeQueries: 1_000_000_000,
-});
+  // Calculate for Berget
+  const bergetResult = useMemo(() => {
+    const model = MODEL_PROFILES[selectedModel];
+    const hw = HARDWARE_CONFIGS[PROVIDERS.berget.hardware];
+    const grid = GRID_REGIONS[PROVIDERS.berget.grid];
+    if (!model || !hw || !grid) return null;
 
-// result.totalCO2Grams = ${result?.totalCO2Grams.toFixed(4) ?? "..."}`;
-  }, [modelId, hardwareKey, gridKey, inputTokens, outputTokens, concurrency, hourOfDay, includeTraining, model, result]);
-  
-  const modelsByCategory = getModelsByCategory();
-  
+    return calculateInference({
+      modelProfile: model,
+      hardware: hw,
+      deploymentGrid: grid,
+      referenceGrid: grid,
+      measuredResponseTimeSeconds: modelCategory === "small" ? 0.8 : 3.5,
+      inputTokens: model.defaultInputTokens,
+      outputTokens: model.defaultOutputTokens,
+      concurrency: getConcurrencyFromTrafficPattern(14),
+      hourOfDay: 14,
+      includeTraining: true,
+      lifetimeQueries: 100_000_000,
+    });
+  }, [selectedModel, modelCategory]);
+
+  // Calculate for selected region (step 2)
+  const regionResult = useMemo(() => {
+    const model = MODEL_PROFILES[selectedModel];
+    const hw = HARDWARE_CONFIGS[PROVIDERS.american.hardware];
+    const grid = GRID_REGIONS[region];
+    if (!model || !hw || !grid) return null;
+
+    return calculateInference({
+      modelProfile: model,
+      hardware: hw,
+      deploymentGrid: grid,
+      referenceGrid: grid,
+      measuredResponseTimeSeconds: modelCategory === "small" ? 0.8 : 3.5,
+      inputTokens: model.defaultInputTokens,
+      outputTokens: model.defaultOutputTokens,
+      concurrency: getConcurrencyFromTrafficPattern(14),
+      hourOfDay: 14,
+      includeTraining: true,
+      lifetimeQueries: 100_000_000,
+    });
+  }, [selectedModel, modelCategory, region]);
+
+  const category = MODEL_CATEGORIES[modelCategory];
+
   return (
     <div style={{ minHeight: "100vh", background: C.night, color: C.cloud, fontFamily: "system-ui, sans-serif" }}>
       {/* Header */}
-      <header style={{ borderBottom: `1px solid ${C.border}`, padding: "1rem 0" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 1rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+      <header style={{ borderBottom: `1px solid ${C.border}`, padding: "1.5rem 0" }}>
+        <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 1rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
             <span style={{ fontSize: "1.5rem" }}>🌿</span>
-            <span style={{ fontWeight: 600, color: C.peak }}>Berget AI CO₂ Calculator</span>
+            <div>
+              <div style={{ fontWeight: 600, color: C.peak }}>Berget AI</div>
+              <div style={{ fontSize: "0.75rem", color: C.muted }}>CO₂ Impact Calculator</div>
+            </div>
           </div>
-          <button
-            onClick={() => setDevMode(!devMode)}
-            style={{
-              background: devMode ? C.moss : "transparent",
-              color: devMode ? C.night : C.moss,
-              border: `1px solid ${C.moss}`,
-              padding: "0.5rem 1rem",
-              borderRadius: 8,
-              cursor: "pointer",
-              fontSize: "0.875rem",
-            }}
-          >
-            {devMode ? "✓ Dev Mode" : "Dev Mode"}
-          </button>
-        </div>
-      </header>
-      
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "2rem 1rem" }}>
-        {/* Presets */}
-        <div style={{ marginBottom: "2rem" }}>
-          <h2 style={{ fontSize: "0.875rem", textTransform: "uppercase", letterSpacing: "0.05em", color: C.moss, marginBottom: "1rem" }}>
-            Provider Preset
-          </h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem" }}>
-            {Object.entries(PRESETS).map(([key, p]) => (
-              <button
-                key={key}
-                onClick={() => applyPreset(key as keyof typeof PRESETS)}
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            {[1, 2, 3].map((s) => (
+              <div
+                key={s}
                 style={{
-                  background: preset === key ? "rgba(82,183,136,0.2)" : C.card,
-                  border: `1px solid ${preset === key ? C.moss : C.border}`,
-                  borderRadius: 12,
-                  padding: "1rem",
-                  cursor: "pointer",
-                  textAlign: "left",
-                  color: C.cloud,
+                  width: 32,
+                  height: 32,
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "0.875rem",
+                  fontWeight: 600,
+                  background: step === s ? C.moss : step > s ? "rgba(82,183,136,0.3)" : C.card,
+                  color: step >= s ? C.night : C.muted,
+                  border: `2px solid ${step >= s ? C.moss : C.border}`,
                 }}
               >
-                <div style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>{p.icon}</div>
-                <div style={{ fontWeight: 600, color: C.peak }}>{p.name}</div>
-                <div style={{ fontSize: "0.875rem", color: C.muted }}>{p.description}</div>
-              </button>
+                {step > s ? "✓" : s}
+              </div>
             ))}
           </div>
         </div>
-        
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2rem" }}>
-          {/* Controls */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-            <div style={{ background: C.card, borderRadius: 12, padding: "1.5rem", border: `1px solid ${C.border}` }}>
-              <h3 style={{ marginTop: 0, color: C.moss }}>Model & Workload</h3>
-              
-              <Select value={modelId} onValueChange={(v) => {
-                setModelId(v);
-                const m = MODEL_PROFILES[v];
-                if (m) {
-                  setInputTokens(m.defaultInputTokens);
-                  setOutputTokens(m.defaultOutputTokens);
-                }
-              }}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {modelsByCategory.text.map((m) => (
-                    <SelectItem key={m.modelId} value={m.modelId}>{m.displayName}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              
-              <div style={{ marginTop: "1rem" }}>
-                <Slider label="Input Tokens" value={inputTokens} onValueChange={setInputTokens} min={1} max={32000} step={64} displayValue={String(inputTokens)} />
+      </header>
+
+      <main style={{ maxWidth: 800, margin: "0 auto", padding: "2rem 1rem" }}>
+        <AnimatePresence mode="wait">
+          {/* ─── STEP 1: Model Selection ─── */}
+          {step === 1 && (
+            <motion.div
+              key="step1"
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -50 }}
+              transition={{ duration: 0.4 }}
+            >
+              <h1 style={{ fontSize: "2rem", fontWeight: 700, color: C.peak, marginBottom: "0.5rem" }}>
+                What are you building?
+              </h1>
+              <p style={{ color: C.muted, marginBottom: "2rem" }}>
+                Choose the type of AI workload to see its carbon impact
+              </p>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "2rem" }}>
+                {Object.entries(MODEL_CATEGORIES).map(([key, cat]) => (
+                  <motion.button
+                    key={key}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => {
+                      setModelCategory(key as "small" | "large");
+                      setSelectedModel(cat.defaultModel);
+                    }}
+                    style={{
+                      padding: "2rem",
+                      borderRadius: 16,
+                      border: `2px solid ${modelCategory === key ? C.moss : C.border}`,
+                      background: modelCategory === key ? C.mossDim : C.card,
+                      cursor: "pointer",
+                      textAlign: "left",
+                      color: C.cloud,
+                    }}
+                  >
+                    <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>{cat.icon}</div>
+                    <div style={{ fontSize: "1.25rem", fontWeight: 600, color: C.peak, marginBottom: "0.5rem" }}>
+                      {cat.label}
+                    </div>
+                    <div style={{ fontSize: "0.875rem", color: C.muted }}>{cat.description}</div>
+                  </motion.button>
+                ))}
               </div>
-              <div style={{ marginTop: "1rem" }}>
-                <Slider label="Output Tokens" value={outputTokens} onValueChange={setOutputTokens} min={1} max={8000} step={32} displayValue={String(outputTokens)} />
-              </div>
-            </div>
-            
-            <div style={{ background: C.card, borderRadius: 12, padding: "1.5rem", border: `1px solid ${C.border}` }}>
-              <h3 style={{ marginTop: 0, color: C.moss }}>Infrastructure</h3>
-              
-              {preset === "custom" && (
-                <>
-                  <Select value={hardwareKey} onValueChange={setHardwareKey}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(HARDWARE_CONFIGS).map(([k, h]) => (
-                        <SelectItem key={k} value={k}>{h.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  
-                  <div style={{ marginTop: "1rem" }}>
-                    <Select value={gridKey} onValueChange={setGridKey}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(GRID_REGIONS).map(([k, g]) => (
-                          <SelectItem key={k} value={k}>{g.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </>
-              )}
-              
-              {preset !== "custom" && (
-                <div style={{ padding: "0.75rem", background: "rgba(82,183,136,0.1)", borderRadius: 8, marginBottom: "1rem" }}>
-                  <div style={{ fontSize: "0.875rem", color: C.muted }}>
-                    {hardware?.name} · {grid?.name} ({grid?.intensityGPerKwh} g/kWh)
-                  </div>
+
+              {/* Model selector */}
+              <div style={{ background: C.card, borderRadius: 12, padding: "1.5rem", border: `1px solid ${C.border}`, marginBottom: "2rem" }}>
+                <div style={{ fontSize: "0.875rem", color: C.muted, marginBottom: "0.75rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Select Model
                 </div>
-              )}
-              
-              <div style={{ marginTop: "1rem" }}>
-                <Slider label="Hour of Day" value={hourOfDay} onValueChange={setHourOfDay} min={0} max={23} step={1} displayValue={`${String(hourOfDay).padStart(2, "0")}:00`} />
-              </div>
-              
-              <div style={{ marginTop: "0.5rem", fontSize: "0.875rem", color: C.muted }}>
-                Estimated load: <span style={{ color: C.moss, fontWeight: 600 }}>{concurrency} concurrent requests</span>
-              </div>
-              
-              <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "1rem", cursor: "pointer", fontSize: "0.875rem" }}>
-                <input type="checkbox" checked={includeTraining} onChange={(e) => setIncludeTraining(e.target.checked)} />
-                Include training CO₂
-              </label>
-            </div>
-          </div>
-          
-          {/* Results */}
-          <div>
-            {result && comparisons && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-                {/* Main Result */}
-                <div style={{ background: "linear-gradient(135deg, rgba(82,183,136,0.1), rgba(26,26,26,0.4))", borderRadius: 12, padding: "1.5rem", border: `1px solid rgba(82,183,136,0.3)` }}>
-                  <h3 style={{ marginTop: 0, color: C.moss }}>Carbon Impact</h3>
-                  
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1.5rem" }}>
-                    <div style={{ textAlign: "center", padding: "1rem", background: "rgba(0,0,0,0.3)", borderRadius: 8 }}>
-                      <div style={{ fontSize: "2rem", fontWeight: 700, color: C.moss }}>
-                        {result.totalCO2Grams < 1 
-                          ? `${(result.totalCO2Grams * 1000).toFixed(1)} mg`
-                          : `${result.totalCO2Grams.toFixed(2)} g`
-                        }
-                      </div>
-                      <div style={{ fontSize: "0.75rem", color: C.muted }}>CO₂e per request</div>
-                    </div>
-                    <div style={{ textAlign: "center", padding: "1rem", background: "rgba(0,0,0,0.3)", borderRadius: 8 }}>
-                      <div style={{ fontSize: "2rem", fontWeight: 700, color: C.moss }}>
-                        {((result.totalEnergyKwh || 0) * 1000).toFixed(1)}
-                      </div>
-                      <div style={{ fontSize: "0.75rem", color: C.muted }}>Wh energy</div>
-                    </div>
-                  </div>
-                  
-                  {/* Comparisons - show on deployment grid */}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
-                    <div style={{ padding: "0.75rem", background: "rgba(0,0,0,0.3)", borderRadius: 8, display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                      <span style={{ fontSize: "1.25rem" }}>☕</span>
-                      <div>
-                        <div style={{ fontSize: "0.875rem" }}>Microwave: <strong style={{ color: C.moss }}>{fmtTime(comparisons.microwaveSeconds)}</strong></div>
-                        <div style={{ fontSize: "0.75rem", color: C.muted }}>on {grid.name} grid</div>
-                      </div>
-                    </div>
-                    <div style={{ padding: "0.75rem", background: "rgba(0,0,0,0.3)", borderRadius: 8, display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                      <span style={{ fontSize: "1.25rem" }}>💡</span>
-                      <div>
-                        <div style={{ fontSize: "0.875rem" }}>LED bulb: <strong style={{ color: C.moss }}>{fmtTime(comparisons.ledBulbSeconds)}</strong></div>
-                        <div style={{ fontSize: "0.75rem", color: C.muted }}>on {grid.name} grid</div>
-                      </div>
-                    </div>
-                    <div style={{ padding: "0.75rem", background: "rgba(0,0,0,0.3)", borderRadius: 8, display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                      <span style={{ fontSize: "1.25rem" }}>📱</span>
-                      <div style={{ fontSize: "0.875rem" }}>Phone charge: <strong style={{ color: C.moss }}>{comparisons.phoneChargePercent.toFixed(1)}%</strong></div>
-                    </div>
-                    <div style={{ padding: "0.75rem", background: "rgba(0,0,0,0.3)", borderRadius: 8, display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                      <span style={{ fontSize: "1.25rem" }}>🚗</span>
-                      <div style={{ fontSize: "0.875rem" }}>Driving: <strong style={{ color: C.moss }}>{(comparisons.carKm * 1000).toFixed(1)} m</strong></div>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Breakdown */}
-                <div style={{ background: C.card, borderRadius: 12, padding: "1.5rem", border: `1px solid ${C.border}` }}>
-                  <h3 style={{ marginTop: 0, color: C.moss, fontSize: "0.875rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>Component Breakdown</h3>
-                  
-                  <table style={{ width: "100%", fontSize: "0.875rem", borderCollapse: "collapse" }}>
-                    <tbody>
-                      {[
-                        { label: "GPU energy", value: result.components.gpuOperational.co2Grams },
-                        { label: "Server infrastructure", value: result.components.serverOperational.co2Grams },
-                        { label: "Datacenter overhead", value: result.components.datacenterOverhead.co2Grams },
-                        { label: "Hardware embodied", value: result.components.embodied.co2Grams },
-                        ...(includeTraining ? [{ label: "Training CO₂", value: result.components.trainingAmortised.co2Grams }] : []),
-                      ].map((item, i, arr) => (
-                        <tr key={item.label} style={{ borderBottom: i < arr.length - 1 ? `1px solid ${C.border}` : "none" }}>
-                          <td style={{ padding: "0.5rem 0", color: C.muted }}>{item.label}</td>
-                          <td style={{ padding: "0.5rem 0", textAlign: "right", fontFamily: "monospace" }}>
-                            {item.value < 0.01 ? `${(item.value * 1000).toFixed(1)} mg` : `${item.value.toFixed(4)} g`}
-                          </td>
-                        </tr>
-                      ))}
-                      <tr style={{ fontWeight: "bold" }}>
-                        <td style={{ padding: "0.75rem 0", borderTop: `2px solid ${C.moss}`, color: C.peak }}>Total</td>
-                        <td style={{ padding: "0.75rem 0", borderTop: `2px solid ${C.moss}`, textAlign: "right", color: C.moss, fontSize: "1.125rem" }}>
-                          {result.totalCO2Grams < 1 
-                            ? `${(result.totalCO2Grams * 1000).toFixed(1)} mg`
-                            : `${result.totalCO2Grams.toFixed(2)} g`
-                          }
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-                
-                {/* Dev Mode Code */}
-                {devMode && (
-                  <div style={{ background: C.card, borderRadius: 12, padding: "1.5rem", border: `1px solid ${C.border}` }}>
-                    <h3 style={{ marginTop: 0, color: C.moss, fontSize: "0.875rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                      Code Snippet
-                    </h3>
-                    <pre style={{ 
-                      background: "#000", 
-                      padding: "1rem", 
-                      borderRadius: 8, 
-                      overflow: "auto",
-                      fontSize: "0.75rem",
-                      lineHeight: 1.5,
-                    }}>
-                      <code style={{ color: "#52B788" }}>{codeSnippet}</code>
-                    </pre>
+                <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+                  {category.models.map((m) => (
                     <button
-                      onClick={() => navigator.clipboard.writeText(codeSnippet)}
+                      key={m.id}
+                      onClick={() => setSelectedModel(m.id)}
                       style={{
-                        marginTop: "0.5rem",
-                        background: "transparent",
-                        border: `1px solid ${C.moss}`,
-                        color: C.moss,
-                        padding: "0.5rem 1rem",
-                        borderRadius: 6,
+                        padding: "0.75rem 1rem",
+                        borderRadius: 8,
+                        border: `1px solid ${selectedModel === m.id ? C.moss : C.border}`,
+                        background: selectedModel === m.id ? C.mossDim : "transparent",
+                        color: selectedModel === m.id ? C.moss : C.cloud,
                         cursor: "pointer",
                         fontSize: "0.875rem",
                       }}
                     >
-                      Copy to clipboard
+                      {m.name}
                     </button>
-                  </div>
-                )}
+                  ))}
+                </div>
               </div>
-            )}
-          </div>
-        </div>
-      </div>
+
+              {/* Baseline Result */}
+              {americanResult && (
+                <motion.div
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  style={{ background: C.card, borderRadius: 16, padding: "2rem", border: `1px solid ${C.border}` }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1.5rem", color: C.muted, fontSize: "0.875rem" }}>
+                    <span>🇺🇸</span>
+                    <span>Baseline: American Cloud Provider</span>
+                  </div>
+
+                  <CO2Display value={americanResult.totalCO2Grams} label="CO₂e per request" />
+
+                  <div style={{ marginTop: "2rem" }}>
+                    <Equivalents co2Grams={americanResult.totalCO2Grams} grid={GRID_REGIONS["us-average"]} />
+                  </div>
+                </motion.div>
+              )}
+
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setStep(2)}
+                style={{
+                  marginTop: "2rem",
+                  width: "100%",
+                  padding: "1rem",
+                  borderRadius: 12,
+                  background: C.moss,
+                  color: C.night,
+                  border: "none",
+                  fontSize: "1rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Compare Regions →
+              </motion.button>
+            </motion.div>
+          )}
+
+          {/* ─── STEP 2: Region Comparison ─── */}
+          {step === 2 && (
+            <motion.div
+              key="step2"
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -50 }}
+              transition={{ duration: 0.4 }}
+            >
+              <h1 style={{ fontSize: "2rem", fontWeight: 700, color: C.peak, marginBottom: "0.5rem" }}>
+                Where is it running?
+              </h1>
+              <p style={{ color: C.muted, marginBottom: "2rem" }}>
+                The same hardware produces very different emissions depending on the energy grid
+              </p>
+
+              {/* Region selector */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "0.75rem", marginBottom: "2rem" }}>
+                {Object.entries(GRID_REGIONS).map(([key, g]) => (
+                  <motion.button
+                    key={key}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setRegion(key)}
+                    style={{
+                      padding: "1rem",
+                      borderRadius: 12,
+                      border: `2px solid ${region === key ? C.moss : C.border}`,
+                      background: region === key ? C.mossDim : C.card,
+                      cursor: "pointer",
+                      textAlign: "center",
+                      color: C.cloud,
+                    }}
+                  >
+                    <div style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>
+                      {g.name === "Sweden" ? "🇸🇪" : g.name === "France" ? "🇫🇷" : g.name === "Germany" ? "🇩🇪" : g.name === "US Average" ? "🇺🇸" : "🌍"}
+                    </div>
+                    <div style={{ fontWeight: 600, color: C.peak, fontSize: "0.875rem" }}>{g.name}</div>
+                    <div style={{ fontSize: "0.75rem", color: C.muted, marginTop: "0.25rem" }}>{g.intensityGPerKwh} g/kWh</div>
+                  </motion.button>
+                ))}
+              </div>
+
+              {/* Comparison */}
+              {americanResult && regionResult && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  style={{ background: C.card, borderRadius: 16, padding: "2rem", border: `1px solid ${C.border}` }}
+                >
+                  <h3 style={{ marginTop: 0, color: C.moss, marginBottom: "1.5rem" }}>
+                    Impact of Energy Grid
+                  </h3>
+
+                  <ComparisonBar
+                    label="CO₂ per request"
+                    value1={americanResult.totalCO2Grams}
+                    value2={regionResult.totalCO2Grams}
+                    unit="g"
+                  />
+
+                  <div style={{ marginTop: "1.5rem", padding: "1rem", background: "rgba(82,183,136,0.1)", borderRadius: 8 }}>
+                    <div style={{ fontSize: "0.875rem", color: C.muted }}>
+                      {regionResult.totalCO2Grams < americanResult.totalCO2Grams
+                        ? `✓ ${GRID_REGIONS[region].name} produces ${((1 - regionResult.totalCO2Grams / americanResult.totalCO2Grams) * 100).toFixed(0)}% less CO₂ than US Average`
+                        : `⚠ ${GRID_REGIONS[region].name} produces ${((regionResult.totalCO2Grams / americanResult.totalCO2Grams - 1) * 100).toFixed(0)}% more CO₂ than US Average`
+                      }
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: "1.5rem" }}>
+                    <Equivalents co2Grams={regionResult.totalCO2Grams} grid={GRID_REGIONS[region]} />
+                  </div>
+                </motion.div>
+              )}
+
+              <div style={{ display: "flex", gap: "1rem", marginTop: "2rem" }}>
+                <button
+                  onClick={() => setStep(1)}
+                  style={{
+                    flex: 1,
+                    padding: "1rem",
+                    borderRadius: 12,
+                    background: "transparent",
+                    color: C.muted,
+                    border: `1px solid ${C.border}`,
+                    cursor: "pointer",
+                  }}
+                >
+                  ← Back
+                </button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setStep(3)}
+                  style={{
+                    flex: 2,
+                    padding: "1rem",
+                    borderRadius: 12,
+                    background: C.moss,
+                    color: C.night,
+                    border: "none",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  See Provider Comparison →
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ─── STEP 3: Provider Comparison ─── */}
+          {step === 3 && americanResult && bergetResult && (
+            <motion.div
+              key="step3"
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -50 }}
+              transition={{ duration: 0.4 }}
+            >
+              <h1 style={{ fontSize: "2rem", fontWeight: 700, color: C.peak, marginBottom: "0.5rem" }}>
+                The Full Picture
+              </h1>
+              <p style={{ color: C.muted, marginBottom: "2rem" }}>
+                See how provider choice affects every component of emissions
+              </p>
+
+              {/* Big comparison */}
+              <div style={{ background: C.card, borderRadius: 16, padding: "2rem", border: `1px solid ${C.border}`, marginBottom: "2rem" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2rem", marginBottom: "2rem" }}>
+                  {/* American */}
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>🇺🇸</div>
+                    <div style={{ fontWeight: 600, color: C.peak }}>American Cloud</div>
+                    <div style={{ fontSize: "0.875rem", color: C.muted }}>New H100 · US Grid</div>
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: "spring", delay: 0.2 }}
+                      style={{ fontSize: "2.5rem", fontWeight: 700, color: C.danger, marginTop: "1rem" }}
+                    >
+                      {americanResult.totalCO2Grams < 1
+                        ? `${(americanResult.totalCO2Grams * 1000).toFixed(1)} mg`
+                        : `${americanResult.totalCO2Grams.toFixed(2)} g`
+                      }
+                    </motion.div>
+                  </div>
+
+                  {/* Berget */}
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>🇸🇪</div>
+                    <div style={{ fontWeight: 600, color: C.peak }}>Berget AI</div>
+                    <div style={{ fontSize: "0.875rem", color: C.muted }}>Refurbished H200 · Swedish Grid</div>
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: "spring", delay: 0.4 }}
+                      style={{ fontSize: "2.5rem", fontWeight: 700, color: C.moss, marginTop: "1rem" }}
+                    >
+                      {bergetResult.totalCO2Grams < 1
+                        ? `${(bergetResult.totalCO2Grams * 1000).toFixed(1)} mg`
+                        : `${bergetResult.totalCO2Grams.toFixed(2)} g`
+                      }
+                    </motion.div>
+                  </div>
+                </div>
+
+                {/* Savings badge */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.6 }}
+                  style={{
+                    textAlign: "center",
+                    padding: "1.5rem",
+                    background: C.mossDim,
+                    borderRadius: 12,
+                    border: `1px solid ${C.moss}`,
+                  }}
+                >
+                  <div style={{ fontSize: "1.25rem", fontWeight: 700, color: C.moss }}>
+                    {((1 - bergetResult.totalCO2Grams / americanResult.totalCO2Grams) * 100).toFixed(0)}% lower emissions
+                  </div>
+                  <div style={{ fontSize: "0.875rem", color: C.muted, marginTop: "0.5rem" }}>
+                    Same model, same performance — radically different impact
+                  </div>
+                </motion.div>
+              </div>
+
+              {/* Component breakdown */}
+              <div style={{ background: C.card, borderRadius: 16, padding: "2rem", border: `1px solid ${C.border}` }}>
+                <h3 style={{ marginTop: 0, color: C.moss, marginBottom: "1.5rem" }}>
+                  What Drives the Difference?
+                </h3>
+
+                <ComparisonBar
+                  label="Grid Carbon Intensity"
+                  value1={GRID_REGIONS["us-average"].intensityGPerKwh}
+                  value2={GRID_REGIONS.sweden.intensityGPerKwh}
+                  unit="g/kWh"
+                />
+
+                <ComparisonBar
+                  label="Operational CO₂"
+                  value1={americanResult.components.gpuOperational.co2Grams + americanResult.components.serverOperational.co2Grams}
+                  value2={bergetResult.components.gpuOperational.co2Grams + bergetResult.components.serverOperational.co2Grams}
+                  unit="g"
+                />
+
+                <ComparisonBar
+                  label="Hardware Embodied"
+                  value1={americanResult.components.embodied.co2Grams}
+                  value2={bergetResult.components.embodied.co2Grams}
+                  unit="g"
+                />
+
+                <ComparisonBar
+                  label="Training Amortised"
+                  value1={americanResult.components.trainingAmortised.co2Grams}
+                  value2={bergetResult.components.trainingAmortised.co2Grams}
+                  unit="g"
+                />
+              </div>
+
+              {/* Why it matters */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.8 }}
+                style={{ marginTop: "2rem", background: C.card, borderRadius: 16, padding: "2rem", border: `1px solid ${C.border}` }}
+              >
+                <h3 style={{ marginTop: 0, color: C.peak }}>Why This Matters</h3>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginTop: "1rem" }}>
+                  {[
+                    { icon: "🔌", title: "Energy Mix", text: "Sweden's grid is 95% fossil-free vs US average at 60%" },
+                    { icon: "♻️", title: "Hardware", text: "Refurbished GPUs extend lifespan, reducing embodied emissions" },
+                    { icon: "🌍", title: "Training", text: "Open models trained in China vs proprietary models trained in US" },
+                    { icon: "📊", title: "Transparency", text: "Real-time metrics vs estimated averages" },
+                  ].map((item) => (
+                    <div key={item.title} style={{ padding: "1rem", background: "rgba(0,0,0,0.2)", borderRadius: 8 }}>
+                      <div style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>{item.icon}</div>
+                      <div style={{ fontWeight: 600, color: C.peak, fontSize: "0.875rem" }}>{item.title}</div>
+                      <div style={{ fontSize: "0.75rem", color: C.muted, marginTop: "0.25rem" }}>{item.text}</div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+
+              <div style={{ display: "flex", gap: "1rem", marginTop: "2rem" }}>
+                <button
+                  onClick={() => setStep(2)}
+                  style={{
+                    flex: 1,
+                    padding: "1rem",
+                    borderRadius: 12,
+                    background: "transparent",
+                    color: C.muted,
+                    border: `1px solid ${C.border}`,
+                    cursor: "pointer",
+                  }}
+                >
+                  ← Back
+                </button>
+                <button
+                  onClick={() => { setStep(1); setModelCategory("small"); setSelectedModel(MODEL_CATEGORIES.small.defaultModel); setRegion("us-average"); }}
+                  style={{
+                    flex: 1,
+                    padding: "1rem",
+                    borderRadius: 12,
+                    background: "transparent",
+                    color: C.moss,
+                    border: `1px solid ${C.moss}`,
+                    cursor: "pointer",
+                  }}
+                >
+                  Start Over ↺
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </main>
     </div>
   );
 }
