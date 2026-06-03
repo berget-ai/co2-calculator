@@ -10,35 +10,31 @@ import {
 } from "@berget/co2-calculator";
 
 // ─── Use Berget CSS Variables ───
-// These match @berget-ai/ui design system
 const C = {
-  // Backgrounds
   night: "var(--berget-background, #0A0A0A)",
-  slate: "var(--berget-card, rgba(26,26,26,0.4))",
-  
-  // Text
   peak: "var(--berget-foreground, #FFFFFF)",
   cloud: "var(--berget-foreground-alt, rgba(255,255,255,0.8))",
   muted: "var(--berget-muted-foreground, rgba(255,255,255,0.6))",
-  
-  // Brand colors
   moss: "var(--berget-secondary, #52B788)",
   mossDim: "var(--berget-secondary-hover, rgba(82,183,136,0.4))",
   lichen: "var(--berget-accent, #74C69D)",
   spruce: "var(--berget-brand-spruce, #2D6A4F)",
-  
-  // Surfaces
   card: "var(--berget-card, rgba(26,26,26,0.4))",
   ghost: "var(--berget-ghost, rgba(26,26,26,0.4))",
   ghostHover: "var(--berget-ghost-hover, rgba(26,26,26,0.8))",
-  
-  // Borders
   border: "var(--berget-border, #1A1A1A)",
   outline: "var(--berget-outline, rgba(82,183,136,0.4))",
-  
-  // Status
   danger: "var(--berget-destructive-foreground, #D1392E)",
   warning: "var(--berget-accent-2, #CFFF8B)",
+  fjord: "var(--berget-accent-3, #0F405A)",
+};
+
+// ─── Component Colors for the Progressive Footer ───
+const COMPONENT_COLORS = {
+  gpu: { bg: "#52B788", label: "GPU Inference", icon: "⚡" },
+  server: { bg: "#74C69D", label: "Server & DC", icon: "🏢" },
+  embodied: { bg: "#CFFF8B", label: "Hardware", icon: "🔧" },
+  training: { bg: "#3975D6", label: "Training", icon: "🎓" },
 };
 
 const MODEL_CATEGORIES = {
@@ -65,6 +61,12 @@ const MODEL_CATEGORIES = {
     responseTime: 3.5,
   },
 };
+
+function formatCO2(grams: number): string {
+  if (grams < 0.001) return `${(grams * 1000000).toFixed(1)} µg`;
+  if (grams < 1) return `${(grams * 1000).toFixed(1)} mg`;
+  return `${grams.toFixed(2)} g`;
+}
 
 function ComparisonBar({ label, value1, value2, unit }: {
   label: string;
@@ -142,6 +144,176 @@ function Equivalents({ co2Grams, grid }: { co2Grams: number; grid: typeof GRID_R
   );
 }
 
+// ─── Progressive Emissions Footer ───
+function EmissionsFooter({ 
+  step, 
+  result, 
+  region 
+}: { 
+  step: number; 
+  result: ReturnType<typeof calculateInference> | null;
+  region: string;
+}) {
+  if (!result) return null;
+
+  const components = [
+    { 
+      key: "gpu", 
+      value: result.components.gpuOperational.co2Grams, 
+      color: COMPONENT_COLORS.gpu.bg,
+      label: COMPONENT_COLORS.gpu.label,
+      step: 1,
+    },
+    { 
+      key: "server", 
+      value: result.components.serverOperational.co2Grams, 
+      color: COMPONENT_COLORS.server.bg,
+      label: COMPONENT_COLORS.server.label,
+      step: 2,
+    },
+    { 
+      key: "embodied", 
+      value: result.components.embodied.co2Grams, 
+      color: COMPONENT_COLORS.embodied.bg,
+      label: COMPONENT_COLORS.embodied.label,
+      step: 3,
+    },
+    { 
+      key: "training", 
+      value: result.components.trainingAmortised.co2Grams, 
+      color: COMPONENT_COLORS.training.bg,
+      label: COMPONENT_COLORS.training.label,
+      step: 3,
+    },
+  ];
+
+  const total = result.totalCO2Grams;
+  const visibleComponents = components.filter(c => c.step <= step);
+  const currentTotal = visibleComponents.reduce((sum, c) => sum + c.value, 0);
+
+  return (
+    <footer style={{
+      position: "fixed",
+      bottom: 0,
+      left: 0,
+      right: 0,
+      background: "rgba(10, 10, 10, 0.95)",
+      backdropFilter: "blur(10px)",
+      borderTop: `1px solid ${C.border}`,
+      padding: "1rem 0",
+      zIndex: 100,
+    }}>
+      <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 1rem" }}>
+        {/* Progress bar showing components */}
+        <div style={{ marginBottom: "0.75rem" }}>
+          <div style={{ 
+            display: "flex", 
+            height: 32, 
+            borderRadius: 8, 
+            overflow: "hidden",
+            background: C.ghost,
+            border: `1px solid ${C.border}`,
+          }}>
+            {components.map((comp) => {
+              const isVisible = comp.step <= step;
+              const width = (comp.value / total) * 100;
+              return (
+                <div
+                  key={comp.key}
+                  style={{
+                    width: `${width}%`,
+                    background: isVisible ? comp.color : "transparent",
+                    opacity: isVisible ? 1 : 0.1,
+                    transition: "all 0.5s ease",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "0.7rem",
+                    color: isVisible ? "#0A0A0A" : "transparent",
+                    fontWeight: 600,
+                    whiteSpace: "nowrap",
+                  }}
+                  title={`${comp.label}: ${formatCO2(comp.value)}`}
+                >
+                  {width > 8 && isVisible ? comp.label : ""}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Legend and totals */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
+          <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+            {components.map((comp) => {
+              const isVisible = comp.step <= step;
+              return (
+                <div 
+                  key={comp.key} 
+                  style={{ 
+                    display: "flex", 
+                    alignItems: "center", 
+                    gap: "0.4rem",
+                    opacity: isVisible ? 1 : 0.3,
+                    transition: "opacity 0.3s",
+                  }}
+                >
+                  <div style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: 2,
+                    background: comp.color,
+                  }} />
+                  <span style={{ fontSize: "0.75rem", color: isVisible ? C.cloud : C.muted }}>
+                    {comp.label}: <strong style={{ color: C.peak }}>{formatCO2(comp.value)}</strong>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: "0.75rem", color: C.muted }}>
+              {step < 3 ? "Building up..." : "Total per request"}
+            </div>
+            <div style={{ 
+              fontSize: "1.25rem", 
+              fontWeight: 700, 
+              color: step === 3 ? C.moss : C.peak,
+              fontFamily: "var(--berget-font-mono, 'DM Mono', monospace)",
+            }}>
+              {formatCO2(step === 3 ? total : currentTotal)}
+            </div>
+          </div>
+        </div>
+
+        {/* Formula explanation */}
+        <div style={{ 
+          marginTop: "0.75rem", 
+          paddingTop: "0.75rem", 
+          borderTop: `1px solid ${C.border}`,
+          fontSize: "0.7rem",
+          color: C.muted,
+          fontFamily: "var(--berget-font-mono, 'DM Mono', monospace)",
+          display: step === 3 ? "block" : "none",
+        }}>
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
+            <span style={{ color: COMPONENT_COLORS.gpu.bg }}>GPU</span>
+            <span>+</span>
+            <span style={{ color: COMPONENT_COLORS.server.bg }}>Server</span>
+            <span>+</span>
+            <span style={{ color: COMPONENT_COLORS.embodied.bg }}>Embodied</span>
+            <span>+</span>
+            <span style={{ color: COMPONENT_COLORS.training.bg }}>Training</span>
+            <span>=</span>
+            <span style={{ color: C.moss, fontWeight: 600 }}>{formatCO2(total)}</span>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
 export function CO2Calculator() {
   const [step, setStep] = useState(1);
   const [modelCategory, setModelCategory] = useState<"small" | "large">("small");
@@ -150,6 +322,31 @@ export function CO2Calculator() {
 
   const concurrency = getConcurrencyFromTrafficPattern(14);
   const category = MODEL_CATEGORIES[modelCategory];
+
+  // Calculate for current selection (used by footer)
+  const currentResult = useMemo(() => {
+    try {
+      const model = MODEL_PROFILES[selectedModel];
+      const hw = HARDWARE_CONFIGS.h100;
+      const grid = GRID_REGIONS[region] || GRID_REGIONS["usa"];
+      if (!model || !hw || !grid) return null;
+
+      return calculateInference({
+        modelProfile: model,
+        hardware: hw,
+        deploymentGrid: grid,
+        measuredResponseTimeSeconds: category.responseTime,
+        inputTokens: model.defaultInputTokens,
+        outputTokens: model.defaultOutputTokens,
+        concurrency,
+        hourOfDay: 14,
+        includeTraining: true,
+        lifetimeQueries: 100_000_000,
+      });
+    } catch {
+      return null;
+    }
+  }, [selectedModel, category, region]);
 
   // Calculate for American provider
   const americanResult = useMemo(() => {
@@ -243,7 +440,8 @@ export function CO2Calculator() {
       minHeight: "100vh", 
       background: C.night, 
       color: C.cloud, 
-      fontFamily: "var(--berget-font-sans, 'DM Sans', system-ui, sans-serif)" 
+      fontFamily: "var(--berget-font-sans, 'DM Sans', system-ui, sans-serif)",
+      paddingBottom: "140px", // Space for fixed footer
     }}>
       {/* Header */}
       <header style={{ borderBottom: `1px solid ${C.border}`, padding: "1.5rem 0" }}>
@@ -273,7 +471,7 @@ export function CO2Calculator() {
       </header>
 
       <main style={{ maxWidth: 800, margin: "0 auto", padding: "2rem 1rem" }}>
-        {/* STEP 1 */}
+        {/* STEP 1 - Model Selection */}
         {step === 1 && (
           <div>
             <h1 style={{ fontSize: "2rem", fontWeight: 700, color: C.peak, marginBottom: "0.5rem" }}>
@@ -333,29 +531,6 @@ export function CO2Calculator() {
               </div>
             </div>
 
-            {americanResult && (
-              <div style={{ background: C.ghost, borderRadius: 16, padding: "2rem", border: `1px solid ${C.border}` }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1.5rem", color: C.muted, fontSize: "0.875rem" }}>
-                  <span>🇺🇸</span>
-                  <span>Baseline: American Cloud Provider</span>
-                </div>
-
-                <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: "3rem", fontWeight: 700, color: C.moss, fontFamily: "var(--berget-font-mono, 'DM Mono', monospace)" }}>
-                    {americanResult.totalCO2Grams < 1
-                      ? `${(americanResult.totalCO2Grams * 1000).toFixed(1)} mg`
-                      : `${americanResult.totalCO2Grams.toFixed(2)} g`
-                    }
-                  </div>
-                  <div style={{ fontSize: "0.875rem", color: C.muted, marginTop: "0.5rem" }}>CO₂e per request</div>
-                </div>
-
-                <div style={{ marginTop: "2rem" }}>
-                  <Equivalents co2Grams={americanResult.totalCO2Grams} grid={GRID_REGIONS["usa"]} />
-                </div>
-              </div>
-            )}
-
             <button
               onClick={() => setStep(2)}
               style={{
@@ -376,7 +551,7 @@ export function CO2Calculator() {
           </div>
         )}
 
-        {/* STEP 2 */}
+        {/* STEP 2 - Region Selection */}
         {step === 2 && (
           <div>
             <h1 style={{ fontSize: "2rem", fontWeight: 700, color: C.peak, marginBottom: "0.5rem" }}>
@@ -472,7 +647,7 @@ export function CO2Calculator() {
           </div>
         )}
 
-        {/* STEP 3 - Always show with fallback values */}
+        {/* STEP 3 - Provider Comparison */}
         {step === 3 && (
           <div>
             <h1 style={{ fontSize: "2rem", fontWeight: 700, color: C.peak, marginBottom: "0.5rem" }}>
@@ -490,10 +665,7 @@ export function CO2Calculator() {
                   <div style={{ fontWeight: 600, color: C.peak }}>American Cloud</div>
                   <div style={{ fontSize: "0.875rem", color: C.muted }}>New H100 · US Grid</div>
                   <div style={{ fontSize: "2.5rem", fontWeight: 700, color: C.danger, marginTop: "1rem" }}>
-                    {americanCO2 < 1
-                      ? `${(americanCO2 * 1000).toFixed(1)} mg`
-                      : `${americanCO2.toFixed(2)} g`
-                    }
+                    {formatCO2(americanCO2)}
                   </div>
                 </div>
 
@@ -502,10 +674,7 @@ export function CO2Calculator() {
                   <div style={{ fontWeight: 600, color: C.peak }}>Berget AI</div>
                   <div style={{ fontSize: "0.875rem", color: C.muted }}>Refurbished H200 · Swedish Grid</div>
                   <div style={{ fontSize: "2.5rem", fontWeight: 700, color: C.moss, marginTop: "1rem" }}>
-                    {bergetCO2 < 1
-                      ? `${(bergetCO2 * 1000).toFixed(1)} mg`
-                      : `${bergetCO2.toFixed(2)} g`
-                    }
+                    {formatCO2(bergetCO2)}
                   </div>
                 </div>
               </div>
@@ -594,6 +763,9 @@ export function CO2Calculator() {
           </div>
         )}
       </main>
+
+      {/* Progressive Footer */}
+      <EmissionsFooter step={step} result={currentResult} region={region} />
     </div>
   );
 }
