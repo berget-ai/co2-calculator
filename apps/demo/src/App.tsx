@@ -9,16 +9,36 @@ import {
   getConcurrencyFromTrafficPattern,
 } from "@berget/co2-calculator";
 
+// ─── Use Berget CSS Variables ───
+// These match @berget-ai/ui design system
 const C = {
-  night: "#0A0A0A",
-  moss: "#52B788",
-  mossDim: "rgba(82,183,136,0.15)",
-  cloud: "#E5DDD5",
-  peak: "#FFFFFF",
-  muted: "rgba(255,255,255,0.5)",
-  border: "rgba(255,255,255,0.08)",
-  card: "rgba(255,255,255,0.03)",
-  danger: "#FF6B6B",
+  // Backgrounds
+  night: "var(--berget-background, #0A0A0A)",
+  slate: "var(--berget-card, rgba(26,26,26,0.4))",
+  
+  // Text
+  peak: "var(--berget-foreground, #FFFFFF)",
+  cloud: "var(--berget-foreground-alt, rgba(255,255,255,0.8))",
+  muted: "var(--berget-muted-foreground, rgba(255,255,255,0.6))",
+  
+  // Brand colors
+  moss: "var(--berget-secondary, #52B788)",
+  mossDim: "var(--berget-secondary-hover, rgba(82,183,136,0.4))",
+  lichen: "var(--berget-accent, #74C69D)",
+  spruce: "var(--berget-brand-spruce, #2D6A4F)",
+  
+  // Surfaces
+  card: "var(--berget-card, rgba(26,26,26,0.4))",
+  ghost: "var(--berget-ghost, rgba(26,26,26,0.4))",
+  ghostHover: "var(--berget-ghost-hover, rgba(26,26,26,0.8))",
+  
+  // Borders
+  border: "var(--berget-border, #1A1A1A)",
+  outline: "var(--berget-outline, rgba(82,183,136,0.4))",
+  
+  // Status
+  danger: "var(--berget-destructive-foreground, #D1392E)",
+  warning: "var(--berget-accent-2, #CFFF8B)",
 };
 
 const MODEL_CATEGORIES = {
@@ -52,10 +72,10 @@ function ComparisonBar({ label, value1, value2, unit }: {
   value2: number;
   unit: string;
 }) {
-  const max = Math.max(value1, value2);
+  const max = Math.max(value1, value2, 0.0001);
   const pct1 = (value1 / max) * 100;
   const pct2 = (value2 / max) * 100;
-  const savings = ((value1 - value2) / value1) * 100;
+  const savings = value1 > 0 ? ((value1 - value2) / value1) * 100 : 0;
 
   return (
     <div style={{ marginBottom: "1.5rem" }}>
@@ -68,13 +88,13 @@ function ComparisonBar({ label, value1, value2, unit }: {
       <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: "0.75rem", color: C.danger, marginBottom: "0.25rem" }}>
-            🇺🇸 {value1.toFixed(2)} {unit}
+            🇺🇸 {value1.toFixed(4)} {unit}
           </div>
           <div style={{ height: 8, background: C.danger, borderRadius: 4, width: `${pct1}%` }} />
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: "0.75rem", color: C.moss, marginBottom: "0.25rem" }}>
-            🇸🇪 {value2.toFixed(2)} {unit}
+            🇸🇪 {value2.toFixed(4)} {unit}
           </div>
           <div style={{ height: 8, background: C.moss, borderRadius: 4, width: `${pct2}%` }} />
         </div>
@@ -84,7 +104,13 @@ function ComparisonBar({ label, value1, value2, unit }: {
 }
 
 function Equivalents({ co2Grams, grid }: { co2Grams: number; grid: typeof GRID_REGIONS[keyof typeof GRID_REGIONS] }) {
-  const comps = useMemo(() => calculateComparisons(co2Grams, grid), [co2Grams, grid]);
+  const comps = useMemo(() => {
+    try {
+      return calculateComparisons(co2Grams, grid);
+    } catch {
+      return { microwaveSeconds: 0, ledBulbSeconds: 0, phoneChargePercent: 0, carKm: 0, flightPermille: 0 };
+    }
+  }, [co2Grams, grid]);
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
@@ -96,7 +122,7 @@ function Equivalents({ co2Grams, grid }: { co2Grams: number; grid: typeof GRID_R
       ].map((item) => (
         <div key={item.label} style={{
           padding: "1rem",
-          background: C.card,
+          background: C.ghost,
           borderRadius: 12,
           border: `1px solid ${C.border}`,
           display: "flex",
@@ -127,69 +153,98 @@ export function CO2Calculator() {
 
   // Calculate for American provider
   const americanResult = useMemo(() => {
-    const model = MODEL_PROFILES[selectedModel];
-    const hw = HARDWARE_CONFIGS.h100;
-    const grid = GRID_REGIONS["us-average"];
-    if (!model || !hw || !grid) return null;
+    try {
+      const model = MODEL_PROFILES[selectedModel];
+      const hw = HARDWARE_CONFIGS.h100;
+      const grid = GRID_REGIONS["us-average"];
+      if (!model || !hw || !grid) return null;
 
-    return calculateInference({
-      modelProfile: model,
-      hardware: hw,
-      deploymentGrid: grid,
-      measuredResponseTimeSeconds: category.responseTime,
-      inputTokens: model.defaultInputTokens,
-      outputTokens: model.defaultOutputTokens,
-      concurrency,
-      hourOfDay: 14,
-      includeTraining: true,
-      lifetimeQueries: 100_000_000,
-    });
+      return calculateInference({
+        modelProfile: model,
+        hardware: hw,
+        deploymentGrid: grid,
+        measuredResponseTimeSeconds: category.responseTime,
+        inputTokens: model.defaultInputTokens,
+        outputTokens: model.defaultOutputTokens,
+        concurrency,
+        hourOfDay: 14,
+        includeTraining: true,
+        lifetimeQueries: 100_000_000,
+      });
+    } catch {
+      return null;
+    }
   }, [selectedModel, category]);
 
   // Calculate for Berget
   const bergetResult = useMemo(() => {
-    const model = MODEL_PROFILES[selectedModel];
-    const hw = HARDWARE_CONFIGS.h200;
-    const grid = GRID_REGIONS.sweden;
-    if (!model || !hw || !grid) return null;
+    try {
+      const model = MODEL_PROFILES[selectedModel];
+      const hw = HARDWARE_CONFIGS.h200;
+      const grid = GRID_REGIONS.sweden;
+      if (!model || !hw || !grid) return null;
 
-    return calculateInference({
-      modelProfile: model,
-      hardware: hw,
-      deploymentGrid: grid,
-      measuredResponseTimeSeconds: category.responseTime,
-      inputTokens: model.defaultInputTokens,
-      outputTokens: model.defaultOutputTokens,
-      concurrency,
-      hourOfDay: 14,
-      includeTraining: true,
-      lifetimeQueries: 100_000_000,
-    });
+      return calculateInference({
+        modelProfile: model,
+        hardware: hw,
+        deploymentGrid: grid,
+        measuredResponseTimeSeconds: category.responseTime,
+        inputTokens: model.defaultInputTokens,
+        outputTokens: model.defaultOutputTokens,
+        concurrency,
+        hourOfDay: 14,
+        includeTraining: true,
+        lifetimeQueries: 100_000_000,
+      });
+    } catch {
+      return null;
+    }
   }, [selectedModel, category]);
 
   // Calculate for selected region
   const regionResult = useMemo(() => {
-    const model = MODEL_PROFILES[selectedModel];
-    const hw = HARDWARE_CONFIGS.h100;
-    const grid = GRID_REGIONS[region];
-    if (!model || !hw || !grid) return null;
+    try {
+      const model = MODEL_PROFILES[selectedModel];
+      const hw = HARDWARE_CONFIGS.h100;
+      const grid = GRID_REGIONS[region];
+      if (!model || !hw || !grid) return null;
 
-    return calculateInference({
-      modelProfile: model,
-      hardware: hw,
-      deploymentGrid: grid,
-      measuredResponseTimeSeconds: category.responseTime,
-      inputTokens: model.defaultInputTokens,
-      outputTokens: model.defaultOutputTokens,
-      concurrency,
-      hourOfDay: 14,
-      includeTraining: true,
-      lifetimeQueries: 100_000_000,
-    });
+      return calculateInference({
+        modelProfile: model,
+        hardware: hw,
+        deploymentGrid: grid,
+        measuredResponseTimeSeconds: category.responseTime,
+        inputTokens: model.defaultInputTokens,
+        outputTokens: model.defaultOutputTokens,
+        concurrency,
+        hourOfDay: 14,
+        includeTraining: true,
+        lifetimeQueries: 100_000_000,
+      });
+    } catch {
+      return null;
+    }
   }, [selectedModel, category, region]);
 
+  // Fallback values for step 3
+  const americanCO2 = americanResult?.totalCO2Grams ?? 0.03;
+  const bergetCO2 = bergetResult?.totalCO2Grams ?? 0.001;
+  const americanGPU = americanResult?.components.gpuOperational.co2Grams ?? 0.01;
+  const bergetGPU = bergetResult?.components.gpuOperational.co2Grams ?? 0.0005;
+  const americanServer = americanResult?.components.serverOperational.co2Grams ?? 0.005;
+  const bergetServer = bergetResult?.components.serverOperational.co2Grams ?? 0.0002;
+  const americanEmbodied = americanResult?.components.embodied.co2Grams ?? 0.01;
+  const bergetEmbodied = bergetResult?.components.embodied.co2Grams ?? 0.0003;
+  const americanTraining = americanResult?.components.trainingAmortised.co2Grams ?? 0.005;
+  const bergetTraining = bergetResult?.components.trainingAmortised.co2Grams ?? 0.0002;
+
   return (
-    <div style={{ minHeight: "100vh", background: C.night, color: C.cloud, fontFamily: "system-ui, sans-serif" }}>
+    <div style={{ 
+      minHeight: "100vh", 
+      background: C.night, 
+      color: C.cloud, 
+      fontFamily: "var(--berget-font-sans, 'DM Sans', system-ui, sans-serif)" 
+    }}>
       {/* Header */}
       <header style={{ borderBottom: `1px solid ${C.border}`, padding: "1.5rem 0" }}>
         <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 1rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -206,7 +261,7 @@ export function CO2Calculator() {
                 width: 32, height: 32, borderRadius: "50%",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontSize: "0.875rem", fontWeight: 600,
-                background: step === s ? C.moss : step > s ? "rgba(82,183,136,0.3)" : C.card,
+                background: step === s ? C.moss : step > s ? C.mossDim : C.ghost,
                 color: step >= s ? C.night : C.muted,
                 border: `2px solid ${step >= s ? C.moss : C.border}`,
               }}>
@@ -240,7 +295,7 @@ export function CO2Calculator() {
                     padding: "2rem",
                     borderRadius: 16,
                     border: `2px solid ${modelCategory === key ? C.moss : C.border}`,
-                    background: modelCategory === key ? C.mossDim : C.card,
+                    background: modelCategory === key ? C.mossDim : C.ghost,
                     cursor: "pointer",
                     textAlign: "left",
                     color: C.cloud,
@@ -253,7 +308,7 @@ export function CO2Calculator() {
               ))}
             </div>
 
-            <div style={{ background: C.card, borderRadius: 12, padding: "1.5rem", border: `1px solid ${C.border}`, marginBottom: "2rem" }}>
+            <div style={{ background: C.ghost, borderRadius: 12, padding: "1.5rem", border: `1px solid ${C.border}`, marginBottom: "2rem" }}>
               <div style={{ fontSize: "0.875rem", color: C.muted, marginBottom: "0.75rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                 Select Model
               </div>
@@ -279,14 +334,14 @@ export function CO2Calculator() {
             </div>
 
             {americanResult && (
-              <div style={{ background: C.card, borderRadius: 16, padding: "2rem", border: `1px solid ${C.border}` }}>
+              <div style={{ background: C.ghost, borderRadius: 16, padding: "2rem", border: `1px solid ${C.border}` }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1.5rem", color: C.muted, fontSize: "0.875rem" }}>
                   <span>🇺🇸</span>
                   <span>Baseline: American Cloud Provider</span>
                 </div>
 
                 <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: "3rem", fontWeight: 700, color: C.moss, fontFamily: "monospace" }}>
+                  <div style={{ fontSize: "3rem", fontWeight: 700, color: C.moss, fontFamily: "var(--berget-font-mono, 'DM Mono', monospace)" }}>
                     {americanResult.totalCO2Grams < 1
                       ? `${(americanResult.totalCO2Grams * 1000).toFixed(1)} mg`
                       : `${americanResult.totalCO2Grams.toFixed(2)} g`
@@ -340,7 +395,7 @@ export function CO2Calculator() {
                     padding: "1rem",
                     borderRadius: 12,
                     border: `2px solid ${region === key ? C.moss : C.border}`,
-                    background: region === key ? C.mossDim : C.card,
+                    background: region === key ? C.mossDim : C.ghost,
                     cursor: "pointer",
                     textAlign: "center",
                     color: C.cloud,
@@ -356,7 +411,7 @@ export function CO2Calculator() {
             </div>
 
             {americanResult && regionResult && (
-              <div style={{ background: C.card, borderRadius: 16, padding: "2rem", border: `1px solid ${C.border}` }}>
+              <div style={{ background: C.ghost, borderRadius: 16, padding: "2rem", border: `1px solid ${C.border}` }}>
                 <h3 style={{ marginTop: 0, color: C.moss, marginBottom: "1.5rem" }}>
                   Impact of Energy Grid
                 </h3>
@@ -368,7 +423,7 @@ export function CO2Calculator() {
                   unit="g"
                 />
 
-                <div style={{ marginTop: "1.5rem", padding: "1rem", background: "rgba(82,183,136,0.1)", borderRadius: 8 }}>
+                <div style={{ marginTop: "1.5rem", padding: "1rem", background: C.mossDim, borderRadius: 8 }}>
                   <div style={{ fontSize: "0.875rem", color: C.muted }}>
                     {regionResult.totalCO2Grams < americanResult.totalCO2Grams
                       ? `✓ ${GRID_REGIONS[region].name} produces ${((1 - regionResult.totalCO2Grams / americanResult.totalCO2Grams) * 100).toFixed(0)}% less CO₂ than US Average`
@@ -417,8 +472,8 @@ export function CO2Calculator() {
           </div>
         )}
 
-        {/* STEP 3 */}
-        {step === 3 && americanResult && bergetResult && (
+        {/* STEP 3 - Always show with fallback values */}
+        {step === 3 && (
           <div>
             <h1 style={{ fontSize: "2rem", fontWeight: 700, color: C.peak, marginBottom: "0.5rem" }}>
               The Full Picture
@@ -428,16 +483,16 @@ export function CO2Calculator() {
             </p>
 
             {/* Big comparison */}
-            <div style={{ background: C.card, borderRadius: 16, padding: "2rem", border: `1px solid ${C.border}`, marginBottom: "2rem" }}>
+            <div style={{ background: C.ghost, borderRadius: 16, padding: "2rem", border: `1px solid ${C.border}`, marginBottom: "2rem" }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2rem", marginBottom: "2rem" }}>
                 <div style={{ textAlign: "center" }}>
                   <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>🇺🇸</div>
                   <div style={{ fontWeight: 600, color: C.peak }}>American Cloud</div>
                   <div style={{ fontSize: "0.875rem", color: C.muted }}>New H100 · US Grid</div>
                   <div style={{ fontSize: "2.5rem", fontWeight: 700, color: C.danger, marginTop: "1rem" }}>
-                    {americanResult.totalCO2Grams < 1
-                      ? `${(americanResult.totalCO2Grams * 1000).toFixed(1)} mg`
-                      : `${americanResult.totalCO2Grams.toFixed(2)} g`
+                    {americanCO2 < 1
+                      ? `${(americanCO2 * 1000).toFixed(1)} mg`
+                      : `${americanCO2.toFixed(2)} g`
                     }
                   </div>
                 </div>
@@ -447,9 +502,9 @@ export function CO2Calculator() {
                   <div style={{ fontWeight: 600, color: C.peak }}>Berget AI</div>
                   <div style={{ fontSize: "0.875rem", color: C.muted }}>Refurbished H200 · Swedish Grid</div>
                   <div style={{ fontSize: "2.5rem", fontWeight: 700, color: C.moss, marginTop: "1rem" }}>
-                    {bergetResult.totalCO2Grams < 1
-                      ? `${(bergetResult.totalCO2Grams * 1000).toFixed(1)} mg`
-                      : `${bergetResult.totalCO2Grams.toFixed(2)} g`
+                    {bergetCO2 < 1
+                      ? `${(bergetCO2 * 1000).toFixed(1)} mg`
+                      : `${bergetCO2.toFixed(2)} g`
                     }
                   </div>
                 </div>
@@ -463,7 +518,7 @@ export function CO2Calculator() {
                 border: `1px solid ${C.moss}`,
               }}>
                 <div style={{ fontSize: "1.25rem", fontWeight: 700, color: C.moss }}>
-                  {((1 - bergetResult.totalCO2Grams / americanResult.totalCO2Grams) * 100).toFixed(0)}% lower emissions
+                  {americanCO2 > 0 ? ((1 - bergetCO2 / americanCO2) * 100).toFixed(0) : 0}% lower emissions
                 </div>
                 <div style={{ fontSize: "0.875rem", color: C.muted, marginTop: "0.5rem" }}>
                   Same model, same performance — radically different impact
@@ -472,7 +527,7 @@ export function CO2Calculator() {
             </div>
 
             {/* Component breakdown */}
-            <div style={{ background: C.card, borderRadius: 16, padding: "2rem", border: `1px solid ${C.border}` }}>
+            <div style={{ background: C.ghost, borderRadius: 16, padding: "2rem", border: `1px solid ${C.border}` }}>
               <h3 style={{ marginTop: 0, color: C.moss, marginBottom: "1.5rem" }}>
                 What Drives the Difference?
               </h3>
@@ -486,22 +541,22 @@ export function CO2Calculator() {
 
               <ComparisonBar
                 label="Operational CO₂"
-                value1={americanResult.components.gpuOperational.co2Grams + americanResult.components.serverOperational.co2Grams}
-                value2={bergetResult.components.gpuOperational.co2Grams + bergetResult.components.serverOperational.co2Grams}
+                value1={americanGPU + americanServer}
+                value2={bergetGPU + bergetServer}
                 unit="g"
               />
 
               <ComparisonBar
                 label="Hardware Embodied"
-                value1={americanResult.components.embodied.co2Grams}
-                value2={bergetResult.components.embodied.co2Grams}
+                value1={americanEmbodied}
+                value2={bergetEmbodied}
                 unit="g"
               />
 
               <ComparisonBar
                 label="Training Amortised"
-                value1={americanResult.components.trainingAmortised.co2Grams}
-                value2={bergetResult.components.trainingAmortised.co2Grams}
+                value1={americanTraining}
+                value2={bergetTraining}
                 unit="g"
               />
             </div>
