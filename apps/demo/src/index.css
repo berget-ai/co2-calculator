@@ -1,5 +1,54 @@
 @import "tailwindcss";
-@import "@berget-ai/ui/dist/styles/index.css";
+
+/* ─── Berget Design System Variables ─── */
+:root {
+  /* Brand primitives (raw HSL channels) */
+  --berget-brand-peak: 0 0% 100%;
+  --berget-brand-cloud: 25 10% 84%;
+  --berget-brand-slate: 0 0% 10%;
+  --berget-brand-night: 0 0% 4%;
+  --berget-brand-coal: 0 0% 0%;
+  --berget-brand-moss: 151 44% 52%;
+  --berget-brand-lichen: 151 37% 63%;
+  --berget-brand-spruce: 153 38% 30%;
+  --berget-brand-fjord: 204 67% 21%;
+  --berget-brand-info: 217 68% 53%;
+  --berget-brand-success: 151 44% 52%;
+  --berget-brand-warning: 71 100% 75%;
+  --berget-brand-error: 6 74% 50%;
+
+  /* Semantic tokens */
+  --berget-background: hsl(var(--berget-brand-night));
+  --berget-foreground: hsl(var(--berget-brand-peak));
+  --berget-foreground-alt: hsl(var(--berget-brand-peak) / 0.8);
+  --berget-card: hsl(var(--berget-brand-slate) / 0.4);
+  --berget-card-foreground: hsl(var(--berget-brand-peak));
+  --berget-muted: hsl(var(--berget-brand-night));
+  --berget-muted-foreground: hsl(var(--berget-brand-peak) / 0.6);
+  --berget-primary: hsl(var(--berget-brand-cloud));
+  --berget-primary-foreground: hsl(var(--berget-brand-peak));
+  --berget-secondary: hsl(var(--berget-brand-moss));
+  --berget-secondary-foreground: hsl(var(--berget-brand-peak));
+  --berget-secondary-hover: hsl(var(--berget-brand-moss) / 0.4);
+  --berget-accent: hsl(var(--berget-brand-lichen));
+  --berget-accent-foreground: hsl(var(--berget-brand-slate));
+  --berget-accent-2: hsl(var(--berget-brand-warning));
+  --berget-accent-3: hsl(var(--berget-brand-fjord));
+  --berget-ghost: hsl(var(--berget-brand-slate) / 0.4);
+  --berget-ghost-hover: hsl(var(--berget-brand-slate) / 0.8);
+  --berget-outline: hsl(var(--berget-brand-moss) / 0.4);
+  --berget-border: hsl(var(--berget-brand-slate));
+  --berget-input: hsl(var(--berget-brand-slate));
+  --berget-ring: hsl(var(--berget-brand-moss) / 0.2);
+  --berget-destructive: hsl(var(--berget-brand-error) / 0.2);
+  --berget-destructive-foreground: hsl(var(--berget-brand-error));
+  --berget-destructive-border: hsl(var(--berget-brand-error) / 0.5);
+
+  /* Typography */
+  --berget-font-sans: "DM Sans", system-ui, -apple-system, sans-serif;
+  --berget-font-serif: "Ovo", serif;
+  --berget-font-mono: "DM Mono", monospace;
+}
 
 @theme {
   --color-background: hsl(0 0% 4%);
@@ -23,7 +72,7 @@
 }
 
 body {
-  background: hsl(0 0% 4%);
-  color: hsl(0 0% 100%);
-  font-family: system-ui, -apple-system, sans-serif;
+  background: var(--berget-background);
+  color: var(--berget-foreground);
+  font-family: var(--berget-font-sans);
 }

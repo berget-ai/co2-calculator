@@ -146,7 +146,7 @@ export function CO2Calculator() {
   const [step, setStep] = useState(1);
   const [modelCategory, setModelCategory] = useState<"small" | "large">("small");
   const [selectedModel, setSelectedModel] = useState(MODEL_CATEGORIES.small.defaultModel);
-  const [region, setRegion] = useState("us-average");
+  const [region, setRegion] = useState("usa");
 
   const concurrency = getConcurrencyFromTrafficPattern(14);
   const category = MODEL_CATEGORIES[modelCategory];
@@ -156,7 +156,7 @@ export function CO2Calculator() {
     try {
       const model = MODEL_PROFILES[selectedModel];
       const hw = HARDWARE_CONFIGS.h100;
-      const grid = GRID_REGIONS["us-average"];
+      const grid = GRID_REGIONS["usa"];
       if (!model || !hw || !grid) return null;
 
       return calculateInference({
@@ -351,7 +351,7 @@ export function CO2Calculator() {
                 </div>
 
                 <div style={{ marginTop: "2rem" }}>
-                  <Equivalents co2Grams={americanResult.totalCO2Grams} grid={GRID_REGIONS["us-average"]} />
+                  <Equivalents co2Grams={americanResult.totalCO2Grams} grid={GRID_REGIONS["usa"]} />
                 </div>
               </div>
             )}
@@ -534,7 +534,7 @@ export function CO2Calculator() {
 
               <ComparisonBar
                 label="Grid Carbon Intensity"
-                value1={GRID_REGIONS["us-average"].intensityGPerKwh}
+                value1={GRID_REGIONS["usa"].intensityGPerKwh}
                 value2={GRID_REGIONS.sweden.intensityGPerKwh}
                 unit="g/kWh"
               />
@@ -577,7 +577,7 @@ export function CO2Calculator() {
                 ← Back
               </button>
               <button
-                onClick={() => { setStep(1); setModelCategory("small"); setSelectedModel(MODEL_CATEGORIES.small.defaultModel); setRegion("us-average"); }}
+                onClick={() => { setStep(1); setModelCategory("small"); setSelectedModel(MODEL_CATEGORIES.small.defaultModel); setRegion("usa"); }}
                 style={{
                   flex: 1,
                   padding: "1rem",
