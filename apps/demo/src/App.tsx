@@ -111,16 +111,16 @@ function ComparisonBar({ label, value1, value2, unit }: {
 }
 
 // ─── Expandable Equivalents ───
-function Equivalents({ co2Grams, grid }: { co2Grams: number; grid: typeof GRID_REGIONS[keyof typeof GRID_REGIONS] }) {
+function Equivalents({ co2Grams }: { co2Grams: number }) {
   const [expanded, setExpanded] = useState(false);
   
   const comps = useMemo(() => {
     try {
-      return calculateComparisons(co2Grams, grid);
+      return calculateComparisons(co2Grams);
     } catch {
       return { microwaveSeconds: 0, ledBulbSeconds: 0, phoneChargePercent: 0, carKm: 0, flightPermille: 0 };
     }
-  }, [co2Grams, grid]);
+  }, [co2Grams]);
 
   const items = [
     { icon: "☕", label: "Microwave", value: fmtTime(comps.microwaveSeconds), highlight: comps.microwaveSeconds > 60 },
@@ -178,7 +178,7 @@ function Equivalents({ co2Grams, grid }: { co2Grams: number; grid: typeof GRID_R
                 <div style={{ fontSize: "0.875rem", color: C.peak }}>
                   {item.label}: <strong style={{ color: item.highlight ? C.moss : C.peak }}>{item.value}</strong>
                 </div>
-                <div style={{ fontSize: "0.75rem", color: C.muted }}>on {grid.name} grid</div>
+                <div style={{ fontSize: "0.75rem", color: C.muted }}>CO₂ equivalent</div>
               </div>
             </div>
           ))}
@@ -806,7 +806,7 @@ export function CO2Calculator() {
                 </div>
 
                 <div style={{ marginTop: "1.5rem" }}>
-                  <Equivalents co2Grams={regionResult.totalCO2Grams} grid={GRID_REGIONS[region]} />
+                  <Equivalents co2Grams={regionResult.totalCO2Grams} />
                 </div>
               </div>
             )}

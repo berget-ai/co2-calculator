@@ -216,20 +216,24 @@ export interface ComparisonResult {
   flightPermille: number;
 }
 
-/** Convert CO₂ to energy-equivalent comparisons on the reference grid.
- *  Physics is grid-independent, so this lets users see "how much energy is this
- *  on MY grid?" even when running on a dirty grid elsewhere. */
+/** Convert CO₂ to energy-equivalent comparisons using a fixed reference.
+ *  
+ *  We use a fixed carbon intensity (EU average ≈ 300 g/kWh) so that
+ *  comparisons are consistent regardless of which grid the user selects.
+ *  This answers: "What does this CO₂ amount to in everyday terms?"
+ *  rather than "How much energy is this on my grid?"
+ */
 export function calculateComparisons(
   co2Grams: number,
-  referenceGrid: GridRegion,
 ): ComparisonResult {
-  // If this CO₂ came from the reference grid, how much energy is that?
-  const equivalentEnergyKwh = co2Grams / referenceGrid.intensityGPerKwh;
+  // Fixed reference: EU average grid intensity for consistent comparisons
+  const REFERENCE_INTENSITY = 300; // g/kWh
+  const equivalentEnergyKwh = co2Grams / REFERENCE_INTENSITY;
 
   return {
     microwaveSeconds: (equivalentEnergyKwh / 0.8) * SECONDS_IN_HOUR,
     ledBulbSeconds: (equivalentEnergyKwh / 0.01) * SECONDS_IN_HOUR,
-    // These are deployment-grid dependent (actual environmental impact)
+    // These are direct CO₂ equivalents (grid-independent)
     carKm: co2Grams / 120,
     phoneChargePercent: (co2Grams / 15) * 100,
     flightPermille: (co2Grams / 90_000) * 1_000,
