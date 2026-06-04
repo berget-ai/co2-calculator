@@ -153,12 +153,16 @@ function Equivalents({ co2Grams, grid }: { co2Grams: number; grid: typeof GRID_R
 function EmissionsFooter({ 
   step, 
   result, 
-  region 
+  region,
+  selectedModel,
 }: { 
   step: number; 
   result: ReturnType<typeof calculateInference> | null;
   region: string;
+  selectedModel: string;
 }) {
+  const [copied, setCopied] = useState(false);
+  
   if (!result) return null;
 
   const components = [
@@ -203,17 +207,51 @@ function EmissionsFooter({
   const visibleComponents = components.filter(c => c.step <= step);
   const currentTotal = visibleComponents.reduce((sum, c) => sum + c.value, 0);
 
+  // Generate code snippet for the calculation
+  const modelName = MODEL_PROFILES[selectedModel]?.displayName || selectedModel;
+  const gridName = GRID_REGIONS[region]?.name || region;
+  const codeSnippet = `import { calculateInference, MODEL_PROFILES, HARDWARE_CONFIGS, GRID_REGIONS } from "@berget/co2-calculator";
+
+// Calculate CO₂ for ${modelName} on ${gridName} grid
+const result = calculateInference({
+  modelProfile: MODEL_PROFILES["${selectedModel}"],
+  hardware: HARDWARE_CONFIGS.h100,
+  deploymentGrid: GRID_REGIONS["${region}"],
+  measuredResponseTimeSeconds: ${result.timing.hourOfDay < 12 ? 0.8 : 3.5},
+  inputTokens: ${MODEL_PROFILES[selectedModel]?.defaultInputTokens || 800},
+  outputTokens: ${MODEL_PROFILES[selectedModel]?.defaultOutputTokens || 400},
+  concurrency: 8,
+  hourOfDay: 14,
+  includeTraining: true,
+  lifetimeQueries: 100_000_000,
+});
+
+// Total: ${formatCO2(total)} CO₂e per request
+// - GPU: ${formatCO2(result.components.gpuOperational.co2Grams)}
+// - Server: ${formatCO2(result.components.serverOperational.co2Grams)}
+// - PUE: ${formatCO2(result.components.datacenterOverhead.co2Grams)}
+// - Embodied: ${formatCO2(result.components.embodied.co2Grams)}
+// - Training: ${formatCO2(result.components.trainingAmortised.co2Grams)}`;
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(codeSnippet);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <footer style={{
       position: "fixed",
       bottom: 0,
       left: 0,
       right: 0,
-      background: "rgba(10, 10, 10, 0.95)",
+      background: "rgba(10, 10, 10, 0.98)",
       backdropFilter: "blur(10px)",
       borderTop: `1px solid ${C.border}`,
       padding: "1rem 0",
       zIndex: 100,
+      maxHeight: step === 3 ? "50vh" : "auto",
+      overflowY: "auto",
     }}>
       <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 1rem" }}>
         {/* Progress bar showing components */}
@@ -296,15 +334,101 @@ function EmissionsFooter({
           </div>
         </div>
 
+        {/* Code snippet - only show in step 3 */}
+        {step === 3 && (
+          <div style={{ 
+            marginTop: "1rem", 
+            padding: "1rem",
+            background: "rgba(0, 0, 0, 0.5)",
+            borderRadius: 12,
+            border: `1px solid ${C.border}`,
+          }}>
+            <div style={{ 
+              display: "flex", 
+              justifyContent: "space-between", 
+              alignItems: "center",
+              marginBottom: "0.75rem" 
+            }}>
+              <div>
+                <div style={{ fontSize: "0.875rem", color: C.peak, fontWeight: 600 }}>
+                  🛠️ Use this calculation in your own project
+                </div>
+                <div style={{ fontSize: "0.75rem", color: C.muted, marginTop: "0.25rem" }}>
+                  Copy this code to integrate CO₂ tracking into your inference pipeline
+                </div>
+              </div>
+              <button
+                onClick={handleCopy}
+                style={{
+                  padding: "0.5rem 1rem",
+                  borderRadius: 8,
+                  background: copied ? C.moss : "transparent",
+                  color: copied ? C.night : C.moss,
+                  border: `1px solid ${C.moss}`,
+                  cursor: "pointer",
+                  fontSize: "0.875rem",
+                  fontWeight: 600,
+                  transition: "all 0.2s",
+                }}
+              >
+                {copied ? "✓ Copied!" : "📋 Copy Code"}
+              </button>
+            </div>
+            <pre style={{
+              margin: 0,
+              padding: "1rem",
+              background: "rgba(0, 0, 0, 0.8)",
+              borderRadius: 8,
+              fontSize: "0.75rem",
+              color: C.cloud,
+              fontFamily: "var(--berget-font-mono, 'DM Mono', monospace)",
+              overflow: "auto",
+              lineHeight: 1.5,
+            }}>
+              <code>{codeSnippet}</code>
+            </pre>
+            
+            {/* Marketing message */}
+            <div style={{
+              marginTop: "1rem",
+              padding: "0.75rem",
+              background: C.mossDim,
+              borderRadius: 8,
+              border: `1px solid ${C.moss}`,
+              display: "flex",
+              alignItems: "center",
+              gap: "0.75rem",
+            }}>
+              <span style={{ fontSize: "1.5rem" }}>🌿</span>
+              <div>
+                <div style={{ fontSize: "0.875rem", color: C.moss, fontWeight: 600 }}>
+                  Powered by Berget AI — 100% fossil-free inference in Sweden
+                </div>
+                <div style={{ fontSize: "0.75rem", color: C.muted, marginTop: "0.25rem" }}>
+                  Refurbished hardware · Swedish energy mix · Open-source CO₂ calculator
+                  {" "}
+                  <a 
+                    href="https://github.com/berget-ai/co2-calculator" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    style={{ color: C.moss, textDecoration: "underline" }}
+                  >
+                    View on GitHub →
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Formula explanation */}
         <div style={{ 
-          marginTop: "0.75rem", 
+          marginTop: step === 3 ? "1rem" : "0.75rem", 
           paddingTop: "0.75rem", 
           borderTop: `1px solid ${C.border}`,
           fontSize: "0.7rem",
           color: C.muted,
           fontFamily: "var(--berget-font-mono, 'DM Mono', monospace)",
-          display: step === 3 ? "block" : "none",
         }}>
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
             <span style={{ color: COMPONENT_COLORS.gpu.bg }}>GPU</span>
@@ -312,12 +436,16 @@ function EmissionsFooter({
             <span style={{ color: COMPONENT_COLORS.server.bg }}>Server</span>
             <span>+</span>
             <span style={{ color: "#2D6A4F" }}>PUE</span>
-            <span>+</span>
-            <span style={{ color: COMPONENT_COLORS.embodied.bg }}>Embodied</span>
-            <span>+</span>
-            <span style={{ color: COMPONENT_COLORS.training.bg }}>Training</span>
+            {step >= 3 && (
+              <>
+                <span>+</span>
+                <span style={{ color: COMPONENT_COLORS.embodied.bg }}>Embodied</span>
+                <span>+</span>
+                <span style={{ color: COMPONENT_COLORS.training.bg }}>Training</span>
+              </>
+            )}
             <span>=</span>
-            <span style={{ color: C.moss, fontWeight: 600 }}>{formatCO2(total)}</span>
+            <span style={{ color: C.moss, fontWeight: 600 }}>{formatCO2(step === 3 ? total : currentTotal)}</span>
           </div>
         </div>
       </div>
@@ -772,7 +900,7 @@ export function CO2Calculator() {
       </main>
 
       {/* Progressive Footer */}
-      <EmissionsFooter step={step} result={currentResult} region={region} />
+      <EmissionsFooter step={step} result={currentResult} region={region} selectedModel={selectedModel} />
     </div>
   );
 }
