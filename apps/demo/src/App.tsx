@@ -110,7 +110,10 @@ function ComparisonBar({ label, value1, value2, unit }: {
   );
 }
 
+// ─── Expandable Equivalents ───
 function Equivalents({ co2Grams, grid }: { co2Grams: number; grid: typeof GRID_REGIONS[keyof typeof GRID_REGIONS] }) {
+  const [expanded, setExpanded] = useState(false);
+  
   const comps = useMemo(() => {
     try {
       return calculateComparisons(co2Grams, grid);
@@ -119,32 +122,68 @@ function Equivalents({ co2Grams, grid }: { co2Grams: number; grid: typeof GRID_R
     }
   }, [co2Grams, grid]);
 
+  const items = [
+    { icon: "☕", label: "Microwave", value: fmtTime(comps.microwaveSeconds), highlight: comps.microwaveSeconds > 60 },
+    { icon: "💡", label: "LED bulb", value: fmtTime(comps.ledBulbSeconds), highlight: comps.ledBulbSeconds > 3600 },
+    { icon: "📱", label: "Phone charge", value: `${comps.phoneChargePercent.toFixed(1)}%`, highlight: comps.phoneChargePercent > 5 },
+    { icon: "🚗", label: "Driving", value: `${(comps.carKm * 1000).toFixed(0)} m`, highlight: comps.carKm > 0.1 },
+  ];
+
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
-      {[
-        { icon: "☕", label: "Microwave", value: fmtTime(comps.microwaveSeconds) },
-        { icon: "💡", label: "LED bulb", value: fmtTime(comps.ledBulbSeconds) },
-        { icon: "📱", label: "Phone charge", value: `${comps.phoneChargePercent.toFixed(1)}%` },
-        { icon: "🚗", label: "Driving", value: `${(comps.carKm * 1000).toFixed(0)} m` },
-      ].map((item) => (
-        <div key={item.label} style={{
-          padding: "1rem",
+    <div>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        style={{
+          width: "100%",
+          padding: "0.75rem 1rem",
           background: C.ghost,
-          borderRadius: 12,
           border: `1px solid ${C.border}`,
+          borderRadius: 12,
+          color: C.moss,
+          fontSize: "0.875rem",
+          fontWeight: 600,
+          cursor: "pointer",
           display: "flex",
           alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: expanded ? "0.75rem" : 0,
+        }}
+      >
+        <span>📊 See real-world equivalents</span>
+        <span style={{ 
+          transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
+          transition: "transform 0.3s",
+        }}>▼</span>
+      </button>
+      
+      {expanded && (
+        <div style={{ 
+          display: "grid", 
+          gridTemplateColumns: "1fr 1fr", 
           gap: "0.75rem",
+          animation: "fadeIn 0.3s ease",
         }}>
-          <span style={{ fontSize: "1.5rem" }}>{item.icon}</span>
-          <div>
-            <div style={{ fontSize: "0.875rem", color: C.peak }}>
-              {item.label}: <strong style={{ color: C.moss }}>{item.value}</strong>
+          {items.map((item) => (
+            <div key={item.label} style={{
+              padding: "1rem",
+              background: C.ghost,
+              borderRadius: 12,
+              border: `1px solid ${item.highlight ? C.moss : C.border}`,
+              display: "flex",
+              alignItems: "center",
+              gap: "0.75rem",
+            }}>
+              <span style={{ fontSize: "1.5rem" }}>{item.icon}</span>
+              <div>
+                <div style={{ fontSize: "0.875rem", color: C.peak }}>
+                  {item.label}: <strong style={{ color: item.highlight ? C.moss : C.peak }}>{item.value}</strong>
+                </div>
+                <div style={{ fontSize: "0.75rem", color: C.muted }}>on {grid.name} grid</div>
+              </div>
             </div>
-            <div style={{ fontSize: "0.75rem", color: C.muted }}>on {grid.name} grid</div>
-          </div>
+          ))}
         </div>
-      ))}
+      )}
     </div>
   );
 }
@@ -162,6 +201,7 @@ function EmissionsFooter({
   selectedModel: string;
 }) {
   const [copied, setCopied] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   
   if (!result) return null;
 
@@ -250,98 +290,118 @@ const result = calculateInference({
       borderTop: `1px solid ${C.border}`,
       padding: "1rem 0",
       zIndex: 100,
-      maxHeight: step === 3 ? "50vh" : "auto",
-      overflowY: "auto",
     }}>
       <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 1rem" }}>
-        {/* Progress bar showing components */}
-        <div style={{ marginBottom: "0.75rem" }}>
-          <div style={{ 
-            display: "flex", 
-            height: 32, 
-            borderRadius: 8, 
-            overflow: "hidden",
-            background: C.ghost,
-            border: `1px solid ${C.border}`,
-          }}>
-            {components.map((comp) => {
-              const isVisible = comp.step <= step;
-              const width = (comp.value / total) * 100;
-              return (
-                <div
-                  key={comp.key}
-                  style={{
-                    width: `${width}%`,
-                    background: isVisible ? comp.color : "transparent",
-                    opacity: isVisible ? 1 : 0.1,
-                    transition: "all 0.5s ease",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: "0.7rem",
-                    color: isVisible ? "#0A0A0A" : "transparent",
-                    fontWeight: 600,
-                    whiteSpace: "nowrap",
-                  }}
-                  title={`${comp.label}: ${formatCO2(comp.value)}`}
-                >
-                  {width > 8 && isVisible ? comp.label : ""}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Legend and totals */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
-          <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-            {components.filter(c => c.step <= step).map((comp) => {
-              return (
-                <div 
-                  key={comp.key} 
-                  style={{ 
-                    display: "flex", 
-                    alignItems: "center", 
-                    gap: "0.4rem",
-                  }}
-                >
-                  <div style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: 2,
-                    background: comp.color,
-                  }} />
-                  <span style={{ fontSize: "0.75rem", color: C.cloud }}>
-                    {comp.label}: <strong style={{ color: C.peak }}>{formatCO2(comp.value)}</strong>
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: "0.75rem", color: C.muted }}>
-              {step < 3 ? "Building up..." : "Total per request"}
-            </div>
+        {/* Clickable header to expand/collapse */}
+        <button
+          onClick={() => setExpanded(!expanded)}
+          style={{
+            width: "100%",
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            padding: 0,
+            color: "inherit",
+          }}
+        >
+          {/* Progress bar showing components */}
+          <div style={{ marginBottom: "0.75rem" }}>
             <div style={{ 
-              fontSize: "1.25rem", 
-              fontWeight: 700, 
-              color: step === 3 ? C.moss : C.peak,
-              fontFamily: "var(--berget-font-mono, 'DM Mono', monospace)",
+              display: "flex", 
+              height: 32, 
+              borderRadius: 8, 
+              overflow: "hidden",
+              background: C.ghost,
+              border: `1px solid ${C.border}`,
             }}>
-              {formatCO2(step === 3 ? total : currentTotal)}
+              {components.map((comp) => {
+                const isVisible = comp.step <= step;
+                const width = (comp.value / total) * 100;
+                return (
+                  <div
+                    key={comp.key}
+                    style={{
+                      width: `${width}%`,
+                      background: isVisible ? comp.color : "transparent",
+                      opacity: isVisible ? 1 : 0.1,
+                      transition: "all 0.5s ease",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "0.7rem",
+                      color: isVisible ? "#0A0A0A" : "transparent",
+                      fontWeight: 600,
+                      whiteSpace: "nowrap",
+                    }}
+                    title={`${comp.label}: ${formatCO2(comp.value)}`}
+                  >
+                    {width > 8 && isVisible ? comp.label : ""}
+                  </div>
+                );
+              })}
             </div>
           </div>
-        </div>
 
-        {/* Code snippet - only show in step 3 */}
-        {step === 3 && (
+          {/* Legend and totals */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
+            <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+              {components.filter(c => c.step <= step).map((comp) => {
+                return (
+                  <div 
+                    key={comp.key} 
+                    style={{ 
+                      display: "flex", 
+                      alignItems: "center", 
+                      gap: "0.4rem",
+                    }}
+                  >
+                    <div style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: 2,
+                      background: comp.color,
+                    }} />
+                    <span style={{ fontSize: "0.75rem", color: C.cloud }}>
+                      {comp.label}: <strong style={{ color: C.peak }}>{formatCO2(comp.value)}</strong>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: "0.75rem", color: C.muted }}>
+                  {step < 3 ? "Building up..." : "Total per request"}
+                </div>
+                <div style={{ 
+                  fontSize: "1.25rem", 
+                  fontWeight: 700, 
+                  color: step === 3 ? C.moss : C.peak,
+                  fontFamily: "var(--berget-font-mono, 'DM Mono', monospace)",
+                }}>
+                  {formatCO2(step === 3 ? total : currentTotal)}
+                </div>
+              </div>
+              <span style={{ 
+                fontSize: "0.875rem",
+                color: C.muted,
+                transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
+                transition: "transform 0.3s",
+              }}>▼</span>
+            </div>
+          </div>
+        </button>
+
+        {/* Expandable content */}
+        {expanded && step === 3 && (
           <div style={{ 
             marginTop: "1rem", 
             padding: "1rem",
             background: "rgba(0, 0, 0, 0.5)",
             borderRadius: 12,
             border: `1px solid ${C.border}`,
+            animation: "fadeIn 0.3s ease",
           }}>
             <div style={{ 
               display: "flex", 
@@ -423,7 +483,7 @@ const result = calculateInference({
 
         {/* Formula explanation */}
         <div style={{ 
-          marginTop: step === 3 ? "1rem" : "0.75rem", 
+          marginTop: expanded && step === 3 ? "1rem" : "0.75rem", 
           paddingTop: "0.75rem", 
           borderTop: `1px solid ${C.border}`,
           fontSize: "0.7rem",
