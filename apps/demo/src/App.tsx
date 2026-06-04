@@ -72,12 +72,17 @@ function ComparisonBar({ label, value1, value2, unit }: {
   label: string;
   value1: number;
   value2: number;
-  unit: string;
+  unit?: string;
 }) {
   const max = Math.max(value1, value2, 0.0001);
   const pct1 = (value1 / max) * 100;
   const pct2 = (value2 / max) * 100;
   const savings = value1 > 0 ? ((value1 - value2) / value1) * 100 : 0;
+
+  const formatValue = (v: number) => {
+    if (unit) return `${v.toFixed(0)} ${unit}`;
+    return formatCO2(v);
+  };
 
   return (
     <div style={{ marginBottom: "1.5rem" }}>
@@ -90,13 +95,13 @@ function ComparisonBar({ label, value1, value2, unit }: {
       <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: "0.75rem", color: C.danger, marginBottom: "0.25rem" }}>
-            🇺🇸 {value1.toFixed(4)} {unit}
+            🇺🇸 {formatValue(value1)}
           </div>
           <div style={{ height: 8, background: C.danger, borderRadius: 4, width: `${pct1}%` }} />
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: "0.75rem", color: C.moss, marginBottom: "0.25rem" }}>
-            🇸🇪 {value2.toFixed(4)} {unit}
+            🇸🇪 {formatValue(value2)}
           </div>
           <div style={{ height: 8, background: C.moss, borderRadius: 4, width: `${pct2}%` }} />
         </div>
@@ -169,6 +174,13 @@ function EmissionsFooter({
       value: result.components.serverOperational.co2Grams, 
       color: COMPONENT_COLORS.server.bg,
       label: COMPONENT_COLORS.server.label,
+      step: 2,
+    },
+    { 
+      key: "overhead", 
+      value: result.components.datacenterOverhead.co2Grams, 
+      color: "#2D6A4F",
+      label: "PUE Overhead",
       step: 2,
     },
     { 
@@ -245,8 +257,7 @@ function EmissionsFooter({
         {/* Legend and totals */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
           <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-            {components.map((comp) => {
-              const isVisible = comp.step <= step;
+            {components.filter(c => c.step <= step).map((comp) => {
               return (
                 <div 
                   key={comp.key} 
@@ -254,8 +265,6 @@ function EmissionsFooter({
                     display: "flex", 
                     alignItems: "center", 
                     gap: "0.4rem",
-                    opacity: isVisible ? 1 : 0.3,
-                    transition: "opacity 0.3s",
                   }}
                 >
                   <div style={{
@@ -264,7 +273,7 @@ function EmissionsFooter({
                     borderRadius: 2,
                     background: comp.color,
                   }} />
-                  <span style={{ fontSize: "0.75rem", color: isVisible ? C.cloud : C.muted }}>
+                  <span style={{ fontSize: "0.75rem", color: C.cloud }}>
                     {comp.label}: <strong style={{ color: C.peak }}>{formatCO2(comp.value)}</strong>
                   </span>
                 </div>
@@ -301,6 +310,8 @@ function EmissionsFooter({
             <span style={{ color: COMPONENT_COLORS.gpu.bg }}>GPU</span>
             <span>+</span>
             <span style={{ color: COMPONENT_COLORS.server.bg }}>Server</span>
+            <span>+</span>
+            <span style={{ color: "#2D6A4F" }}>PUE</span>
             <span>+</span>
             <span style={{ color: COMPONENT_COLORS.embodied.bg }}>Embodied</span>
             <span>+</span>
@@ -595,7 +606,6 @@ export function CO2Calculator() {
                   label="CO₂ per request"
                   value1={americanResult.totalCO2Grams}
                   value2={regionResult.totalCO2Grams}
-                  unit="g"
                 />
 
                 <div style={{ marginTop: "1.5rem", padding: "1rem", background: C.mossDim, borderRadius: 8 }}>
@@ -712,21 +722,18 @@ export function CO2Calculator() {
                 label="Operational CO₂"
                 value1={americanGPU + americanServer}
                 value2={bergetGPU + bergetServer}
-                unit="g"
               />
 
               <ComparisonBar
                 label="Hardware Embodied"
                 value1={americanEmbodied}
                 value2={bergetEmbodied}
-                unit="g"
               />
 
               <ComparisonBar
                 label="Training Amortised"
                 value1={americanTraining}
                 value2={bergetTraining}
-                unit="g"
               />
             </div>
 

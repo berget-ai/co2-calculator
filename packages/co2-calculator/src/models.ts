@@ -98,7 +98,7 @@ export const MODEL_PROFILES: Record<string, ModelProfile> = {
     displayName: "Kimi K2.6 (1.1T INT4)",
     architecture: "mixture-of-experts",
     parameters: 1_100_000_000_000,
-    totalTrainingCO2Grams: 180_000_000,
+    totalTrainingCO2Grams: 50_000_000,
     trainingSource: "MoE 1.1T parameter scaling estimate",
     defaultInputTokens: 5_000,
     defaultOutputTokens: 200,
