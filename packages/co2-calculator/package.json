@@ -21,7 +21,9 @@
     "build": "tsup src/index.ts --format esm,cjs --dts --clean",
     "dev": "tsup src/index.ts --format esm --watch",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "update-grid-data": "node scripts/update-grid-data.js",
+    "update-grid-data:dry": "node scripts/update-grid-data.js --dry-run"
   },
   "dependencies": {},
   "devDependencies": {
