@@ -52,6 +52,27 @@ const serverEnergyKwh = (hardware.chassisWatts * gpuTimeH) / (1_000 * concurrenc
 **Metodologi:** Specifika multipliers per tidsperiod
 **Vi:** Generisk demandCurve per grid
 
+## Åtgärdade avvikelser
+
+### 6. Section 4.2 - Embodied Carbon Values ✅ FIXAD (2026-06-09)
+**Tidigare:**
+- H100: 2,200 kg (metodologi) vs 2,000 kg (implementation)
+- A100: 1,600 kg (metodologi) vs 1,600 kg (implementation)
+
+**Uppdaterad implementation:**
+- H100: 2,000 kg (±30-50% osäkerhet)
+- A100: 1,200 kg (±30-50% osäkerhet)
+- H200: 2,500 kg (±30-50% osäkerhet)
+- MI300X: 3,000 kg (±50% osäkerhet)
+
+**Motivering:** Värdena har justerats baserat på:
+- Dell/HPE server LCA rapporter (server-nivå data)
+- "Chasing Carbon" (Gupta et al., HPCA 2021) - manufacturing dominerar livscykelutsläpp
+- SCARIF (Ji et al., ISVLSI 2024) - chip area × process node metodik
+- NVIDIA/AMD publicerar INTE per-GPU embodied carbon LCAs
+
+**Åtgärd:** Detaljerad dokumentation tillagd i `hardware.ts` med osäkerhetskommentarer per GPU. Metodologi uppdaterad till v2.1.
+
 ## Föreslagna åtgärder
 
 1. **Fixa GPU time allocation** - Använd metodologins formel

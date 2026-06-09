@@ -1,9 +1,9 @@
 # Methodology: AI CO₂ Impact Calculator for Berget AI
 
-**Document Version**: 2.0  
-**Date**: 2026-06-03  
+**Document Version**: 2.1  
+**Date**: 2026-06-09  
 **Authors**: Christian Landgren, Berget AI  
-**Reviewers**: Stockholm Environment Institute (SEI)
+**Reviewers**: Stockholm Environment Institute (SEI)  
 **License**: CC BY 4.0
 
 ---
@@ -215,11 +215,23 @@ embodiedCO2 = embodiedPerGpuGrams × gpuTimeSeconds × gpusUsed
 | Hardware | GPUs | Node Idle | Node Peak | Embodied/GPU | Chassis |
 |----------|------|-----------|-----------|--------------|---------|
 | NVIDIA H200 | 8 | 800W | 5,000W | 2,500 kg | 600W |
-| NVIDIA H100 | 8 | 700W | 4,500W | 2,200 kg | 600W |
+| NVIDIA H100 | 8 | 700W | 5,200W | 2,000 kg | 600W |
 | AMD MI300X | 8 | 1,000W | 6,000W | 3,000 kg | 600W |
-| NVIDIA L40S | 8 | 600W | 3,200W | 1,800 kg | 400W |
+| NVIDIA A100 | 8 | 600W | 3,200W | 1,200 kg | 400W |
 | NVIDIA L4 | 4 | 200W | 400W | 300 kg | 200W |
 | Refurbished H200 | 8 | 800W | 5,000W | 0 kg | 600W |
+
+**Note on Embodied Carbon Values:**
+NVIDIA and AMD do NOT publish per-GPU embodied carbon LCAs. The values above are estimates derived from Dell/HPE server-level product carbon footprint reports by subtracting non-GPU components (CPU, chassis, DRAM, NIC, SSD). These estimates have ±30-50% uncertainty.
+
+Key data points from vendor server LCAs:
+- Dell R750 (2020, A100 option): 2,181-3,880 kg CO2 total embodied
+- HP ProLiant DL380 gen10+ (2021, GPU option): 2,181 kg CO2 embodied
+- Dell C4130 (2016, GPU server): 12,700 kg CO2 total embodied
+
+Academic references:
+- Gupta et al. "Chasing Carbon", HPCA 2021: Manufacturing dominates lifecycle emissions for data center hardware
+- Ji et al. SCARIF, ISVLSI 2024: Chip area × process node methodology for estimating accelerator carbon
 
 ### 4.3 Refurbished Hardware
 
@@ -293,9 +305,9 @@ Where:
 | Server energy | (1200 × 1.53/3600)/(1000×29) | 0.000018 kWh |
 | Server CO₂ | 0.000018 × 8 × 1.15 | 0.00017 g |
 | Overhead | (0.00068 + 0.00017) × 0.20 | 0.00017 g |
-| Embodied | (2000×1000/157,680,000) × 1.53 × 1 | 0.0194 g |
+| Embodied | (1200×1000/157,680,000) × 1.53 × 1 | 0.0116 g |
 | Training | 1,700,000 / 100,000,000 | 0.0170 g |
-| **Total** | | **0.0374 g** |
+| **Total** | | **0.0306 g** |
 
 **Note**: This is the total lifecycle emissions. For operational emissions only (excluding embodied and training): **0.0010 g** (1.0 mg).
 
@@ -334,9 +346,9 @@ On Berget's infrastructure (8 g/kWh), Llama 3.1 8B, 800 tokens in / 400 tokens o
 | Component | Sweden (8 g/kWh) | US Average (380 g/kWh) | Ratio |
 |-----------|------------------|------------------------|-------|
 | **Operational** (GPU + Server + PUE) | 0.69 mg | 32.9 mg | **47.7×** |
-| **Embodied** (hardware manufacturing) | 10.1 mg | 10.1 mg | 1× |
+| **Embodied** (hardware manufacturing) | 6.1 mg | 6.1 mg | 1× |
 | **Training** (amortised) | 17.0 mg | 17.0 mg | 1× |
-| **TOTAL** | **27.8 mg** | **60.0 mg** | **2.2×** |
+| **TOTAL** | **23.8 mg** | **56.0 mg** | **2.4×** |
 
 **Key insight**: The operational emissions (energy consumed during inference) are ~48× lower on the Swedish grid due to the clean energy mix. However, embodied carbon and training amortisation are **independent of the grid** — they depend on hardware manufacturing and training location, not where inference runs.
 
@@ -346,11 +358,11 @@ For a fair comparison of **operational efficiency only** (excluding fixed costs)
 - **Reduction: 47.7×**
 
 For **total lifecycle emissions** (including fixed costs):
-- Sweden: **27.8 mg** total CO₂e
-- US Average: **60.0 mg** total CO₂e  
-- **Reduction: 2.2×**
+- Sweden: **23.8 mg** total CO₂e
+- US Average: **56.0 mg** total CO₂e  
+- **Reduction: 2.4×**
 
-The choice of infrastructure provider can reduce **operational emissions by 30-85×** for the same model and query, and **total emissions by 2-3×** when including embodied and training costs. 
+The choice of infrastructure provider can reduce **operational emissions by 30-85×** for the same model and query, and **total emissions by 2-4×** when including embodied and training costs. 
 
 ---
 
@@ -375,7 +387,10 @@ The choice of infrastructure provider can reduce **operational emissions by 30-8
 [6] Strubell, E. et al. (2019). "Energy and Policy Considerations for Deep Learning in NLP". arXiv:1906.02243.  
 [7] Faiz, A. et al. (2022). "Measuring the Carbon Intensity of AI in Cloud Instances". FAccT '22.  
 [8] Patterson, D. et al. (2021). "Carbon Emissions and Large Neural Network Training". arXiv:2104.10350.  
-[9] Green Software Foundation (2024). "Software Carbon Intensity for AI (SCI-AI) Specification v2.0".
+[9] Green Software Foundation (2024). "Software Carbon Intensity for AI (SCI-AI) Specification v2.0".  
+[10] Gupta, U. et al. (2021). "Chasing Carbon: The Elusive Environmental Footprint of Computing". HPCA 2021. arXiv:2011.02839.  
+[11] Ji, S. et al. (2024). "SCARIF: A Framework for Sustainable Computer Architecture Research". ISVLSI 2024. arXiv:2401.06270.  
+[12] Luccioni, S. et al. (2024). "Power Hungry Processing: Watts Driving the Cost of AI Deployment?". FAccT 2024. arXiv:2311.16863.
 
 ---
 
@@ -390,6 +405,8 @@ The choice of infrastructure provider can reduce **operational emissions by 30-8
 | E5 Embedding | 560M | 0.7 GFLOP | 0.65 | 100W | **280 kg** |
 | Whisper Large v3 | 1.55B | 2.2 GFLOP | 0.70 | 120W | **1,200 kg** (est.) |
 | Kimi K2.6 | 1.1T | 1,200 GFLOP | 0.62 | 1,200W | **45,000 kg** (est.) |
+
+**Note**: Training CO₂ values are estimated from disclosed or extrapolated data. Values marked (est.) have higher uncertainty (±50%). See Section 5.1 for sources.
 
 ## Appendix B: Swedish Grid Hourly Demand Curve
 
