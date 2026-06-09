@@ -33,6 +33,7 @@ const C = {
 const COMPONENT_COLORS = {
   gpu: { bg: "#52B788", label: "GPU Inference", icon: "⚡" },
   server: { bg: "#74C69D", label: "Server & DC", icon: "🏢" },
+  overhead: { bg: "#2D6A4F", label: "Cooling", icon: "❄️" },
   embodied: { bg: "#CFFF8B", label: "Hardware", icon: "🔧" },
   training: { bg: "#3975D6", label: "Training", icon: "🎓" },
 };
@@ -223,8 +224,8 @@ function EmissionsFooter({
     { 
       key: "overhead", 
       value: result.components.datacenterOverhead.co2Grams, 
-      color: "#2D6A4F",
-      label: "PUE Overhead",
+      color: COMPONENT_COLORS.overhead.bg,
+      label: `Cooling (PUE ${result.deploymentGrid.name === 'Sweden' ? '1.15' : result.deploymentGrid.name === 'Texas' ? '1.80' : '1.50'})`,
       step: 2,
     },
     { 
@@ -267,9 +268,10 @@ const result = calculateInference({
 });
 
 // Total: ${formatCO2(total)} CO₂e per request
+// Water: ${result.waterLiters.toFixed(4)} liters per request
 // - GPU: ${formatCO2(result.components.gpuOperational.co2Grams)}
 // - Server: ${formatCO2(result.components.serverOperational.co2Grams)}
-// - PUE: ${formatCO2(result.components.datacenterOverhead.co2Grams)}
+// - Cooling (PUE ${result.deploymentGrid.name === 'Sweden' ? '1.15' : '1.50'}): ${formatCO2(result.components.datacenterOverhead.co2Grams)}
 // - Embodied: ${formatCO2(result.components.embodied.co2Grams)}
 // - Training: ${formatCO2(result.components.trainingAmortised.co2Grams)}`;
 
@@ -495,7 +497,7 @@ const result = calculateInference({
             <span>+</span>
             <span style={{ color: COMPONENT_COLORS.server.bg }}>Server</span>
             <span>+</span>
-            <span style={{ color: "#2D6A4F" }}>PUE</span>
+            <span style={{ color: COMPONENT_COLORS.overhead.bg }}>Cooling</span>
             {step >= 3 && (
               <>
                 <span>+</span>
@@ -780,6 +782,10 @@ export function CO2Calculator() {
                   </div>
                   <div style={{ fontWeight: 600, color: C.peak, fontSize: "0.875rem" }}>{g.name}</div>
                   <div style={{ fontSize: "0.75rem", color: C.muted, marginTop: "0.25rem" }}>{g.intensityGPerKwh} g/kWh</div>
+                  <div style={{ fontSize: "0.7rem", color: g.waterLitersPerKwh === 0 ? C.moss : C.warning, marginTop: "0.25rem" }}>
+                    {g.waterLitersPerKwh === 0 ? "❄️ Free-air" : `💧 ${g.waterLitersPerKwh}L/kWh`}
+                  </div>
+                  <div style={{ fontSize: "0.7rem", color: C.muted }}>PUE {g.typicalPue}</div>
                 </button>
               ))}
             </div>
@@ -923,6 +929,28 @@ export function CO2Calculator() {
                 value1={americanTraining}
                 value2={bergetTraining}
               />
+
+              <div style={{ marginTop: "1.5rem", padding: "1rem", background: C.fjord, borderRadius: 8, border: `1px solid ${C.moss}` }}>
+                <div style={{ fontSize: "0.875rem", color: C.peak, fontWeight: 600, marginBottom: "0.5rem" }}>
+                  💧 Water Usage for Cooling
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+                  <div>
+                    <div style={{ fontSize: "0.75rem", color: C.muted }}>US Average</div>
+                    <div style={{ fontSize: "1rem", color: C.danger }}>
+                      {americanResult?.waterLiters ? (americanResult.waterLiters * 1000).toFixed(2) : 0} ml/query
+                    </div>
+                    <div style={{ fontSize: "0.7rem", color: C.muted }}>PUE 1.50 · Mechanical cooling</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: "0.75rem", color: C.muted }}>Sweden</div>
+                    <div style={{ fontSize: "1rem", color: C.moss }}>
+                      0.00 ml/query
+                    </div>
+                    <div style={{ fontSize: "0.7rem", color: C.muted }}>PUE 1.15 · Free-air cooling</div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div style={{ display: "flex", gap: "1rem", marginTop: "2rem" }}>

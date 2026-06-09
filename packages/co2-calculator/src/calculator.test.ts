@@ -83,6 +83,31 @@ describe("calculateInference", () => {
     expect(texas.waterLiters).toBeGreaterThan(sweden.waterLiters);
   });
 
+  it("uses model-size based utilization (Section 3.3)", () => {
+    const small = calculateInference(baseParams());
+    const medium = calculateInference(baseParams({
+      modelProfile: MODEL_PROFILES["mistralai/Mistral-Small-3.2-24B-Instruct-2506"],
+    }));
+    const large = calculateInference(baseParams({
+      modelProfile: MODEL_PROFILES["meta-llama/Llama-3.3-70B-Instruct"],
+    }));
+    
+    // Small models (≤10B): utilization = 0.3
+    // Medium models (10-40B): utilization = 0.6
+    // Large models (>40B): utilization = 0.9
+    expect(small.components.gpuOperational.energyKwh).toBeLessThan(medium.components.gpuOperational.energyKwh);
+    expect(medium.components.gpuOperational.energyKwh).toBeLessThan(large.components.gpuOperational.energyKwh);
+  });
+
+  it("keeps server energy constant per node (Section 3.6)", () => {
+    const lowConcurrency = calculateInference(baseParams({ concurrency: 2 }));
+    const highConcurrency = calculateInference(baseParams({ concurrency: 32 }));
+    
+    // Server energy should be the same regardless of concurrency
+    // (it's divided by concurrency for per-request CO2, but energy is constant)
+    expect(lowConcurrency.components.serverOperational.energyKwh).toBe(highConcurrency.components.serverOperational.energyKwh);
+  });
+
   it("amortises training CO₂ over lifetime queries", () => {
     const result1B = calculateInference(baseParams({ lifetimeQueries: 1_000_000_000 }));
     const result10B = calculateInference(baseParams({ lifetimeQueries: 10_000_000_000 }));

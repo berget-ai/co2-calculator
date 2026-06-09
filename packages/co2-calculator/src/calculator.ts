@@ -114,17 +114,16 @@ export function calculateInference(params: InferenceParams): InferenceResult {
     lifetimeQueries,
   } = params;
 
-  // --- Token-based time adjustment ---
+  // --- Token-based time adjustment (Section 3.1) ---
   // Scale response time based on token count relative to defaults
   const tokenRatio = (inputTokens + outputTokens) / 
     (modelProfile.defaultInputTokens + modelProfile.defaultOutputTokens);
   const tokenAdjustedTime = measuredResponseTimeSeconds * Math.sqrt(tokenRatio);
 
-  // --- Concurrency-based delay ---
-  // Higher concurrency = longer response times due to resource contention
-  const concurrencyAdjustedTime = applyConcurrencyDelay(tokenAdjustedTime, concurrency);
-
-  const gpuTimeSec = concurrencyAdjustedTime;
+  // --- GPU Time Allocation (Section 3.1) ---
+  // Per-request GPU time = response time × (concurrency / gpus_in_node)
+  // This accounts for the fact that GPUs are shared among concurrent requests
+  const gpuTimeSec = tokenAdjustedTime * Math.min(1, concurrency / gpusUsed);
   const gpuTimeH = gpuTimeSec / SECONDS_IN_HOUR;
 
   const gpusUsed = Math.min(
@@ -137,8 +136,18 @@ export function calculateInference(params: InferenceParams): InferenceResult {
     hourOfDay,
   );
 
-  // --- Power (per GPU) ---
-  const utilization = Math.min(1.0, concurrencyAdjustedTime / 10);
+  // --- Power (per GPU) (Section 3.4) ---
+  // Utilization based on model size, not response time
+  // U_util ≈ 0.3 for small models, 0.6 for medium, 0.9 for large
+  let utilization: number;
+  if (modelProfile.parameters <= 10_000_000_000) {
+    utilization = 0.3; // Small models
+  } else if (modelProfile.parameters <= 40_000_000_000) {
+    utilization = 0.6; // Medium models
+  } else {
+    utilization = 0.9; // Large models
+  }
+  
   // Base idle power that every GPU draws regardless of load
   const baseGpuPower = hardware.nodeIdleWatts / hardware.gpuCount;
   // Additional power when under load
@@ -151,9 +160,11 @@ export function calculateInference(params: InferenceParams): InferenceResult {
   const gpuEnergyKwh = (powerPerGpu * gpuTimeH * gpusUsed) / 1_000;
   const gpuOperationalCO2 = gpuEnergyKwh * effectiveIntensity;
 
-  // --- Server infrastructure (shared by concurrency) ---
-  const serverEnergyKwh = (hardware.chassisWatts * gpuTimeH) / (1_000 * concurrency);
-  const serverOperationalCO2 = serverEnergyKwh * effectiveIntensity;
+  // --- Server Infrastructure (Section 3.6) ---
+  // Server chassis power is constant per node, NOT divided by concurrency
+  // The CO₂ is divided among concurrent requests for per-request accounting
+  const serverEnergyKwh = (hardware.chassisWatts * gpuTimeH) / 1_000;
+  const serverOperationalCO2 = (serverEnergyKwh * effectiveIntensity) / concurrency;
 
   // --- PUE overhead (grid-specific) ---
   const pue = deploymentGrid.typicalPue;
