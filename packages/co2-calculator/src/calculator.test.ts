@@ -69,6 +69,20 @@ describe("calculateInference", () => {
     expect(overhead).toBeCloseTo((gpu + server) * 0.80, 6);
   });
 
+  it("calculates water usage based on climate", () => {
+    const sweden = calculateInference(baseParams());
+    const texas = calculateInference(baseParams({ deploymentGrid: GRID_REGIONS.texas }));
+    
+    // Sweden uses free-air cooling: 0 liters
+    expect(sweden.waterLiters).toBe(0);
+    
+    // Texas uses evaporative cooling: >0 liters
+    expect(texas.waterLiters).toBeGreaterThan(0);
+    
+    // Texas should use significantly more water than Sweden
+    expect(texas.waterLiters).toBeGreaterThan(sweden.waterLiters);
+  });
+
   it("amortises training CO₂ over lifetime queries", () => {
     const result1B = calculateInference(baseParams({ lifetimeQueries: 1_000_000_000 }));
     const result10B = calculateInference(baseParams({ lifetimeQueries: 10_000_000_000 }));

@@ -91,6 +91,12 @@ export interface GridRegion {
   coolingFactor: number;
   /** Typical PUE for this climate */
   typicalPue: number;
+  /** Water usage for cooling (liters per kWh of IT energy)
+   *  0.0 = no water (free-air cooling)
+   *  0.5-1.0 = moderate (cooling towers with recirculation)
+   *  2.0+ = high (evaporative cooling in hot/dry climates)
+   */
+  waterLitersPerKwh: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -158,4 +164,6 @@ export interface InferenceResult {
     name: string;
     intensityGPerKwh: number;
   };
+  /** Water usage for cooling (liters per query) */
+  waterLiters: number;
 }

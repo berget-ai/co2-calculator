@@ -1,6 +1,6 @@
 # Methodology: AI CO₂ Impact Calculator for Berget AI
 
-**Document Version**: 2.2  
+**Document Version**: 2.3  
 **Date**: 2026-06-09  
 **Authors**: Christian Landgren, Berget AI  
 **Reviewers**: Stockholm Environment Institute (SEI)  
@@ -82,7 +82,33 @@ A significant but often overlooked factor is **datacenter cooling efficiency**, 
 
 This means a GPU in Sweden uses **57% less cooling energy** than the same GPU in Texas, even before accounting for the carbon intensity difference.
 
-### 2.3 Supported Grid Regions
+### 2.3 Water Usage for Cooling
+
+An often overlooked environmental impact is **water consumption** for datacenter cooling. Evaporative cooling — common in hot climates — requires significant water:
+
+| Climate | Cooling Method | Water (L/kWh IT) |
+|---------|---------------|------------------|
+| **Nordics (Sweden, Norway)** | Free-air cooling | **0.0** |
+| Quebec | Free-air cooling | **0.0** |
+| France | Mixed | 0.2 |
+| Ireland | Temperate maritime | 0.3 |
+| Germany | Cooling towers | 0.5 |
+| US Average | Mechanical + evaporative | 0.8 |
+| US East | Cooling towers | 1.0 |
+| Texas | Evaporative (dry climate) | 1.5 |
+| California | Coastal + mechanical | 0.7 |
+| India | Evaporative (water scarcity) | 2.0 |
+
+**Key insight**: Nordic datacenters use **zero water** for cooling because free-air cooling doesn't require evaporation. In contrast, a datacenter in Texas or India can consume **1.5-2.0 liters of water per kWh** of IT energy — a significant environmental concern in water-scarce regions.
+
+For a single inference query using 0.0001 kWh:
+- Sweden: **0 ml** water
+- Texas: **0.15 ml** water
+- India: **0.20 ml** water
+
+While small per query, at scale (millions of queries) this becomes significant: 1 million queries in India = **200 liters** of water vs **0 liters** in Sweden.
+
+### 2.4 Supported Grid Regions
 
 The calculator supports 13 grid regions with IEA emission factors and climate-specific PUE:
 

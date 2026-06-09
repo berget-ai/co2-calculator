@@ -173,6 +173,11 @@ export function calculateInference(params: InferenceParams): InferenceResult {
 
   const totalEnergyKwh = gpuEnergyKwh + serverEnergyKwh;
 
+  // --- Water usage (grid-specific cooling method) ---
+  // Water is used for evaporative cooling in hot climates
+  // Free-air cooling (Nordics) uses zero water
+  const waterLiters = totalEnergyKwh * deploymentGrid.waterLitersPerKwh;
+
   // --- Build result ---
   const mkComp = (co2: number, energy: number, label: string): InferenceComponent => ({
     co2Grams: Number(co2.toFixed(6)),
@@ -201,6 +206,7 @@ export function calculateInference(params: InferenceParams): InferenceResult {
       name: deploymentGrid.name,
       intensityGPerKwh: deploymentGrid.intensityGPerKwh,
     },
+    waterLiters: Number(waterLiters.toFixed(6)),
   };
 }
 

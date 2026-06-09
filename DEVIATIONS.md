@@ -98,6 +98,27 @@ const serverEnergyKwh = (hardware.chassisWatts * gpuTimeH) / (1_000 * concurrenc
 - Uppdaterat tester att verifiera grid-specifik PUE
 - Metodologi uppdaterad till v2.2 med ny sektion "Climate-Advantageous Cooling"
 
+### 8. Section 2.3 - Water Usage ✅ FIXAD (2026-06-09)
+**Tidigare:**
+- Vattenanvändning för kylning var inte modellerad alls
+
+**Uppdaterad implementation:**
+- Lagt till `waterLitersPerKwh` i `GridRegion` typen
+- Sverige/Norge/Quebec: 0.0 L/kWh (free-air cooling)
+- Texas: 1.5 L/kWh (evaporativ kylning)
+- Indien: 2.0 L/kWh (evaporativ kylning i vattenbristområden)
+- Beräknar vattenanvändning per query: `waterLiters = totalEnergyKwh * waterLitersPerKwh`
+
+**Motivering:** Vattenanvändning är en viktig miljöfaktor som ofta förbises. Nordiska datacenter använder inget vatten för kylning, medan varma klimat kan konsumera betydande mängder vatten.
+
+**Åtgärd:**
+- Lagt till `waterLitersPerKwh` i `GridRegion` typen
+- Uppdaterat alla regioner i `grids.ts` med vattenvärden
+- Uppdaterat `calculator.ts` att beräkna `waterLiters`
+- Lagt till `waterLiters` i `InferenceResult`
+- Lagt till tester för vattenanvändning
+- Metodologi uppdaterad med ny sektion "Water Usage for Cooling"
+
 ## Föreslagna åtgärder
 
 1. **Fixa GPU time allocation** - Använd metodologins formel
