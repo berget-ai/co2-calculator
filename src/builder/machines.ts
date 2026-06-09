@@ -22,7 +22,7 @@ import type { GPUNode, HardwareComponent } from "../infrastructure-types";
 // GPU
 // ---------------------------------------------------------------------------
 
-export interface GPUOptions {
+interface GPUOptions {
   count?: number;
   powerWatts?: number;
   utilizationRate?: number;

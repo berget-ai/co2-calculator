@@ -6,3 +6,14 @@ export { GRID_REGIONS } from "./grids.js";
 
 // Export traffic pattern for UI
 export { DEFAULT_TRAFFIC_PATTERN, getConcurrencyFromTrafficPattern } from "./calculator.js";
+
+// Re-export types for provider integrations
+export type {
+  InferenceParams,
+  InferenceResult,
+  InferenceComponent,
+  ModelProfile,
+  ModelArchitecture,
+  HardwareConfig,
+  GridRegion,
+} from "./types.js";

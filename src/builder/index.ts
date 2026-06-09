@@ -45,4 +45,3 @@ export {
 export { ModelConfig } from "./models";
 export { UsagePattern } from "./usage";
 export { ConfigCreator } from "./config-creator";
-export type { ConfigCreatorOptions } from "./config-creator";

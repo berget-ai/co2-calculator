@@ -1,12 +1,12 @@
 import type { CO2EstimationParams, CO2EstimationResult } from "./domain-types";
 
-export type HardwareType = "rack" | "server" | "network" | "storage" | "gpu";
+type HardwareType = "rack" | "server" | "network" | "storage" | "gpu";
 
-export type HardwareCondition = "new" | "refurbished" | "existing";
+type HardwareCondition = "new" | "refurbished" | "existing";
 
-export type DeploymentType = "cloud" | "on-premise" | "hybrid" | "third-party";
+type DeploymentType = "cloud" | "on-premise" | "hybrid" | "third-party";
 
-export type NetworkTier = "edge" | "core" | "datacenter";
+type NetworkTier = "edge" | "core" | "datacenter";
 
 export interface HardwareComponent {
   type: HardwareType;
