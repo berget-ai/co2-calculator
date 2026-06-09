@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { calculateInference, calculateComparisons, fmtTime, getConcurrencyFromTrafficPattern } from "./calculator.js";
+import { calculateInference, calculateComparisons, fmtTime, fmtNumber, fmtParams, getConcurrencyFromTrafficPattern } from "./calculator.js";
 import { MODEL_PROFILES } from "./models.js";
 import { HARDWARE_CONFIGS } from "./hardware.js";
 import { GRID_REGIONS } from "./grids.js";
@@ -181,6 +181,46 @@ describe("fmtTime", () => {
 
   it("formats minutes", () => {
     expect(fmtTime(90)).toBe("1 min 30 s");
+  });
+});
+
+describe("fmtNumber", () => {
+  it("formats billions", () => {
+    expect(fmtNumber(1_000_000_000)).toBe("1B");
+    expect(fmtNumber(2_500_000_000)).toBe("3B");
+  });
+
+  it("formats millions", () => {
+    expect(fmtNumber(1_000_000)).toBe("1M");
+    expect(fmtNumber(5_000_000)).toBe("5M");
+  });
+
+  it("formats thousands", () => {
+    expect(fmtNumber(1_000)).toBe("1K");
+    expect(fmtNumber(10_000)).toBe("10K");
+  });
+
+  it("returns small numbers as-is", () => {
+    expect(fmtNumber(500)).toBe("500");
+  });
+});
+
+describe("fmtParams", () => {
+  it("formats trillions", () => {
+    expect(fmtParams(1_100_000_000_000)).toBe("1.1T");
+  });
+
+  it("formats billions", () => {
+    expect(fmtParams(8_000_000_000)).toBe("8B");
+    expect(fmtParams(70_000_000_000)).toBe("70B");
+  });
+
+  it("formats millions", () => {
+    expect(fmtParams(560_000_000)).toBe("560M");
+  });
+
+  it("returns small numbers as-is", () => {
+    expect(fmtParams(500)).toBe("500");
   });
 });
 

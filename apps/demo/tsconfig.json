@@ -24,6 +24,6 @@
       "@berget/ui/*": ["../../../berget-design-system/dist/*"]
     }
   },
-  "include": ["src", "../../src/inference/**/*"],
+  "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

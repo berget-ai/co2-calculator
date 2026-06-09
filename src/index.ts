@@ -1,4 +1,3 @@
-export * from "./inference";
 export * from "./units";
 export * from "./domain-types";
 export * from "./config";
