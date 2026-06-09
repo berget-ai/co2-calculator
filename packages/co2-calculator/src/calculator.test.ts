@@ -50,12 +50,23 @@ describe("calculateInference", () => {
     expect(calculateInference(huge).gpusAllocated).toBe(8);
   });
 
-  it("applies PUE overhead correctly (Section 3.5)", () => {
+  it("applies grid-specific PUE overhead (Section 3.5)", () => {
     const result = calculateInference(baseParams());
     const overhead = result.components.datacenterOverhead.co2Grams;
     const gpu = result.components.gpuOperational.co2Grams;
     const server = result.components.serverOperational.co2Grams;
-    expect(overhead).toBeCloseTo((gpu + server) * 0.2, 6);
+    // Sweden has PUE 1.15 (free-air cooling), so overhead = 15%
+    expect(overhead).toBeCloseTo((gpu + server) * 0.15, 6);
+  });
+
+  it("uses higher PUE for hot climates", () => {
+    const texas = baseParams({ deploymentGrid: GRID_REGIONS.texas });
+    const result = calculateInference(texas);
+    // Texas has PUE 1.80, so overhead = 80%
+    const overhead = result.components.datacenterOverhead.co2Grams;
+    const gpu = result.components.gpuOperational.co2Grams;
+    const server = result.components.serverOperational.co2Grams;
+    expect(overhead).toBeCloseTo((gpu + server) * 0.80, 6);
   });
 
   it("amortises training CO₂ over lifetime queries", () => {

@@ -83,6 +83,14 @@ export interface GridRegion {
   peakPeriodFactor: number;
   /** Threshold below which demand is considered low */
   lowPeriodThreshold: number;
+  /** Climate cooling factor: multiplier on cooling energy vs ideal free-air cooling
+   *  1.0 = free-air cooling (Nordics)
+   *  1.5 = moderate climate (Central Europe)
+   *  2.5 = hot climate (desert regions)
+   */
+  coolingFactor: number;
+  /** Typical PUE for this climate */
+  typicalPue: number;
 }
 
 // ---------------------------------------------------------------------------

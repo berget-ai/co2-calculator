@@ -14,8 +14,12 @@ import type {
 } from "./types.js";
 
 const SECONDS_IN_HOUR = 3_600;
-const PUE = 1.2;
 const GPU_LIFETIME_SECONDS = 5 * 365 * 24 * 3_600; // 5 years
+
+// PUE is now grid-specific (see grids.ts)
+// Sweden: 1.15 (free-air cooling)
+// Texas: 1.80 (extreme cooling needs)
+// Global average: 1.50
 
 // ---------------------------------------------------------------------------
 // GPU allocation heuristic (from live-calculator.html production tuning)
@@ -151,8 +155,9 @@ export function calculateInference(params: InferenceParams): InferenceResult {
   const serverEnergyKwh = (hardware.chassisWatts * gpuTimeH) / (1_000 * concurrency);
   const serverOperationalCO2 = serverEnergyKwh * effectiveIntensity;
 
-  // --- PUE overhead ---
-  const overheadCO2 = (gpuOperationalCO2 + serverOperationalCO2) * (PUE - 1);
+  // --- PUE overhead (grid-specific) ---
+  const pue = deploymentGrid.typicalPue;
+  const overheadCO2 = (gpuOperationalCO2 + serverOperationalCO2) * (pue - 1);
 
   // --- Embodied (amortised per GPU-second, all GPUs used) ---
   const embodiedPerGpuGrams = (hardware.embodiedPerGpuKg * 1_000) / GPU_LIFETIME_SECONDS;
@@ -180,7 +185,7 @@ export function calculateInference(params: InferenceParams): InferenceResult {
     components: {
       gpuOperational: mkComp(gpuOperationalCO2, gpuEnergyKwh, "GPU energy"),
       serverOperational: mkComp(serverOperationalCO2, serverEnergyKwh, "Server infrastructure"),
-      datacenterOverhead: mkComp(overheadCO2, 0, "Datacenter overhead (PUE 1.2)"),
+      datacenterOverhead: mkComp(overheadCO2, 0, `Cooling & overhead (PUE ${pue.toFixed(2)})`),
       embodied: mkComp(embodiedCO2, 0, "Hardware embodied (amortised)"),
       trainingAmortised: mkComp(trainingCO2, 0, `Training amortised (${includeTraining ? "included" : "excluded"})`),
     },

@@ -1,6 +1,6 @@
 # Methodology: AI CO₂ Impact Calculator for Berget AI
 
-**Document Version**: 2.1  
+**Document Version**: 2.2  
 **Date**: 2026-06-09  
 **Authors**: Christian Landgren, Berget AI  
 **Reviewers**: Stockholm Environment Institute (SEI)  
@@ -30,7 +30,7 @@ We adopt the **Consumer boundary** from SCI-AI, covering:
 | Component | Included | Notes |
 |-----------|----------|-------|
 | **Operational energy** | ✅ GPU, server, networking during inference | Measured via response time allocation |
-| **Datacenter overhead** | ✅ PUE factor | 1.20 for Swedish free-air cooling |
+| **Datacenter overhead** | ✅ PUE factor | 1.15 for Swedish free-air cooling |
 | **Training amortisation** | ✅ Total training CO₂ ÷ expected queries | Model-specific, from disclosed/estimated data |
 | **Hardware embodied** | ✅ GPU/chip manufacturing, amortised per GPU-second | Node-level, scaled by GPU-seconds |
 | **Idle allocation** | ✅ Pro-rata GPU time via concurrency model | See Section 3.1 |
@@ -59,29 +59,52 @@ However, we use **8 g CO₂/kWh** for the calculator. This conservative figure:
 - Reflects marginal demand at peak hours rather than average
 - Aligns with IEA's Swedish electricity carbon intensity estimate [1]
 
-### 2.2 Supported Grid Regions
+### 2.2 Climate-Advantageous Cooling
 
-The calculator supports 13 grid regions with IEA emission factors:
+A significant but often overlooked factor is **datacenter cooling efficiency**, which varies dramatically by climate:
 
-| Region | Key | Intensity (g/kWh) | Characteristics |
-|--------|-----|-------------------|-----------------|
-| Sweden | `sweden` | 8 | Hydro, nuclear, wind |
-| Norway | `norway` | 15 | Hydro-dominant |
-| France | `france` | 30 | Nuclear-dominant |
-| Quebec | `quebec` | 40 | Hydro |
-| Ireland | `ireland` | 150 | Mixed, data center hub |
-| Germany | `germany` | 280 | 20% renewable |
-| US Average | `usa` | 380 | Mixed |
-| US East (PJM) | `useast` | 400 | Gas + nuclear + coal |
-| Texas (ERCOT) | `texas` | 420 | Gas + wind |
-| California (CAISO) | `california` | 450 | Gas + solar |
-| Japan | `japan` | 550 | Mixed, post-Fukushima |
-| India | `india` | 700 | Coal-heavy |
-| Poland | `poland` | 750 | Coal-dominant |
-| China | `china` | 850 | Coal-heavy |
-| Global Average | `global` | 500 | IEA world average |
+| Climate | Cooling Method | PUE | Cooling Energy vs Ideal |
+|---------|---------------|-----|------------------------|
+| **Nordics (Sweden, Norway)** | Free-air cooling | 1.15 | **1.0×** (baseline) |
+| Quebec | Free-air cooling | 1.15 | 1.0× |
+| France | Mixed (free-air + mechanical) | 1.30 | 1.3× |
+| Ireland | Temperate maritime | 1.25 | 1.2× |
+| Germany | Mechanical cooling required | 1.35 | 1.4× |
+| US Average | Mechanical cooling | 1.50 | 1.5× |
+| US East | Heavy mechanical cooling | 1.60 | 1.6× |
+| Texas | Extreme cooling needs | 1.80 | 2.0× |
+| India | Extreme cooling + humidity | 2.00 | 2.5× |
 
-### 2.3 Time-of-Day Variation
+**Key insight**: Sweden's cold climate eliminates the need for energy-intensive mechanical cooling. This gives Nordic datacenters a **structural efficiency advantage** beyond just the clean grid:
+- Sweden: PUE 1.15 (cooling adds only 15% overhead)
+- Texas: PUE 1.80 (cooling adds 80% overhead)
+- India: PUE 2.00 (cooling adds 100% overhead)
+
+This means a GPU in Sweden uses **57% less cooling energy** than the same GPU in Texas, even before accounting for the carbon intensity difference.
+
+### 2.3 Supported Grid Regions
+
+The calculator supports 13 grid regions with IEA emission factors and climate-specific PUE:
+
+| Region | Key | Intensity (g/kWh) | PUE | Characteristics |
+|--------|-----|-------------------|-----|-----------------|
+| Sweden | `sweden` | 8 | 1.15 | Hydro, nuclear, wind |
+| Norway | `norway` | 15 | 1.15 | Hydro-dominant |
+| France | `france` | 30 | 1.30 | Nuclear-dominant |
+| Quebec | `quebec` | 40 | 1.15 | Hydro |
+| Ireland | `ireland` | 150 | 1.25 | Mixed, data center hub |
+| Germany | `germany` | 280 | 1.35 | 20% renewable |
+| US Average | `usa` | 380 | 1.50 | Mixed |
+| US East (PJM) | `useast` | 400 | 1.60 | Gas + nuclear + coal |
+| Texas (ERCOT) | `texas` | 420 | 1.80 | Gas + wind |
+| California (CAISO) | `california` | 450 | 1.50 | Gas + solar |
+| Japan | `japan` | 550 | 1.60 | Mixed, post-Fukushima |
+| India | `india` | 700 | 2.00 | Coal-heavy |
+| Poland | `poland` | 750 | 1.40 | Coal-dominant |
+| China | `china` | 850 | 1.60 | Coal-heavy |
+| Global Average | `global` | 500 | 1.50 | IEA world average |
+
+### 2.4 Time-of-Day Variation
 
 Each grid region has a demand curve (24 hours) and adjustment factors:
 
@@ -178,12 +201,27 @@ serverEnergyKwh = (chassisWatts × gpuTimeHours) / (1,000 × concurrency)
 
 ### 3.7 PUE Overhead
 
-Berget's PUE: **1.20** (Swedish free-air cooling)
+PUE (Power Usage Effectiveness) varies significantly by climate and cooling method:
+
+| Region | PUE | Cooling Method |
+|--------|-----|---------------|
+| Sweden | **1.15** | Free-air cooling |
+| Norway | 1.15 | Free-air cooling |
+| Quebec | 1.15 | Free-air cooling |
+| France | 1.30 | Mixed |
+| Germany | 1.35 | Mechanical |
+| US Average | 1.50 | Mechanical |
+| Texas | 1.80 | Heavy mechanical |
+| India | 2.00 | Extreme mechanical |
 
 ```
 overheadCO2 = (gpuOperationalCO2 + serverOperationalCO2) × (PUE - 1)
-              = operationalCO2 × 0.20
 ```
+
+For Sweden: `overheadCO2 = operationalCO2 × 0.15` (15% overhead)
+For Texas: `overheadCO2 = operationalCO2 × 0.80` (80% overhead)
+
+This climate advantage compounds with the clean grid — Swedish inference has both lower carbon intensity AND lower cooling overhead.
 
 ### 3.8 Operational Carbon Total
 
@@ -304,10 +342,10 @@ Where:
 | GPU CO₂ | 0.000074 × 8 × 1.15 | 0.00068 g |
 | Server energy | (1200 × 1.53/3600)/(1000×29) | 0.000018 kWh |
 | Server CO₂ | 0.000018 × 8 × 1.15 | 0.00017 g |
-| Overhead | (0.00068 + 0.00017) × 0.20 | 0.00017 g |
+| Overhead | (0.00068 + 0.00017) × 0.15 | 0.00013 g |
 | Embodied | (1200×1000/157,680,000) × 1.53 × 1 | 0.0116 g |
 | Training | 1,700,000 / 100,000,000 | 0.0170 g |
-| **Total** | | **0.0306 g** |
+| **Total** | | **0.0302 g** |
 
 **Note**: This is the total lifecycle emissions. For operational emissions only (excluding embodied and training): **0.0010 g** (1.0 mg).
 
@@ -343,26 +381,28 @@ flightPermille = (co2Grams / 90,000) × 1,000
 
 On Berget's infrastructure (8 g/kWh), Llama 3.1 8B, 800 tokens in / 400 tokens out:
 
-| Component | Sweden (8 g/kWh) | US Average (380 g/kWh) | Ratio |
-|-----------|------------------|------------------------|-------|
-| **Operational** (GPU + Server + PUE) | 0.69 mg | 32.9 mg | **47.7×** |
-| **Embodied** (hardware manufacturing) | 6.1 mg | 6.1 mg | 1× |
+| Component | Sweden (8 g/kWh, PUE 1.15) | US Average (380 g/kWh, PUE 1.50) | Ratio |
+|-----------|---------------------------|----------------------------------|-------|
+| **Operational** (GPU + Server + PUE) | 1.04 mg | 49.6 mg | **47.7×** |
+| **Embodied** (hardware manufacturing) | 24.3 mg | 24.3 mg | 1× |
 | **Training** (amortised) | 17.0 mg | 17.0 mg | 1× |
-| **TOTAL** | **23.8 mg** | **56.0 mg** | **2.4×** |
+| **TOTAL** | **42.4 mg** | **90.9 mg** | **2.1×** |
 
 **Key insight**: The operational emissions (energy consumed during inference) are ~48× lower on the Swedish grid due to the clean energy mix. However, embodied carbon and training amortisation are **independent of the grid** — they depend on hardware manufacturing and training location, not where inference runs.
 
 For a fair comparison of **operational efficiency only** (excluding fixed costs):
-- Sweden: **0.69 mg** operational CO₂
-- US Average: **32.9 mg** operational CO₂
+- Sweden: **1.04 mg** operational CO₂
+- US Average: **49.6 mg** operational CO₂
 - **Reduction: 47.7×**
 
 For **total lifecycle emissions** (including fixed costs):
-- Sweden: **23.8 mg** total CO₂e
-- US Average: **56.0 mg** total CO₂e  
-- **Reduction: 2.4×**
+- Sweden: **42.4 mg** total CO₂e
+- US Average: **90.9 mg** total CO₂e  
+- **Reduction: 2.1×**
 
 The choice of infrastructure provider can reduce **operational emissions by 30-85×** for the same model and query, and **total emissions by 2-4×** when including embodied and training costs. 
+
+**Climate advantage compounds the grid advantage**: Sweden's free-air cooling (PUE 1.15) vs US mechanical cooling (PUE 1.50) means 57% less cooling energy, in addition to the 47× cleaner grid. 
 
 ---
 

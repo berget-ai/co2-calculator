@@ -73,6 +73,31 @@ const serverEnergyKwh = (hardware.chassisWatts * gpuTimeH) / (1_000 * concurrenc
 
 **Åtgärd:** Detaljerad dokumentation tillagd i `hardware.ts` med osäkerhetskommentarer per GPU. Metodologi uppdaterad till v2.1.
 
+### 7. Section 3.7 - PUE (Power Usage Effectiveness) ✅ FIXAD (2026-06-09)
+**Tidigare:**
+- Hårdkodad PUE = 1.2 för alla regioner
+- Metodologi sa "1.20 for Swedish free-air cooling"
+
+**Uppdaterad implementation:**
+- Grid-specifik PUE per region:
+  - Sverige: 1.15 (free-air cooling)
+  - Norge: 1.15 (free-air cooling)
+  - Quebec: 1.15 (free-air cooling)
+  - Frankrike: 1.30 (mixed)
+  - Tyskland: 1.35 (mechanical)
+  - USA: 1.50 (mechanical)
+  - Texas: 1.80 (extreme cooling)
+  - Indien: 2.00 (extreme cooling)
+
+**Motivering:** Klimatet påverkar kylningsbehovet dramatiskt. Sverige behöver ingen mekanisk kylning (free-air cooling), medan Texas och Indien behöver energiintensiv kylning. Detta ger ytterligare en fördel för nordiska datacenter utöver den rena elmixen.
+
+**Åtgärd:**
+- Lagt till `coolingFactor` och `typicalPue` i `GridRegion` typen
+- Uppdaterat alla regioner i `grids.ts` med klimatspecifika värden
+- Uppdaterat `calculator.ts` att använda `deploymentGrid.typicalPue`
+- Uppdaterat tester att verifiera grid-specifik PUE
+- Metodologi uppdaterad till v2.2 med ny sektion "Climate-Advantageous Cooling"
+
 ## Föreslagna åtgärder
 
 1. **Fixa GPU time allocation** - Använd metodologins formel
