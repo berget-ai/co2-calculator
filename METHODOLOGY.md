@@ -280,22 +280,38 @@ embodiedCO2 = embodiedPerGpuGrams × gpuTimeSeconds × gpusUsed
 |----------|------|-----------|-----------|--------------|---------|
 | NVIDIA H200 | 8 | 800W | 5,000W | 2,500 kg | 600W |
 | NVIDIA H100 | 8 | 700W | 5,200W | 2,000 kg | 600W |
-| AMD MI300X | 8 | 1,000W | 6,000W | 3,000 kg | 600W |
+| AMD MI300X | 8 | 1,000W | 7,000W | 1,000 kg | 1,500W |
 | NVIDIA A100 | 8 | 600W | 3,200W | 1,200 kg | 400W |
 | NVIDIA L4 | 4 | 200W | 400W | 300 kg | 200W |
 | Refurbished H200 | 8 | 800W | 5,000W | 0 kg | 600W |
 
 **Note on Embodied Carbon Values:**
-NVIDIA and AMD do NOT publish per-GPU embodied carbon LCAs. The values above are estimates derived from Dell/HPE server-level product carbon footprint reports by subtracting non-GPU components (CPU, chassis, DRAM, NIC, SSD). These estimates have ±30-50% uncertainty.
+NVIDIA and AMD do NOT publish per-GPU embodied carbon LCAs. The values above are estimates derived from server-level product carbon footprint reports by subtracting non-GPU components (CPU, chassis, DRAM, NIC, SSD). These estimates have ±30-50% uncertainty.
+
+**Exception — AMD MI300X (Supermicro AS-8125GS-TNMR2):**
+We have a detailed component-level estimate for this specific configuration:
+
+| Component | Embodied CO₂ | Notes |
+|-----------|-------------|-------|
+| 8× AMD MI300X + UBB + 1.5 TB HBM3 | 2.0-4.0 t CO₂e | Triangulated from NVIDIA HGX H100 PCF (1,312 kg) |
+| 1.5 TB DDR5 RDIMM (24×64 GB) | 2.0-4.6 t CO₂e | Boavizta component model |
+| SSD (2×7.68 TB + 960 GB) | 0.4-1.2 t CO₂e | Boavizta component model |
+| Chassis, motherboard, PSUs, fans, NICs, cables | 0.8-1.8 t CO₂e | Supermicro AS-8125GS-TNMR2: 8U, 75.3 kg |
+| 2× AMD EPYC 9654 (96 cores, 360W TDP) | 0.1-0.3 t CO₂e | CPU portion |
+| **Total server** | **5-12 t CO₂e** | Best estimate: **7 t CO₂e** |
+| **Per GPU** | **625-1,500 kg** | Conservative: **1,000 kg** |
 
 Key data points from vendor server LCAs:
 - Dell R750 (2020, A100 option): 2,181-3,880 kg CO2 total embodied
 - HP ProLiant DL380 gen10+ (2021, GPU option): 2,181 kg CO2 embodied
 - Dell C4130 (2016, GPU server): 12,700 kg CO2 total embodied
+- **NVIDIA HGX H100 PCF**: 1,312 kg CO₂e cradle-to-gate (8× H100 + 640 GB HBM3)
 
 Academic references:
 - Gupta et al. "Chasing Carbon", HPCA 2021: Manufacturing dominates lifecycle emissions for data center hardware
 - Ji et al. SCARIF, ISVLSI 2024: Chip area × process node methodology for estimating accelerator carbon
+
+**Recommended action:** Request PAIA/PCF cradle-to-gate report from Supermicro/AMD for configured AS-8125GS-TNMR2 (8× MI300X, 24×64GB RDIMM, SSDs).
 
 ### 4.3 Refurbished Hardware
 
