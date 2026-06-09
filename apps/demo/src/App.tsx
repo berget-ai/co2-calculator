@@ -39,24 +39,26 @@ const COMPONENT_COLORS = {
 };
 
 const MODEL_CATEGORIES = {
-  small: {
-    label: "Small & Fast",
-    description: "Quick responses, everyday tasks",
-    icon: "⚡",
+  chat: {
+    label: "Chat & Conversations",
+    description: "Customer support, Q&A, writing assistance",
+    icon: "💬",
     models: [
-      { id: "meta-llama/Llama-3.1-8B-Instruct", name: "Llama 3.1 8B" },
-      { id: "mistralai/Mistral-Small-3.2-24B-Instruct-2506", name: "Mistral Small 24B" },
+      { id: "meta-llama/Llama-3.1-8B-Instruct", name: "Llama 3.1 (8B)" },
+      { id: "mistralai/Mistral-Small-3.2-24B-Instruct-2506", name: "Mistral Small (24B)" },
+      { id: "google/gemma-4-31B-it", name: "Gemma 4 (31B)" },
     ],
     defaultModel: "meta-llama/Llama-3.1-8B-Instruct",
     responseTime: 0.8,
   },
-  large: {
-    label: "Large & Reasoning",
-    description: "Complex reasoning, coding, analysis",
-    icon: "🧠",
+  code: {
+    label: "Code & Analysis",
+    description: "Software development, complex reasoning, research",
+    icon: "💻",
     models: [
-      { id: "meta-llama/Llama-3.3-70B-Instruct", name: "Llama 3.3 70B" },
-      { id: "moonshotai/Kimi-K2.6", name: "Kimi K2.6" },
+      { id: "meta-llama/Llama-3.3-70B-Instruct", name: "Llama 3.3 (70B)" },
+      { id: "openai/gpt-oss-120b", name: "GPT-OSS (120B)" },
+      { id: "moonshotai/Kimi-K2.6", name: "Kimi K2.6 (1.1T MoE)" },
     ],
     defaultModel: "meta-llama/Llama-3.3-70B-Instruct",
     responseTime: 3.5,
@@ -517,8 +519,8 @@ const result = calculateInference({
 
 export function CO2Calculator() {
   const [step, setStep] = useState(1);
-  const [modelCategory, setModelCategory] = useState<"small" | "large">("small");
-  const [selectedModel, setSelectedModel] = useState(MODEL_CATEGORIES.small.defaultModel);
+  const [modelCategory, setModelCategory] = useState<"chat" | "code">("chat");
+  const [selectedModel, setSelectedModel] = useState(MODEL_CATEGORIES.chat.defaultModel);
   const [region, setRegion] = useState("usa");
 
   const concurrency = getConcurrencyFromTrafficPattern(14);
@@ -687,7 +689,7 @@ export function CO2Calculator() {
                 <button
                   key={key}
                   onClick={() => {
-                    setModelCategory(key as "small" | "large");
+                    setModelCategory(key as "chat" | "code");
                     setSelectedModel(cat.defaultModel);
                   }}
                   style={{
@@ -969,7 +971,7 @@ export function CO2Calculator() {
                 ← Back
               </button>
               <button
-                onClick={() => { setStep(1); setModelCategory("small"); setSelectedModel(MODEL_CATEGORIES.small.defaultModel); setRegion("usa"); }}
+                onClick={() => { setStep(1); setModelCategory("chat"); setSelectedModel(MODEL_CATEGORIES.chat.defaultModel); setRegion("usa"); }}
                 style={{
                   flex: 1,
                   padding: "1rem",
