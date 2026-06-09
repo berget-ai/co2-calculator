@@ -3,8 +3,9 @@
  * 
  * ⚠️  AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
  * 
- * Generated: 2026-06-05T15:40:03.838Z
- * Sources: Reference values (verified 2024-01)
+ * Generated: 2026-06-05T15:47:06.548Z
+ * Sources: IEA 2024, Hydro-Québec 2024, EPA eGRID 2023
+ * Live data: 0 regions
  * 
  * To update this file, run:
  *   npm run update-grid-data
@@ -14,6 +15,8 @@
  *   - EPA eGRID: https://www.epa.gov/egrid
  *   - EEA: https://www.eea.europa.eu/data-and-maps
  *   - Electricity Maps: https://app.electricitymaps.com
+ *   - Ember: https://ember-climate.org
+ *   - Our World in Data: https://github.com/owid/energy-data
  */
 
 import type { GridRegion } from "./types.js";
@@ -21,7 +24,7 @@ import { DEFAULT_DEMAND_CURVE } from "./hardware.js";
 
 export const GRID_REGIONS: Record<string, GridRegion> = {
   sweden: {
-    // Source: IEA 2024 + Svenska Kraftnät
+    // Source: IEA 2024
     // Last verified: 2026-06-05
     // Energy mix: hydro: 45%, wind: 40%, nuclear: 10%, solar: 5%
     name: "Sweden",
@@ -45,7 +48,7 @@ export const GRID_REGIONS: Record<string, GridRegion> = {
     lowPeriodThreshold: 0.20,
   },
   france: {
-    // Source: IEA 2024 + RTE
+    // Source: IEA 2024
     // Last verified: 2026-06-05
     // Energy mix: nuclear: 70%, hydro: 12%, wind: 10%, solar: 5%, fossil: 3%
     name: "France",
@@ -69,7 +72,7 @@ export const GRID_REGIONS: Record<string, GridRegion> = {
     lowPeriodThreshold: 0.20,
   },
   ireland: {
-    // Source: IEA 2024 + EirGrid
+    // Source: IEA 2024
     // Last verified: 2026-06-05
     // Energy mix: gas: 45%, wind: 35%, coal: 15%, oil: 5%
     name: "Ireland",
@@ -81,9 +84,9 @@ export const GRID_REGIONS: Record<string, GridRegion> = {
     lowPeriodThreshold: 0.20,
   },
   germany: {
-    // Source: IEA 2024 + Bundesnetzagentur
+    // Source: IEA 2024
     // Last verified: 2026-06-05
-    // Energy mix: coal: 30%, wind: 25%, solar: 12%, gas: 18%, nuclear: 0%, biomass: 10%, hydro: 5%
+    // Energy mix: coal: 30%, wind: 25%, solar: 12%, gas: 18%, biomass: 10%, hydro: 5%
     name: "Germany",
     fullLabel: "Germany · 280 g/kWh",
     intensityGPerKwh: 280,
@@ -105,7 +108,7 @@ export const GRID_REGIONS: Record<string, GridRegion> = {
     lowPeriodThreshold: 0.20,
   },
   useast: {
-    // Source: EPA eGRID 2023 - PJM subregion
+    // Source: EPA eGRID 2023
     // Last verified: 2026-06-05
     // Energy mix: gas: 45%, coal: 25%, nuclear: 20%, renewables: 10%
     name: "US East (PJM)",
@@ -117,7 +120,7 @@ export const GRID_REGIONS: Record<string, GridRegion> = {
     lowPeriodThreshold: 0.20,
   },
   texas: {
-    // Source: EPA eGRID 2023 - ERCOT subregion
+    // Source: EPA eGRID 2023
     // Last verified: 2026-06-05
     // Energy mix: gas: 50%, wind: 25%, coal: 15%, solar: 8%, nuclear: 2%
     name: "Texas (ERCOT)",
@@ -129,7 +132,7 @@ export const GRID_REGIONS: Record<string, GridRegion> = {
     lowPeriodThreshold: 0.20,
   },
   california: {
-    // Source: EPA eGRID 2023 - CAISO subregion
+    // Source: EPA eGRID 2023
     // Last verified: 2026-06-05
     // Energy mix: gas: 40%, solar: 20%, wind: 12%, nuclear: 10%, hydro: 10%, imports: 8%
     name: "California (CAISO)",
@@ -141,7 +144,7 @@ export const GRID_REGIONS: Record<string, GridRegion> = {
     lowPeriodThreshold: 0.20,
   },
   japan: {
-    // Source: IEA 2024 + METI
+    // Source: IEA 2024
     // Last verified: 2026-06-05
     // Energy mix: coal: 30%, gas: 35%, oil: 5%, nuclear: 10%, renewables: 20%
     name: "Japan",
@@ -153,7 +156,7 @@ export const GRID_REGIONS: Record<string, GridRegion> = {
     lowPeriodThreshold: 0.20,
   },
   india: {
-    // Source: IEA 2024 + CEA India
+    // Source: IEA 2024
     // Last verified: 2026-06-05
     // Energy mix: coal: 75%, solar: 10%, wind: 8%, hydro: 5%, gas: 2%
     name: "India",
@@ -165,7 +168,7 @@ export const GRID_REGIONS: Record<string, GridRegion> = {
     lowPeriodThreshold: 0.20,
   },
   poland: {
-    // Source: IEA 2024 + PSE
+    // Source: IEA 2024
     // Last verified: 2026-06-05
     // Energy mix: coal: 70%, gas: 10%, wind: 12%, solar: 5%, biomass: 3%
     name: "Poland",
@@ -177,7 +180,7 @@ export const GRID_REGIONS: Record<string, GridRegion> = {
     lowPeriodThreshold: 0.20,
   },
   china: {
-    // Source: IEA 2024 + China Energy Portal
+    // Source: IEA 2024
     // Last verified: 2026-06-05
     // Energy mix: coal: 60%, hydro: 15%, wind: 10%, solar: 8%, gas: 5%, nuclear: 2%
     name: "China",
@@ -189,7 +192,7 @@ export const GRID_REGIONS: Record<string, GridRegion> = {
     lowPeriodThreshold: 0.20,
   },
   global: {
-    // Source: IEA 2024 World Energy Outlook
+    // Source: IEA 2024
     // Last verified: 2026-06-05
     // Energy mix: coal: 35%, gas: 25%, hydro: 15%, nuclear: 10%, wind: 8%, solar: 5%, oil: 2%
     name: "Global Average",
@@ -204,7 +207,8 @@ export const GRID_REGIONS: Record<string, GridRegion> = {
 
 // ─── Metadata ───
 export const GRID_METADATA = {
-  lastUpdated: "2026-06-05T15:40:03.838Z",
-  sources: ["Reference values (verified 2024-01)"],
+  lastUpdated: "2026-06-05T15:47:06.548Z",
+  sources: ["IEA 2024","Hydro-Québec 2024","EPA eGRID 2023"],
+  liveRegions: 0,
   version: "2026-06-05",
 };

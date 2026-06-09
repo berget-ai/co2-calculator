@@ -2,8 +2,8 @@
 
 **Document Version**: 2.0  
 **Date**: 2026-06-03  
-**Authors**: Berget AI Engineering Team  
-**Reviewers**: Stockholm Environment Institute (SEI), Climate TRACE  
+**Authors**: Christian Landgren, Berget AI  
+**Reviewers**: Stockholm Environment Institute (SEI)
 **License**: CC BY 4.0
 
 ---
@@ -19,7 +19,7 @@ The methodology is based on the **Green Software Foundation's Software Carbon In
 - Hardware procurement conditions (new vs. refurbished)
 - Production-calibrated concurrency and response time models
 
-**Key finding**: A single query to Llama 3.1 8B on Berget's infrastructure produces approximately **0.0013 g CO₂e** (1.3 mg) in total emissions, compared to ~0.056 g on US average grid — a **40× reduction** attributable primarily to grid decarbonisation and refurbished hardware.
+**Key finding**: A single query to Llama 3.1 8B on Berget's infrastructure produces approximately **0.028 g CO₂e** (28 mg) in total lifecycle emissions, compared to ~0.060 g on US average grid — a **2.2× reduction** in total emissions. For operational emissions only (energy consumed during inference), the reduction is **47×** (0.69 mg vs 32.9 mg), demonstrating the massive impact of grid decarbonisation.
 
 ---
 
@@ -278,38 +278,42 @@ Where:
 
 ### 6.2 Example Calculation
 
-**Query**: Llama 3.1 8B, 512 tokens in / 256 tokens out, Sweden, 14:00
+**Query**: Llama 3.1 8B, 800 tokens in / 400 tokens out (defaults), Sweden, 14:00
 
 | Component | Calculation | Result |
 |-----------|-------------|--------|
-| Token ratio | (512+256)/(512+256) | 1.0 |
-| Response time | 0.8s × √1.0 | 0.8s |
+| Token ratio | (800+400)/(800+400) | 1.0 |
+| Response time | 1.2s × √1.0 | 1.2s |
 | Concurrency | 14:00 traffic | ~29 |
-| Adjusted time | 0.8 × (1 + log₂(29/8)×0.15) | 1.02s |
+| Adjusted time | 1.2 × (1 + log₂(29/8)×0.15) | 1.53s |
 | GPUs used | 8B params | 1 |
-| GPU power | 100 + (525×0.102) | 153W |
-| GPU energy | (153 × 1.02/3600 × 1)/1000 | 0.000043 kWh |
-| GPU CO₂ | 0.000043 × 8 × 1.15 | 0.00040 g |
-| Server energy | (600 × 1.02/3600)/(1000×29) | 0.0000059 kWh |
-| Server CO₂ | 0.0000059 × 8 × 1.15 | 0.000054 g |
-| Overhead | (0.00040 + 0.000054) × 0.20 | 0.000091 g |
-| Embodied | (2500×1000/157680000) × 1.02 × 1 | 0.0162 g |
+| GPU power | 87.5 + (562.5×0.153) | 174W |
+| GPU energy | (174 × 1.53/3600 × 1)/1000 | 0.000074 kWh |
+| GPU CO₂ | 0.000074 × 8 × 1.15 | 0.00068 g |
+| Server energy | (1200 × 1.53/3600)/(1000×29) | 0.000018 kWh |
+| Server CO₂ | 0.000018 × 8 × 1.15 | 0.00017 g |
+| Overhead | (0.00068 + 0.00017) × 0.20 | 0.00017 g |
+| Embodied | (2000×1000/157,680,000) × 1.53 × 1 | 0.0194 g |
 | Training | 1,700,000 / 100,000,000 | 0.0170 g |
-| **Total** | | **0.0337 g** |
+| **Total** | | **0.0374 g** |
+
+**Note**: This is the total lifecycle emissions. For operational emissions only (excluding embodied and training): **0.0010 g** (1.0 mg).
 
 ---
 
 ## 7. Comparison Helpers
 
-The calculator converts CO₂ to relatable equivalents:
+The calculator converts CO₂ to relatable equivalents using a **fixed reference intensity** (EU average ≈ 300 g/kWh) so comparisons are consistent regardless of which grid the user selects:
 
 ```
-microwaveSeconds = (co2Grams / gridIntensity) / 0.8 kW × 3,600
-ledBulbSeconds = (co2Grams / gridIntensity) / 0.01 kW × 3,600
+microwaveSeconds = (co2Grams / 300) / 0.8 kW × 3,600
+ledBulbSeconds = (co2Grams / 300) / 0.01 kW × 3,600
 carKm = co2Grams / 120
 phoneChargePercent = (co2Grams / 15) × 100
 flightPermille = (co2Grams / 90,000) × 1,000
 ```
+
+**Why fixed reference?** Using the selected grid's intensity would give counter-intuitive results — a cleaner grid would show *longer* microwave times for the same CO₂ amount. The fixed reference answers: *"What does this CO₂ amount to in everyday terms?"*
 
 ---
 
@@ -325,12 +329,28 @@ flightPermille = (co2Grams / 90,000) × 1,000
 
 ### 8.2 Berget Specific
 
-On Berget's infrastructure (8 g/kWh):
-- Llama 3.1 8B, 512 tokens in / 256 out: **0.034 g CO₂e**
-- Same query on US average grid (380 g/kWh): **0.056 g CO₂e**
-- Same query on coal-heavy grid (700 g/kWh): **0.11 g CO₂e**
+On Berget's infrastructure (8 g/kWh), Llama 3.1 8B, 800 tokens in / 400 tokens out:
 
-The choice of infrastructure provider can reduce emissions by **30-85×** for the same model and query.
+| Component | Sweden (8 g/kWh) | US Average (380 g/kWh) | Ratio |
+|-----------|------------------|------------------------|-------|
+| **Operational** (GPU + Server + PUE) | 0.69 mg | 32.9 mg | **47.7×** |
+| **Embodied** (hardware manufacturing) | 10.1 mg | 10.1 mg | 1× |
+| **Training** (amortised) | 17.0 mg | 17.0 mg | 1× |
+| **TOTAL** | **27.8 mg** | **60.0 mg** | **2.2×** |
+
+**Key insight**: The operational emissions (energy consumed during inference) are ~48× lower on the Swedish grid due to the clean energy mix. However, embodied carbon and training amortisation are **independent of the grid** — they depend on hardware manufacturing and training location, not where inference runs.
+
+For a fair comparison of **operational efficiency only** (excluding fixed costs):
+- Sweden: **0.69 mg** operational CO₂
+- US Average: **32.9 mg** operational CO₂
+- **Reduction: 47.7×**
+
+For **total lifecycle emissions** (including fixed costs):
+- Sweden: **27.8 mg** total CO₂e
+- US Average: **60.0 mg** total CO₂e  
+- **Reduction: 2.2×**
+
+The choice of infrastructure provider can reduce **operational emissions by 30-85×** for the same model and query, and **total emissions by 2-3×** when including embodied and training costs. 
 
 ---
 
@@ -363,13 +383,13 @@ The choice of infrastructure provider can reduce emissions by **30-85×** for th
 
 | Model | Params | FLOPs/Token | Arch. Efficiency | Power Draw | Training CO₂ |
 |-------|--------|-------------|------------------|------------|-------------|
-| Llama 3.1 8B | 8B | 12 GFLOP | 0.75 | 200W | 1.7 kg |
-| Llama 3.3 70B | 70B | 112 GFLOP | 0.80 | 500W | 9.3 kg |
-| Mistral Small 24B | 24B | 36 GFLOP | 0.78 | 300W | 3.2 kg |
-| Mistral Medium 128B | 128B | 210 GFLOP | 0.82 | 800W | 17 kg (est.) |
-| E5 Embedding | 560M | 0.7 GFLOP | 0.65 | 100W | 0.28 kg |
-| Whisper Large v3 | 1.55B | 2.2 GFLOP | 0.70 | 120W | 1.2 kg (est.) |
-| Kimi K2.6 | 1.1T | 1,200 GFLOP | 0.62 | 1,200W | 45 kg (est.) |
+| Llama 3.1 8B | 8B | 12 GFLOP | 0.75 | 200W | **1,700 kg** |
+| Llama 3.3 70B | 70B | 112 GFLOP | 0.80 | 500W | **9,300 kg** |
+| Mistral Small 24B | 24B | 36 GFLOP | 0.78 | 300W | **3,200 kg** |
+| Mistral Medium 128B | 128B | 210 GFLOP | 0.82 | 800W | **17,000 kg** (est.) |
+| E5 Embedding | 560M | 0.7 GFLOP | 0.65 | 100W | **280 kg** |
+| Whisper Large v3 | 1.55B | 2.2 GFLOP | 0.70 | 120W | **1,200 kg** (est.) |
+| Kimi K2.6 | 1.1T | 1,200 GFLOP | 0.62 | 1,200W | **45,000 kg** (est.) |
 
 ## Appendix B: Swedish Grid Hourly Demand Curve
 
@@ -397,7 +417,6 @@ The calculator is implemented in TypeScript with the following modules:
 ```typescript
 const PUE = 1.2;
 const GPU_LIFETIME_SECONDS = 5 * 365 * 24 * 3_600; // 157,680,000
-const SECONDS_IN_HOUR = 3_600;
 ```
 
 ### C.3 Component Breakdown
