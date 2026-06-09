@@ -188,6 +188,20 @@ const serverOperationalCO2 = (serverEnergyKwh * effectiveIntensity) / concurrenc
 6. **Water Usage** - Ny komponent: 0L för Nordics, upp till 2L/kWh för Indien
 7. **UI** - Visar PUE, kylningsmetod och vattenanvändning per region
 
+### 12. Section 3.3 - GPU Allocation Heuristic ✅ FIXAD (2026-06-09)
+**Tidigare:**
+- Parameter-baserad allokering: ≤10B→1, 10-40B→2, 40-100B→4, >100B→8 GPU:er
+- Fungerade inte för modeller som var stora men fick plats på färre GPU:er med mer minne
+
+**Uppdaterad implementation:**
+- Minnes-baserad allokering: `gpusNeeded = ceil(modelMemoryGb / gpuMemoryGb)`
+- Tar hänsyn till faktisk GPU-minneskapacitet (H100: 80GB, MI300X: 192GB)
+- Exempel: 120B modell i FP16 (~288GB)
+  - H100: behöver 4 GPU:er (288/80 = 3.6)
+  - MI300X: behöver 2 GPU:er (288/192 = 1.5)
+
+**Motivering:** AMD MI300X har 2.4× mer HBM-minne än H100, vilket gör att stora modeller kan köras på färre GPU:er. Detta påverkar både operativa och embodied utsläpp.
+
 ## Kvarvarande mindre avvikelser
 
 ### 12. Section 5.2 - Training Amortisation

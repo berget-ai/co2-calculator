@@ -31,6 +31,7 @@ export const HARDWARE_CONFIGS: Record<string, HardwareConfig> = {
   mi300x: {
     name: "AMD MI300X ×8 node (Supermicro AS-8125GS-TNMR2)",
     gpuCount: 8,
+    gpuMemoryGb: 192, // 192GB HBM3 per GPU
     nodeIdleWatts: 1_000,
     // 8× MI300X @ 750W = 6,000W + 2× EPYC 9654 @ 360W = 720W + chassis overhead
     nodePeakWatts: 7_000,
@@ -60,31 +61,73 @@ export const HARDWARE_CONFIGS: Record<string, HardwareConfig> = {
     formFactor: "8-GPU Accelerator Node (8U)",
   },
   h200: {
-    name: "NVIDIA H200 ×8 node",
+    name: "NVIDIA H200 ×8 node (Supermicro AS-8125GS-TNHR)",
     gpuCount: 8,
+    gpuMemoryGb: 141, // 141GB HBM3e per GPU
     nodeIdleWatts: 800,
-    nodePeakWatts: 5_000,
-    // Same compute die as H100 but upgraded to HBM3e (higher capacity/faster).
-    // Memory dominates embodied carbon in modern GPUs. ~25% premium over H100.
-    embodiedPerGpuKg: 2_500,
+    // 8× H200 @ 700W = 5,600W + 2× EPYC @ 360W = 720W + chassis overhead
+    nodePeakWatts: 6_500,
+    // REAL DATA: Based on detailed component breakdown for Supermicro AS-8125GS-TNHR
+    // Total server embodied: ~7 t CO₂e (range 5-10 t, with 8×400G NICs: 8 t)
+    // Per GPU: 7,000 kg / 8 = 875 kg (best estimate)
+    // Conservative: 8,000 kg / 8 = 1,000 kg
+    //
+    // Component breakdown (total server):
+    // - NVIDIA HGX H200 8-GPU baseboard: 1.6-2.2 t CO₂e
+    //   Calculated from H100 PCF (1,312 kg) with HBM scaling:
+    //   H200 has 8×141 GB = 1,128 GB HBM3e vs H100 640 GB
+    //   HGX H200 ≈ (1,312 - 546) + 546 × (1,128 / 640) ≈ 1,729 kg
+    // - 1.5 TB DDR5 RDIMM (24×64 GB): 2.0-4.6 t CO₂e (Boavizta model)
+    // - SSD (2×7.68 TB + boot): 0.5-1.0 t CO₂e
+    // - 2× EPYC CPU: 0.1-0.3 t CO₂e
+    // - Chassis, motherboard, PSUs, fans, risers, assembly: 0.8-1.8 t CO₂e
+    // - Basic NIC / management / 10-100G: 0.05-0.2 t CO₂e
+    // - 8×400G/NDR NICs (optional): +0.4-0.9 t CO₂e
+    //
+    // Sources:
+    // - NVIDIA HGX H100 PCF (1,312 kg cradle-to-gate, 546 kg memory)
+    // - Boavizta component model for RAM/SSD/server baseline
+    // - Supermicro AS-8125GS-TNHR spec: 8U, 75.3 kg, 6×3000W Titanium PSU
+    // - NVIDIA H200 SXM: 141 GB HBM3e per GPU, up to 700W
+    //
+    // Comparison: H200 vs MI300X
+    // - H200 GPU-board: ~1,729 kg (1.128 TB HBM3e)
+    // - MI300X GPU-board: ~2,000-4,000 kg (1.5 TB HBM3)
+    // - H200 is slightly lower due to less HBM memory
+    //
+    // NOTE: No public H200 PCF found. Extrapolated from H100 PCF.
+    // Recommended: Request PAIA/PCF from Supermicro/NVIDIA.
+    embodiedPerGpuKg: 1_000,
     chassisWatts: 1_200,
-    formFactor: "8-GPU Accelerator Node",
+    formFactor: "8-GPU Accelerator Node (8U)",
   },
   h100: {
-    name: "NVIDIA H100 ×8 node",
+    name: "NVIDIA H100 ×8 node (Supermicro AS-8125GS-TNHR)",
     gpuCount: 8,
+    gpuMemoryGb: 80, // 80GB HBM3 per GPU
     nodeIdleWatts: 700,
-    nodePeakWatts: 5_200,
-    // TSMC 4N (5nm-class) process, ~814 mm² die. Leading-edge nodes have
-    // 2-3x higher embodied carbon per mm² than 7nm. Conservative estimate
-    // based on server disaggregation. Could be 2,200-2,500 kg.
-    embodiedPerGpuKg: 2_000,
+    // 8× H100 @ 700W = 5,600W + 2× EPYC @ 360W = 720W + chassis overhead
+    nodePeakWatts: 6_500,
+    // REAL DATA: NVIDIA HGX H100 PCF = 1,312 kg CO₂e cradle-to-gate
+    // This is for the GPU baseboard only (8× H100 + 640 GB HBM3)
+    // Per GPU: 1,312 kg / 8 = 164 kg (GPU-board only)
+    //
+    // Full server estimate (similar to H200, less HBM):
+    // - HGX H100 baseboard: 1,312 kg (640 GB HBM3)
+    // - System RAM, SSD, chassis, CPUs: ~4-6 t CO₂e
+    // - Total server: ~5.5-7.5 t CO₂e
+    // - Per GPU: ~700-950 kg
+    //
+    // Source: NVIDIA HGX H100 Product Carbon Footprint (public)
+    // Only vendor-published PCF for GPU accelerator boards found.
+    embodiedPerGpuKg: 850,
     chassisWatts: 1_200,
-    formFactor: "8-GPU Accelerator Node",
+    formFactor: "8-GPU Accelerator Node (8U)",
   },
   a100: {
     name: "NVIDIA A100 ×8 node",
     gpuCount: 8,
+    gpuMemoryGb: 80, // 80GB HBM2e per GPU
     nodeIdleWatts: 600,
     nodePeakWatts: 3_200,
     // 7nm process, ~826 mm² die. Server-level data suggests full A100 server
@@ -97,6 +140,7 @@ export const HARDWARE_CONFIGS: Record<string, HardwareConfig> = {
   "l4-2u": {
     name: "NVIDIA L4 ×4 (2U server)",
     gpuCount: 4,
+    gpuMemoryGb: 24, // 24GB GDDR6 per GPU
     nodeIdleWatts: 200,
     nodePeakWatts: 400,
     // Ada Lovelace architecture, smaller die, lower power. Estimate based on
@@ -108,6 +152,7 @@ export const HARDWARE_CONFIGS: Record<string, HardwareConfig> = {
   "l4-1u": {
     name: "NVIDIA L4 ×2 (1U server)",
     gpuCount: 2,
+    gpuMemoryGb: 24, // 24GB GDDR6 per GPU
     nodeIdleWatts: 150,
     nodePeakWatts: 250,
     embodiedPerGpuKg: 300,

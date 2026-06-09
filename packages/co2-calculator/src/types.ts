@@ -25,6 +25,8 @@ export interface ModelProfile {
   architecture: ModelArchitecture;
   /** Total trainable parameters */
   parameters: number;
+  /** Model size in bytes (for memory calculation: params × bytes_per_param × overhead) */
+  modelSizeBytes?: number;
   /** Total training CO₂ in grams (from manufacturer reports, not heuristics) */
   totalTrainingCO2Grams: number;
   /** Source of the training-CO₂ figure */
@@ -45,6 +47,8 @@ export interface HardwareConfig {
   name: string;
   /** Total GPUs on the node */
   gpuCount: number;
+  /** GPU memory per card in GB */
+  gpuMemoryGb: number;
   /** Node idle power in watts (chassis + all GPUs at idle) */
   nodeIdleWatts: number;
   /** Node peak power in watts (max TDP all GPUs + chassis) */

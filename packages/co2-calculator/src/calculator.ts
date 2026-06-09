@@ -11,6 +11,8 @@ import type {
   InferenceResult,
   InferenceComponent,
   GridRegion,
+  ModelProfile,
+  HardwareConfig,
 } from "./types.js";
 
 const SECONDS_IN_HOUR = 3_600;
@@ -22,14 +24,27 @@ const GPU_LIFETIME_SECONDS = 5 * 365 * 24 * 3_600; // 5 years
 // Global average: 1.50
 
 // ---------------------------------------------------------------------------
-// GPU allocation heuristic (from live-calculator.html production tuning)
+// GPU allocation heuristic (memory-aware)
 // ---------------------------------------------------------------------------
 
-function gpusForModel(params: number, maxOnNode: number): number {
-  if (params <= 10_000_000_000) return 1;
-  if (params <= 40_000_000_000) return 2;
-  if (params <= 100_000_000_000) return 4;
-  return maxOnNode;
+function gpusForModel(modelProfile: ModelProfile, hardware: HardwareConfig): number {
+  // Calculate model memory requirement
+  // Formula: parameters × bytes_per_param × overhead_factor
+  // - INT4/INT8 quantized: 0.5 bytes per param
+  // - FP16: 2 bytes per param  
+  // - FP32: 4 bytes per param
+  // - Overhead for KV cache, activations, etc: 1.2x
+  const bytesPerParam = modelProfile.modelSizeBytes 
+    ? modelProfile.modelSizeBytes / modelProfile.parameters 
+    : 2.0; // Default to FP16
+  
+  const modelMemoryGb = (modelProfile.parameters * bytesPerParam * 1.2) / (1024 * 1024 * 1024);
+  
+  // Calculate GPUs needed based on memory
+  const gpusNeeded = Math.ceil(modelMemoryGb / hardware.gpuMemoryGb);
+  
+  // Clamp to available GPUs on node
+  return Math.min(gpusNeeded, hardware.gpuCount);
 }
 
 // ---------------------------------------------------------------------------
@@ -120,16 +135,15 @@ export function calculateInference(params: InferenceParams): InferenceResult {
     (modelProfile.defaultInputTokens + modelProfile.defaultOutputTokens);
   const tokenAdjustedTime = measuredResponseTimeSeconds * Math.sqrt(tokenRatio);
 
+  // --- GPU Allocation (Section 3.3) ---
+  // Calculate GPUs needed based on memory requirements
+  const gpusUsed = gpusForModel(modelProfile, hardware);
+
   // --- GPU Time Allocation (Section 3.1) ---
   // Per-request GPU time = response time × (concurrency / gpus_in_node)
   // This accounts for the fact that GPUs are shared among concurrent requests
   const gpuTimeSec = tokenAdjustedTime * Math.min(1, concurrency / gpusUsed);
   const gpuTimeH = gpuTimeSec / SECONDS_IN_HOUR;
-
-  const gpusUsed = Math.min(
-    gpusForModel(modelProfile.parameters, hardware.gpuCount),
-    hardware.gpuCount,
-  );
 
   const { effectiveIntensity, isLowPeriod, factor } = applyTimeOfDay(
     deploymentGrid,

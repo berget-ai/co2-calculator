@@ -21,6 +21,7 @@ export const MODEL_PROFILES: Record<string, ModelProfile> = {
     displayName: "Llama 3.1 8B",
     architecture: "dense-transformer",
     parameters: 8_000_000_000,
+    modelSizeBytes: 8_000_000_000 * 2, // FP16: ~16GB
     totalTrainingCO2Grams: 1_700_000,
     trainingSource: "Meta sustainability report (HF: N/A)",
     defaultInputTokens: 800,
@@ -32,6 +33,7 @@ export const MODEL_PROFILES: Record<string, ModelProfile> = {
     displayName: "Llama 3.3 70B",
     architecture: "dense-transformer",
     parameters: 70_000_000_000,
+    modelSizeBytes: 70_000_000_000 * 2, // FP16: ~140GB
     totalTrainingCO2Grams: 9_300_000,
     trainingSource: "Meta sustainability report (HF: N/A)",
     defaultInputTokens: 1_000,
@@ -43,6 +45,7 @@ export const MODEL_PROFILES: Record<string, ModelProfile> = {
     displayName: "Mistral Small 24B",
     architecture: "dense-transformer",
     parameters: 24_000_000_000,
+    modelSizeBytes: 24_000_000_000 * 2, // FP16: ~48GB
     totalTrainingCO2Grams: 3_200_000,
     trainingSource: "Mistral AI env. report (HF: N/A)",
     defaultInputTokens: 800,
@@ -54,6 +57,7 @@ export const MODEL_PROFILES: Record<string, ModelProfile> = {
     displayName: "Mistral Medium 128B",
     architecture: "dense-transformer",
     parameters: 128_000_000_000,
+    modelSizeBytes: 128_000_000_000 * 2, // FP16: ~256GB
     totalTrainingCO2Grams: 17_000_000,
     trainingSource: "SCI-AI extrapolation (HF: N/A)",
     defaultInputTokens: 1_000,
@@ -65,6 +69,7 @@ export const MODEL_PROFILES: Record<string, ModelProfile> = {
     displayName: "GPT-OSS 120B",
     architecture: "dense-transformer",
     parameters: 120_000_000_000,
+    modelSizeBytes: 120_000_000_000 * 2, // FP16: ~240GB
     totalTrainingCO2Grams: 16_000_000,
     trainingSource: "SCI-AI extrapolation (HF: N/A)",
     defaultInputTokens: 1_000,
@@ -76,6 +81,7 @@ export const MODEL_PROFILES: Record<string, ModelProfile> = {
     displayName: "GLM 4.7 47B",
     architecture: "dense-transformer",
     parameters: 47_000_000_000,
+    modelSizeBytes: 47_000_000_000 * 2, // FP16: ~94GB
     totalTrainingCO2Grams: 6_300_000,
     trainingSource: "Zhipu AI training logs (est. HF: N/A)",
     defaultInputTokens: 800,
@@ -87,6 +93,7 @@ export const MODEL_PROFILES: Record<string, ModelProfile> = {
     displayName: "Gemma 4 31B",
     architecture: "dense-transformer",
     parameters: 31_000_000_000,
+    modelSizeBytes: 31_000_000_000 * 2, // FP16: ~62GB
     totalTrainingCO2Grams: 4_100_000,
     trainingSource: "Google DeepMind sustain. (est. HF: N/A)",
     defaultInputTokens: 600,
@@ -98,6 +105,7 @@ export const MODEL_PROFILES: Record<string, ModelProfile> = {
     displayName: "Kimi K2.6 (1.1T INT4)",
     architecture: "mixture-of-experts",
     parameters: 1_100_000_000_000,
+    modelSizeBytes: 1_100_000_000_000 * 0.5, // INT4: ~550GB (MoE, sparse)
     totalTrainingCO2Grams: 50_000_000,
     trainingSource: "MoE 1.1T parameter scaling estimate",
     defaultInputTokens: 5_000,
@@ -113,6 +121,7 @@ export const MODEL_PROFILES: Record<string, ModelProfile> = {
     displayName: "E5 Embedding",
     architecture: "embedding",
     parameters: 560_000_000,
+    modelSizeBytes: 560_000_000 * 2, // FP16: ~1.1GB
     totalTrainingCO2Grams: 280_000,
     trainingSource: "Microsoft Research",
     defaultInputTokens: 300,
@@ -124,6 +133,7 @@ export const MODEL_PROFILES: Record<string, ModelProfile> = {
     displayName: "E5 Instruct",
     architecture: "embedding",
     parameters: 560_000_000,
+    modelSizeBytes: 560_000_000 * 2, // FP16: ~1.1GB
     totalTrainingCO2Grams: 320_000,
     trainingSource: "Microsoft Research (instruct)",
     defaultInputTokens: 300,
@@ -135,6 +145,7 @@ export const MODEL_PROFILES: Record<string, ModelProfile> = {
     displayName: "BGE Reranker",
     architecture: "reranker",
     parameters: 278_000_000,
+    modelSizeBytes: 278_000_000 * 2, // FP16: ~556MB
     totalTrainingCO2Grams: 150_000,
     trainingSource: "BAAI training infrastructure (estimated)",
     defaultInputTokens: 200,
@@ -150,6 +161,7 @@ export const MODEL_PROFILES: Record<string, ModelProfile> = {
     displayName: "Whisper Large v3",
     architecture: "speech",
     parameters: 1_550_000_000,
+    modelSizeBytes: 1_550_000_000 * 2, // FP16: ~3.1GB
     totalTrainingCO2Grams: 1_200_000,
     trainingSource: "OpenAI GPU-day estimates",
     defaultInputTokens: 60,
@@ -161,6 +173,7 @@ export const MODEL_PROFILES: Record<string, ModelProfile> = {
     displayName: "KB Whisper (Swedish)",
     architecture: "speech",
     parameters: 1_550_000_000,
+    modelSizeBytes: 1_550_000_000 * 2, // FP16: ~3.1GB
     totalTrainingCO2Grams: 400_000,
     trainingSource: "KBLab fine-tuning run (estimated)",
     defaultInputTokens: 60,
@@ -172,6 +185,7 @@ export const MODEL_PROFILES: Record<string, ModelProfile> = {
     displayName: "NB Whisper (Norwegian)",
     architecture: "speech",
     parameters: 1_550_000_000,
+    modelSizeBytes: 1_550_000_000 * 2, // FP16: ~3.1GB
     totalTrainingCO2Grams: 400_000,
     trainingSource: "NbAiLab fine-tuning run (estimated)",
     defaultInputTokens: 60,

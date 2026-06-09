@@ -182,16 +182,36 @@ else:
 
 **Example**: At concurrency=16, delayFactor = 1 + 1 × 0.15 = 1.15 (15% longer)
 
-### 3.3 GPU Allocation Heuristic
+### 3.3 GPU Allocation Heuristic (Memory-Aware)
 
-Models are allocated GPUs based on parameter count:
+Models are allocated GPUs based on **memory requirements**, not just parameter count. This is critical because different GPUs have vastly different memory capacities:
 
-| Parameters | GPUs Allocated |
-|------------|---------------|
-| ≤ 10B | 1 |
-| 10B – 40B | 2 |
-| 40B – 100B | 4 |
-| > 100B | 8 (max on node) |
+| GPU | Memory per GPU | Max Model Size (FP16) |
+|-----|---------------|----------------------|
+| NVIDIA H100 | 80 GB HBM3 | ~64B parameters |
+| NVIDIA H200 | 141 GB HBM3e | ~112B parameters |
+| AMD MI300X | 192 GB HBM3 | ~153B parameters |
+| NVIDIA L4 | 24 GB GDDR6 | ~19B parameters |
+
+**Memory calculation:**
+```
+modelMemoryGb = parameters × bytesPerParam × overheadFactor / (1024³)
+bytesPerParam = 2.0 for FP16, 0.5 for INT4
+overheadFactor = 1.2 (KV cache, activations, etc.)
+```
+
+**GPU allocation:**
+```
+gpusNeeded = ceil(modelMemoryGb / gpuMemoryGb)
+gpusAllocated = min(gpusNeeded, gpusOnNode)
+```
+
+**Example**: A 120B model in FP16 needs ~288 GB memory:
+- H100 (80 GB): needs 4 GPUs (288 / 80 = 3.6 → 4)
+- H200 (141 GB): needs 3 GPUs (288 / 141 = 2.04 → 3)
+- MI300X (192 GB): needs 2 GPUs (288 / 192 = 1.5 → 2)
+
+This means AMD MI300X can run larger models with fewer GPUs, reducing both operational and embodied emissions per request.
 
 ### 3.4 Power Calculation
 
@@ -278,15 +298,36 @@ embodiedCO2 = embodiedPerGpuGrams × gpuTimeSeconds × gpusUsed
 
 | Hardware | GPUs | Node Idle | Node Peak | Embodied/GPU | Chassis |
 |----------|------|-----------|-----------|--------------|---------|
-| NVIDIA H200 | 8 | 800W | 5,000W | 2,500 kg | 600W |
-| NVIDIA H100 | 8 | 700W | 5,200W | 2,000 kg | 600W |
+| NVIDIA H200 | 8 | 800W | 6,500W | 1,000 kg | 1,200W |
+| NVIDIA H100 | 8 | 700W | 6,500W | 850 kg | 1,200W |
 | AMD MI300X | 8 | 1,000W | 7,000W | 1,000 kg | 1,500W |
-| NVIDIA A100 | 8 | 600W | 3,200W | 1,200 kg | 400W |
-| NVIDIA L4 | 4 | 200W | 400W | 300 kg | 200W |
-| Refurbished H200 | 8 | 800W | 5,000W | 0 kg | 600W |
+| NVIDIA A100 | 8 | 600W | 3,200W | 1,200 kg | 1,000W |
+| NVIDIA L4 | 4 | 200W | 400W | 300 kg | 600W |
+| Refurbished H200 | 8 | 800W | 6,500W | 0 kg | 1,200W |
 
 **Note on Embodied Carbon Values:**
 NVIDIA and AMD do NOT publish per-GPU embodied carbon LCAs. The values above are estimates derived from server-level product carbon footprint reports by subtracting non-GPU components (CPU, chassis, DRAM, NIC, SSD). These estimates have ±30-50% uncertainty.
+
+**Exception — NVIDIA H200 (Supermicro AS-8125GS-TNHR):**
+We have a detailed component-level estimate for this specific configuration:
+
+| Component | Embodied CO₂ | Notes |
+|-----------|-------------|-------|
+| NVIDIA HGX H200 8-GPU baseboard | 1.6-2.2 t CO₂e | Extrapolated from H100 PCF with HBM scaling |
+| 1.5 TB DDR5 RDIMM (24×64 GB) | 2.0-4.6 t CO₂e | Boavizta component model |
+| SSD (2×7.68 TB + boot) | 0.5-1.0 t CO₂e | Boavizta component model |
+| 2× EPYC CPU | 0.1-0.3 t CO₂e | CPU portion |
+| Chassis, motherboard, PSUs, fans, risers, assembly | 0.8-1.8 t CO₂e | Supermicro AS-8125GS-TNHR: 8U, 75.3 kg |
+| Basic NIC / management / 10-100G | 0.05-0.2 t CO₂e | Network infrastructure |
+| 8×400G/NDR NICs (optional) | +0.4-0.9 t CO₂e | Full RDMA networking |
+| **Total server (without 400G NICs)** | **5-10 t CO₂e** | Best estimate: **7 t CO₂e** |
+| **Total server (with 400G NICs)** | **5.5-10.5 t CO₂e** | Conservative: **8 t CO₂e** |
+| **Per GPU** | **625-1,250 kg** | Conservative: **1,000 kg** |
+
+**H200 GPU-board calculation:**
+NVIDIA HGX H100 PCF = 1,312 kg CO₂e (8× H100 + 640 GB HBM3, 546 kg memory)
+H200 has 8×141 GB = 1,128 GB HBM3e
+HGX H200 ≈ (1,312 - 546) + 546 × (1,128 / 640) ≈ **1,729 kg CO₂e**
 
 **Exception — AMD MI300X (Supermicro AS-8125GS-TNMR2):**
 We have a detailed component-level estimate for this specific configuration:
@@ -301,6 +342,12 @@ We have a detailed component-level estimate for this specific configuration:
 | **Total server** | **5-12 t CO₂e** | Best estimate: **7 t CO₂e** |
 | **Per GPU** | **625-1,500 kg** | Conservative: **1,000 kg** |
 
+**Exception — NVIDIA H100 (Supermicro AS-8125GS-TNHR):**
+NVIDIA HGX H100 PCF = 1,312 kg CO₂e cradle-to-gate (8× H100 + 640 GB HBM3)
+This is the ONLY vendor-published PCF for GPU accelerator boards found.
+Per GPU: 1,312 kg / 8 = **164 kg** (GPU-board only)
+Full server estimate: ~5.5-7.5 t CO₂e total → **700-950 kg per GPU**
+
 Key data points from vendor server LCAs:
 - Dell R750 (2020, A100 option): 2,181-3,880 kg CO2 total embodied
 - HP ProLiant DL380 gen10+ (2021, GPU option): 2,181 kg CO2 embodied
@@ -311,7 +358,10 @@ Academic references:
 - Gupta et al. "Chasing Carbon", HPCA 2021: Manufacturing dominates lifecycle emissions for data center hardware
 - Ji et al. SCARIF, ISVLSI 2024: Chip area × process node methodology for estimating accelerator carbon
 
-**Recommended action:** Request PAIA/PCF cradle-to-gate report from Supermicro/AMD for configured AS-8125GS-TNMR2 (8× MI300X, 24×64GB RDIMM, SSDs).
+**Recommended actions:**
+1. Request PAIA/PCF cradle-to-gate from Supermicro/NVIDIA for H200 (AS-8125GS-TNHR)
+2. Request PAIA/PCF cradle-to-gate from Supermicro/AMD for MI300X (AS-8125GS-TNMR2)
+3. NVIDIA H100 PCF is already public (1,312 kg), use as baseline for comparisons
 
 ### 4.3 Refurbished Hardware
 
