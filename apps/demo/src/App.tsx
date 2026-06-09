@@ -44,11 +44,12 @@ const MODEL_CATEGORIES = {
     description: "Customer support, Q&A, writing assistance",
     icon: "💬",
     models: [
-      { id: "meta-llama/Llama-3.1-8B-Instruct", name: "Llama 3.1 (8B)" },
       { id: "mistralai/Mistral-Small-3.2-24B-Instruct-2506", name: "Mistral Small (24B)" },
       { id: "google/gemma-4-31B-it", name: "Gemma 4 (31B)" },
+      { id: "openai/gpt-oss-120b", name: "GPT-OSS (120B)" },
+      { id: "mistralai/Mistral-Medium-3.5-128B", name: "Mistral Medium (128B)" },
     ],
-    defaultModel: "meta-llama/Llama-3.1-8B-Instruct",
+    defaultModel: "mistralai/Mistral-Small-3.2-24B-Instruct-2506",
     responseTime: 0.8,
   },
   code: {
@@ -56,11 +57,11 @@ const MODEL_CATEGORIES = {
     description: "Software development, complex reasoning, research",
     icon: "💻",
     models: [
-      { id: "meta-llama/Llama-3.3-70B-Instruct", name: "Llama 3.3 (70B)" },
-      { id: "openai/gpt-oss-120b", name: "GPT-OSS (120B)" },
+      { id: "google/gemma-4-31B-it", name: "Gemma 4 (31B)" },
+      { id: "zai-org/GLM-4.7", name: "GLM 4.7 (47B)" },
       { id: "moonshotai/Kimi-K2.6", name: "Kimi K2.6 (1.1T MoE)" },
     ],
-    defaultModel: "meta-llama/Llama-3.3-70B-Instruct",
+    defaultModel: "zai-org/GLM-4.7",
     responseTime: 3.5,
   },
 };
