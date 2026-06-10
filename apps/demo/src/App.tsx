@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, lazy, Suspense } from "react";
 import {
   calculateInference,
   calculateComparisons,
@@ -9,7 +9,13 @@ import {
   getConcurrencyFromTrafficPattern,
   getEstimatedLifetimeQueries,
 } from "@berget/co2-calculator";
-import { GlobeSelector } from "./components/GlobeSelector";
+
+// Lazy load GlobeSelector to avoid loading Three.js on initial page load
+const GlobeSelector = lazy(() => 
+  import("./components/GlobeSelector").then(module => ({ 
+    default: module.GlobeSelector 
+  }))
+);
 
 // ─── Use Berget CSS Variables ───
 const C = {
@@ -343,19 +349,32 @@ export function CO2Calculator() {
               Grid carbon intensity varies dramatically by location
             </p>
 
-            {/* Globe */}
+            {/* Globe - lazy loaded with fallback */}
             <div style={{ 
               background: C.ghost, 
               borderRadius: 12, 
               border: `1px solid ${C.border}`,
               overflow: "hidden",
               marginBottom: "1.5rem",
+              minHeight: 420,
             }}>
-              <GlobeSelector
-                selectedRegion={region}
-                onRegionSelect={setRegion}
-                showMode="intensity"
-              />
+              <Suspense fallback={
+                <div style={{ 
+                  height: 420, 
+                  display: "flex", 
+                  alignItems: "center", 
+                  justifyContent: "center",
+                  color: C.muted,
+                }}>
+                  Loading 3D globe...
+                </div>
+              }>
+                <GlobeSelector
+                  selectedRegion={region}
+                  onRegionSelect={setRegion}
+                  showMode="intensity"
+                />
+              </Suspense>
             </div>
 
             {/* Compact region list */}
