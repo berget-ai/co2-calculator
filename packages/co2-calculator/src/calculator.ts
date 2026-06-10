@@ -151,15 +151,17 @@ export function calculateInference(params: InferenceParams): InferenceResult {
   );
 
   // --- Power (per GPU) (Section 3.4) ---
-  // Utilization based on model size, not response time
-  // U_util ≈ 0.3 for small models, 0.6 for medium, 0.9 for large
+  // Utilization based on model size and inference characteristics
+  // LLMCO2 (Fu et al., 2024) shows inference utilization is 10-40% of peak,
+  // significantly lower than training, due to memory-bound decode phase.
+  // Reference: https://arxiv.org/abs/2410.02950
   let utilization: number;
   if (modelProfile.parameters <= 10_000_000_000) {
-    utilization = 0.3; // Small models
+    utilization = 0.15; // Small models: memory-bound, low utilization
   } else if (modelProfile.parameters <= 40_000_000_000) {
-    utilization = 0.6; // Medium models
+    utilization = 0.25; // Medium models: moderate compute
   } else {
-    utilization = 0.9; // Large models
+    utilization = 0.35; // Large models: higher compute but still memory-bound
   }
   
   // Base idle power that every GPU draws regardless of load

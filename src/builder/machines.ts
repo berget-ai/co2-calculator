@@ -22,16 +22,6 @@ import type { GPUNode, HardwareComponent } from "../infrastructure-types";
 // GPU
 // ---------------------------------------------------------------------------
 
-interface GPUOptions {
-  count?: number;
-  powerWatts?: number;
-  utilizationRate?: number;
-  operationalHoursPerDay?: number;
-  condition?: "new" | "refurbished" | "existing";
-  embodiedCarbonKg?: number;
-  ageYears?: number;
-}
-
 export class GPU {
   private config: Partial<GPUNode> = {};
 

@@ -1,89 +1,147 @@
 @import "tailwindcss";
 
-/* ─── Berget Design System Variables ─── */
+/* ─── Berget Design System - Monochromatic with Natural Accents ─── */
 :root {
-  /* Brand primitives (raw HSL channels) */
-  --berget-brand-peak: 0 0% 100%;
-  --berget-brand-cloud: 25 10% 84%;
-  --berget-brand-slate: 0 0% 10%;
-  --berget-brand-night: 0 0% 4%;
-  --berget-brand-coal: 0 0% 0%;
-  --berget-brand-moss: 151 44% 52%;
-  --berget-brand-lichen: 151 37% 63%;
-  --berget-brand-spruce: 153 38% 30%;
-  --berget-brand-fjord: 204 67% 21%;
-  --berget-brand-info: 217 68% 53%;
-  --berget-brand-success: 151 44% 52%;
-  --berget-brand-warning: 71 100% 75%;
-  --berget-brand-error: 6 74% 50%;
+  /* Brand primitives (raw HSL channels) - Scandinavian minimalism */
+  --berget-stone: 45 15% 88%;      /* #E5DDD5 - Primary brand color (cream/white) */
+  --berget-moss: 151 29% 49%;      /* #60A580 - Nature accent (muted green) */
+  --berget-sage: 151 33% 62%;      /* #8EB29F - Secondary green */
+  --berget-earth: 30 8% 20%;       /* #342F2D - Dark earth tone */
+  
+  /* Neutral scale */
+  --berget-peak: 0 0% 100%;        /* #FFFFFF - Pure white */
+  --berget-cloud: 25 10% 84%;       /* #E5DDD5 - Light neutral (same as stone) */
+  --berget-slate: 0 0% 10%;         /* #1A1A1A - Dark neutral */
+  --berget-night: 0 0% 4%;          /* #0A0A0A - Background */
+  --berget-coal: 0 0% 0%;           /* #000000 - Pure black */
+  
+  /* Status colors - subtle */
+  --berget-info: 217 68% 53%;
+  --berget-success: 142 71% 45%;
+  --berget-warning: 38 92% 50%;
+  --berget-error: 0 72% 51%;
 
-  /* Semantic tokens */
-  --berget-background: hsl(var(--berget-brand-night));
-  --berget-foreground: hsl(var(--berget-brand-peak));
-  --berget-foreground-alt: hsl(var(--berget-brand-peak) / 0.8);
-  --berget-card: hsl(var(--berget-brand-slate) / 0.4);
-  --berget-card-foreground: hsl(var(--berget-brand-peak));
-  --berget-muted: hsl(var(--berget-brand-night));
-  --berget-muted-foreground: hsl(var(--berget-brand-peak) / 0.6);
-  --berget-primary: hsl(var(--berget-brand-cloud));
-  --berget-primary-foreground: hsl(var(--berget-brand-peak));
-  --berget-secondary: hsl(var(--berget-brand-moss));
-  --berget-secondary-foreground: hsl(var(--berget-brand-peak));
-  --berget-secondary-hover: hsl(var(--berget-brand-moss) / 0.4);
-  --berget-accent: hsl(var(--berget-brand-lichen));
-  --berget-accent-foreground: hsl(var(--berget-brand-slate));
-  --berget-accent-2: hsl(var(--berget-brand-warning));
-  --berget-accent-3: hsl(var(--berget-brand-fjord));
-  --berget-ghost: hsl(var(--berget-brand-slate) / 0.4);
-  --berget-ghost-hover: hsl(var(--berget-brand-slate) / 0.8);
-  --berget-outline: hsl(var(--berget-brand-moss) / 0.4);
-  --berget-border: hsl(var(--berget-brand-slate));
-  --berget-input: hsl(var(--berget-brand-slate));
-  --berget-ring: hsl(var(--berget-brand-moss) / 0.2);
-  --berget-destructive: hsl(var(--berget-brand-error) / 0.2);
-  --berget-destructive-foreground: hsl(var(--berget-brand-error));
-  --berget-destructive-border: hsl(var(--berget-brand-error) / 0.5);
+  /* Semantic tokens - Monochromatic base with subtle warm accents */
+  --berget-background: hsl(var(--berget-night));
+  --berget-foreground: hsl(var(--berget-peak));
+  --berget-foreground-alt: hsl(var(--berget-peak) / 0.72);
+  
+  /* Cards - subtle elevation */
+  --berget-card: hsl(var(--berget-slate));
+  --berget-card-foreground: hsl(var(--berget-peak));
+  
+  /* Muted - for secondary text and backgrounds */
+  --berget-muted: hsl(var(--berget-slate));
+  --berget-muted-foreground: hsl(var(--berget-peak) / 0.65);
+  
+  /* Primary = Stone (cream/white) - the main action color */
+  --berget-primary: hsl(var(--berget-stone));
+  --berget-primary-foreground: hsl(var(--berget-night));
+  
+  /* Secondary = Moss (muted green) - subtle accent */
+  --berget-secondary: hsl(var(--berget-moss));
+  --berget-secondary-foreground: hsl(var(--berget-peak));
+  --berget-secondary-hover: hsl(var(--berget-moss) / 0.15);
+  
+  /* Accent = Sage - even more subtle */
+  --berget-accent: hsl(var(--berget-sage));
+  --berget-accent-foreground: hsl(var(--berget-night));
+  
+  /* Ghost - transparent backgrounds */
+  --berget-ghost: hsl(var(--berget-slate) / 0.4);
+  --berget-ghost-hover: hsl(var(--berget-slate) / 0.6);
+  
+  /* Border system - Stone with subtle opacity (console-inspired) */
+  --berget-border: hsl(var(--berget-stone) / 0.05);
+  --berget-border-hover: hsl(var(--berget-stone) / 0.10);
+  --berget-border-strong: hsl(var(--berget-stone) / 0.08);
+  --berget-border-moss: hsl(var(--berget-moss) / 0.20);
+  
+  /* Input and focus */
+  --berget-input: hsl(var(--berget-slate));
+  --berget-ring: hsl(var(--berget-stone) / 0.3);
+  
+  /* Destructive */
+  --berget-destructive: hsl(var(--berget-error) / 0.2);
+  --berget-destructive-foreground: hsl(var(--berget-error));
+  
+  /* Special effects */
+  --berget-glass: rgba(26, 26, 26, 0.4);
+  --berget-glow: rgba(229, 221, 213, 0.1);
+  --berget-grid-line: rgba(229, 221, 213, 0.02);
 
   /* Typography */
   --berget-font-sans: "DM Sans", system-ui, -apple-system, sans-serif;
-  --berget-font-serif: "Ovo", serif;
+  --berget-font-serif: "Ovo", Georgia, serif;
   --berget-font-mono: "DM Mono", monospace;
 }
 
 @theme {
   --color-background: hsl(0 0% 4%);
   --color-foreground: hsl(0 0% 100%);
-  --color-card: hsl(0 0% 10%);
+  --color-card: hsl(0 0% 7%);
   --color-card-foreground: hsl(0 0% 100%);
-  --color-primary: hsl(151 44% 52%);
+  --color-primary: hsl(45 15% 88%);
   --color-primary-foreground: hsl(0 0% 4%);
-  --color-secondary: hsl(0 0% 10%);
+  --color-secondary: hsl(151 29% 49%);
   --color-secondary-foreground: hsl(0 0% 100%);
   --color-muted: hsl(0 0% 10%);
-  --color-muted-foreground: hsl(0 0% 100% / 0.8);
-  --color-accent: hsl(151 37% 63%);
-  --color-accent-foreground: hsl(0 0% 10%);
-  --color-destructive: hsl(6 74% 50%);
+  --color-muted-foreground: hsl(0 0% 65%);
+  --color-accent: hsl(151 33% 62%);
+  --color-accent-foreground: hsl(0 0% 4%);
+  --color-destructive: hsl(0 72% 51%);
   --color-destructive-foreground: hsl(0 0% 100%);
-  --color-border: hsl(0 0% 10%);
-  --color-input: hsl(0 0% 10%);
-  --color-ring: hsl(151 44% 52%);
-  --radius: 1rem;
+  --color-border: hsl(45 15% 88% / 0.05);
+  --color-input: hsl(0 0% 15%);
+  --color-ring: hsl(45 15% 88%);
+  --radius: 0.75rem;
 }
 
+/* Base styles */
 body {
   background: var(--berget-background);
   color: var(--berget-foreground);
   font-family: var(--berget-font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
+/* Headings - Ovo serif */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--berget-font-serif);
+  letter-spacing: -0.03em;
+}
+
+/* Subtle grid background option */
+.bg-grid {
+  background-image: 
+    linear-gradient(to right, rgba(229, 221, 213, 0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(229, 221, 213, 0.02) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Panel glow effect - very subtle */
+.panel-glow {
+  box-shadow: 
+    0 0 0 1px rgba(229, 221, 213, 0.02),
+    0 0 20px -10px rgba(229, 221, 213, 0.01);
+}
+
+/* Animations */
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.6s ease-out;
 }

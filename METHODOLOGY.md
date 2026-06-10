@@ -215,20 +215,33 @@ This means AMD MI300X can run larger models with fewer GPUs, reducing both opera
 
 ### 3.4 Power Calculation
 
-GPU power is interpolated between idle and peak based on utilization:
+GPU power is interpolated between idle and peak based on **model-size-dependent utilization**.
+
+**Key finding from LLMCO2** (Fu et al., 2024): Inference utilization is significantly lower than training due to the memory-bound decode phase. Their measurements on A100 show **10-40%** of peak throughput for typical inference workloads, compared to 50%+ for training.
+
+**Reference**: Fu, Z., Chen, F., Zhou, S., Li, H., & Jiang, L. (2024). LLMCO2: Advancing Accurate Carbon Footprint Prediction for LLM Inferences. arXiv:2410.02950. https://arxiv.org/abs/2410.02950
+
+**Our utilization model** (calibrated to LLMCO2 measurements):
 
 ```
-utilization = min(1.0, concurrencyAdjustedTime / 10)
+if parameters <= 10B:
+    utilization = 0.15   // Small models: memory-bound decode
+elif parameters <= 40B:
+    utilization = 0.25   // Medium models: moderate compute
+else:
+    utilization = 0.35   // Large models: higher compute but still memory-bound
 
 baseGpuPower = nodeIdleWatts / gpuCount
 incrementalPower = ((nodePeakWatts - nodeIdleWatts) / gpuCount) × utilization
 powerPerGpu = baseGpuPower + incrementalPower
 ```
 
-**Example** (H200 node, 8 GPUs):
+**Example** (H200 node, 8 GPUs, 30B model):
 - Idle: 800W total → 100W per GPU
 - Peak: 5,000W total → 625W per GPU
-- At 60% utilization: 100 + (525 × 0.6) = **415W per GPU**
+- At 25% utilization: 100 + (525 × 0.25) = **231W per GPU**
+
+*Previous versions used 30-90% utilization based on training workloads. LLMCO2 showed this overestimates inference energy by 2-3×.*
 
 ### 3.5 Energy Calculation
 
@@ -588,6 +601,32 @@ interface InferenceResult {
   timing: { isLowPeriod, periodFactor, hourOfDay };
 }
 ```
+
+---
+
+## Appendix D: References
+
+### D.1 Inference Energy & Carbon Footprint
+
+1. **Fu, Z., Chen, F., Zhou, S., Li, H., & Jiang, L. (2024).** LLMCO2: Advancing Accurate Carbon Footprint Prediction for LLM Inferences. *arXiv:2410.02950*. https://arxiv.org/abs/2410.02950
+   
+   *Key finding*: Inference GPU utilization is 10-40% of peak (significantly lower than training), due to memory-bound decode phase. Used to calibrate our utilization model.
+
+2. **Podder, S., Date, H., & Murthy, S. (2026).** Green prompt engineering for sustainable generative AI. *Environmental Science and Ecotechnology, 30*, 100684. https://doi.org/10.1016/j.ese.2026.100684
+   
+   *Key finding*: Optimized prompting reduces LLM inference energy and CO₂ emissions by 32-48%. Validates that output token count (driven by prompt design) is a primary driver of inference emissions.
+
+### D.2 Training CO₂ Sources
+
+3. **Meta AI. (2024).** Llama 3.1 Model Card. https://ai.meta.com/blog/meta-llama-3-1/
+4. **Mistral AI. (2024).** Mistral Small 3.2 Release. https://mistral.ai/news/
+5. **Google DeepMind. (2024).** Gemma 4 Technical Report. https://ai.google.dev/gemma
+6. **OpenAI. (2024).** GPT-OSS: Open Source Language Models. https://openai.com/index/oss/
+
+### D.3 Grid Intensity Data
+
+7. **IEA. (2024).** Electricity Emissions Factors. https://www.iea.org/data-and-statistics
+8. **EPA. (2023).** eGRID Database. https://www.epa.gov/egrid
 
 ---
 

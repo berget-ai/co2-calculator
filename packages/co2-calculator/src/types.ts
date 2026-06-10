@@ -36,6 +36,16 @@ export interface ModelProfile {
   defaultOutputTokens: number;
   /** Default response time (seconds) from production */
   defaultResponseTimeSeconds: number;
+  /** Hugging Face popularity metrics */
+  popularity?: {
+    downloadsPerMonth: number;
+    hfLikes: number;
+  };
+  /** OpenRouter API usage statistics (requests per day) */
+  openRouterStats?: {
+    requestsPerDay: number;
+    estimatedGlobalRequestsPerDay: number;
+  };
 }
 
 // ---------------------------------------------------------------------------

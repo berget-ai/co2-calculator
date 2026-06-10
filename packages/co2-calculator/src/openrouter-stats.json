@@ -1,0 +1,62 @@
+{
+  "fetchedAt": "2026-06-10T08:18:05.068Z",
+  "source": "OpenRouter API (api/frontend/v1/stats/model-activity)",
+  "note": "OpenRouter represents ~10% of global API market. Multiplied requests by 10x for total market estimate.",
+  "marketMultiplier": 10,
+  "models": {
+    "google/gemma-4-31B-it": {
+      "requestsPerDay": 5356667,
+      "promptTokensPerDay": 25534650683,
+      "completionTokensPerDay": 2129282254,
+      "latestDate": "2026-06-10 00:00:00",
+      "daysOfData": 31,
+      "openRouterRequestsPerDay": 5356667,
+      "estimatedGlobalRequestsPerDay": 53566670
+    },
+    "openai/gpt-oss-120b": {
+      "requestsPerDay": 12267211,
+      "promptTokensPerDay": 45796575179,
+      "completionTokensPerDay": 5977908849,
+      "latestDate": "2026-06-10 00:00:00",
+      "daysOfData": 31,
+      "openRouterRequestsPerDay": 12267211,
+      "estimatedGlobalRequestsPerDay": 122672110
+    },
+    "mistralai/Mistral-Small-3.2-24B-Instruct-2506": {
+      "requestsPerDay": 1365209,
+      "promptTokensPerDay": 3593747368,
+      "completionTokensPerDay": 351017507,
+      "latestDate": "2026-06-10 00:00:00",
+      "daysOfData": 31,
+      "openRouterRequestsPerDay": 1365209,
+      "estimatedGlobalRequestsPerDay": 13652090
+    },
+    "mistralai/Mistral-Medium-3.5-128B": {
+      "requestsPerDay": 197282,
+      "promptTokensPerDay": 676419959,
+      "completionTokensPerDay": 67888796,
+      "latestDate": "2026-06-10 00:00:00",
+      "daysOfData": 31,
+      "openRouterRequestsPerDay": 197282,
+      "estimatedGlobalRequestsPerDay": 1972820
+    },
+    "moonshotai/Kimi-K2.6": {
+      "requestsPerDay": 614438,
+      "promptTokensPerDay": 1838086883,
+      "completionTokensPerDay": 114551821,
+      "latestDate": "2026-06-10 00:00:00",
+      "daysOfData": 31,
+      "openRouterRequestsPerDay": 614438,
+      "estimatedGlobalRequestsPerDay": 6144380
+    },
+    "zai-org/GLM-4.7": {
+      "requestsPerDay": 14196,
+      "promptTokensPerDay": 184722405,
+      "completionTokensPerDay": 6166455,
+      "latestDate": "2026-06-10 00:00:00",
+      "daysOfData": 31,
+      "openRouterRequestsPerDay": 14196,
+      "estimatedGlobalRequestsPerDay": 141960
+    }
+  }
+}
