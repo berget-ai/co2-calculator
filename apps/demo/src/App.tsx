@@ -175,6 +175,7 @@ export function CO2Calculator() {
   const [lifetimeQueries, setLifetimeQueries] = useState(100_000_000);
   const [hardwareCondition, setHardwareCondition] = useState<"new" | "refurbished">("new");
   const [concurrency, setConcurrency] = useState(8);
+  const [includeTraining, setIncludeTraining] = useState(false); // Default OFF per user request
 
   const category = MODEL_CATEGORIES[modelCategory];
   const model = MODEL_PROFILES[selectedModel];
@@ -195,10 +196,10 @@ export function CO2Calculator() {
       outputTokens: model.defaultOutputTokens,
       concurrency,
       hourOfDay: 14,
-      includeTraining: true,
+      includeTraining,
       lifetimeQueries,
     });
-  }, [model, grid, hardwareCondition, category, concurrency, lifetimeQueries]);
+  }, [model, grid, hardwareCondition, category, concurrency, lifetimeQueries, includeTraining]);
 
   // Calculate results for all models in current category for comparison
   const modelComparisons = useMemo(() => {
@@ -223,7 +224,7 @@ export function CO2Calculator() {
         outputTokens: profile.defaultOutputTokens,
         concurrency,
         hourOfDay: 14,
-        includeTraining: true,
+        includeTraining,
         lifetimeQueries: modelLifetimeQueries,
       });
 
@@ -240,7 +241,7 @@ export function CO2Calculator() {
         lifetimeQueries: modelLifetimeQueries,
       };
     }).filter(Boolean);
-  }, [grid, hardwareCondition, category, concurrency]);
+  }, [grid, hardwareCondition, category, concurrency, includeTraining]);
 
   const totalSteps = 6;
 
@@ -406,6 +407,42 @@ export function CO2Calculator() {
             <p style={{ color: C.muted, marginBottom: "1.5rem" }}>
               Training happens once. Inference happens billions of times.
             </p>
+
+            {/* Training toggle */}
+            <div style={{ 
+              display: "flex", 
+              alignItems: "center", 
+              gap: "0.75rem",
+              marginBottom: "1.5rem",
+              padding: "0.75rem 1rem",
+              background: C.ghost,
+              borderRadius: 8,
+              border: `1px solid ${C.border}`,
+            }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: "0.875rem", fontWeight: 600, color: C.peak }}>
+                  Include training emissions in total
+                </div>
+                <div style={{ fontSize: "0.75rem", color: C.muted }}>
+                  Training data has high uncertainty (±50%). Toggle off to focus on operational emissions only.
+                </div>
+              </div>
+              <button
+                onClick={() => setIncludeTraining(!includeTraining)}
+                style={{
+                  padding: "0.5rem 1rem",
+                  borderRadius: 6,
+                  border: `1px solid ${includeTraining ? C.moss : C.border}`,
+                  background: includeTraining ? C.mossDim : "transparent",
+                  color: includeTraining ? C.moss : C.muted,
+                  cursor: "pointer",
+                  fontSize: "0.875rem",
+                  fontWeight: 500,
+                }}
+              >
+                {includeTraining ? "ON ✓" : "OFF"}
+              </button>
+            </div>
 
             {/* Explanation cards */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "1.5rem" }}>
@@ -748,7 +785,7 @@ export function CO2Calculator() {
                 { key: "serverOperational", label: "Server & DC", color: COMPONENT_COLORS.server.bg },
                 { key: "datacenterOverhead", label: "Cooling", color: COMPONENT_COLORS.overhead.bg },
                 { key: "embodied", label: "Hardware", color: COMPONENT_COLORS.embodied.bg },
-                { key: "trainingAmortised", label: "Training", color: COMPONENT_COLORS.training.bg },
+                ...(includeTraining ? [{ key: "trainingAmortised", label: "Training", color: COMPONENT_COLORS.training.bg }] : []),
               ].map((item) => {
                 const value = result.components[item.key as keyof typeof result.components].co2Grams;
                 const pct = (value / result.totalCO2Grams) * 100;
@@ -895,6 +932,7 @@ const result = calculateInference({
       <EmissionsFooter 
         step={step} 
         result={result}
+        includeTraining={includeTraining}
         onBack={goBack}
         onNext={goNext}
         onReset={() => {
@@ -905,6 +943,7 @@ const result = calculateInference({
           setHardwareCondition("new");
           setConcurrency(8);
           setLifetimeQueries(100_000_000);
+          setIncludeTraining(false);
         }}
         canGoBack={canGoBack}
         canGoNext={canGoNext}
@@ -917,6 +956,7 @@ const result = calculateInference({
 function EmissionsFooter({ 
   step, 
   result,
+  includeTraining,
   onBack,
   onNext,
   onReset,
@@ -925,6 +965,7 @@ function EmissionsFooter({
 }: { 
   step: number; 
   result: ReturnType<typeof calculateInference> | null;
+  includeTraining: boolean;
   onBack: () => void;
   onNext: () => void;
   onReset: () => void;
@@ -962,13 +1003,13 @@ function EmissionsFooter({
       label: `${COMPONENT_COLORS.embodied.label}${result.components.embodied.co2Grams === 0 ? " (0)" : ""}`,
       step: 4,
     },
-    { 
+    ...(includeTraining ? [{
       key: "training", 
       value: result.components.trainingAmortised.co2Grams, 
       color: COMPONENT_COLORS.training.bg,
       label: COMPONENT_COLORS.training.label,
       step: 3,
-    },
+    }] : []),
   ];
 
   const total = result.totalCO2Grams;
