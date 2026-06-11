@@ -33,30 +33,14 @@ export const HARDWARE_CONFIGS: Record<string, HardwareConfig> = {
     gpuCount: 8,
     gpuMemoryGb: 192, // 192GB HBM3 per GPU
     nodeIdleWatts: 1_000,
-    // 8× MI300X @ 750W = 6,000W + 2× EPYC 9654 @ 360W = 720W + chassis overhead
     nodePeakWatts: 7_000,
-    // REAL DATA: Based on detailed component breakdown for Supermicro AS-8125GS-TNMR2
-    // Total server embodied: ~7 t CO₂e (range 5-12 t, conservative: 8 t)
-    // Per GPU: 7,000 kg / 8 = 875 kg (best estimate)
-    // Conservative: 8,000 kg / 8 = 1,000 kg
-    //
-    // Component breakdown (total server):
-    // - 8× AMD MI300X + UBB + 1.5 TB HBM3: 2.0-4.0 t CO₂e
-    // - 1.5 TB DDR5 RDIMM (24×64 GB): 2.0-4.6 t CO₂e
-    // - SSD (2×7.68 TB + 960 GB): 0.4-1.2 t CO₂e
-    // - Chassis, motherboard, PSUs, fans, NICs, cables, assembly: 0.8-1.8 t CO₂e
-    // - 2× EPYC 9654 (96 cores, 360W TDP): 0.1-0.3 t CO₂e
-    //
-    // Sources:
-    // - NVIDIA HGX H100 PCF (1,312 kg cradle-to-gate) used as baseline for GPU portion
-    // - Boavizta component model for RAM/SSD/server baseline
-    // - Supermicro AS-8125GS-TNMR2 spec: 8U, 75.3 kg, 6×3000W Titanium PSU
-    // - AMD MI300X platform: 8× MI300X on UBB 2.0, 1.5 TB HBM3 total
-    //
-    // NOTE: AMD does not publish public MI300X PCF data. This is an engineering
-    // estimate triangulated from NVIDIA HGX H100 PCF and Boavizta models.
-    // Recommended: Request PAIA/PCF cradle-to-gate from Supermicro/AMD.
     embodiedPerGpuKg: 1_000,
+    // Supporting infrastructure for an 8-GPU node:
+    // - 3× 1U servers (CPU, RAM, SSD, chassis): 3 × 1,000 kg = 3,000 kg
+    // - 2× firewalls: 2 × 300 kg = 600 kg
+    // - 2× switches: 2 × 200 kg = 400 kg
+    // Total other compute: 4,000 kg CO₂e
+    otherComputeEmbodiedKg: 4_000,
     chassisWatts: 1_500,
     formFactor: "8-GPU Accelerator Node (8U)",
   },
@@ -65,39 +49,9 @@ export const HARDWARE_CONFIGS: Record<string, HardwareConfig> = {
     gpuCount: 8,
     gpuMemoryGb: 141, // 141GB HBM3e per GPU
     nodeIdleWatts: 800,
-    // 8× H200 @ 700W = 5,600W + 2× EPYC @ 360W = 720W + chassis overhead
     nodePeakWatts: 6_500,
-    // REAL DATA: Based on detailed component breakdown for Supermicro AS-8125GS-TNHR
-    // Total server embodied: ~7 t CO₂e (range 5-10 t, with 8×400G NICs: 8 t)
-    // Per GPU: 7,000 kg / 8 = 875 kg (best estimate)
-    // Conservative: 8,000 kg / 8 = 1,000 kg
-    //
-    // Component breakdown (total server):
-    // - NVIDIA HGX H200 8-GPU baseboard: 1.6-2.2 t CO₂e
-    //   Calculated from H100 PCF (1,312 kg) with HBM scaling:
-    //   H200 has 8×141 GB = 1,128 GB HBM3e vs H100 640 GB
-    //   HGX H200 ≈ (1,312 - 546) + 546 × (1,128 / 640) ≈ 1,729 kg
-    // - 1.5 TB DDR5 RDIMM (24×64 GB): 2.0-4.6 t CO₂e (Boavizta model)
-    // - SSD (2×7.68 TB + boot): 0.5-1.0 t CO₂e
-    // - 2× EPYC CPU: 0.1-0.3 t CO₂e
-    // - Chassis, motherboard, PSUs, fans, risers, assembly: 0.8-1.8 t CO₂e
-    // - Basic NIC / management / 10-100G: 0.05-0.2 t CO₂e
-    // - 8×400G/NDR NICs (optional): +0.4-0.9 t CO₂e
-    //
-    // Sources:
-    // - NVIDIA HGX H100 PCF (1,312 kg cradle-to-gate, 546 kg memory)
-    // - Boavizta component model for RAM/SSD/server baseline
-    // - Supermicro AS-8125GS-TNHR spec: 8U, 75.3 kg, 6×3000W Titanium PSU
-    // - NVIDIA H200 SXM: 141 GB HBM3e per GPU, up to 700W
-    //
-    // Comparison: H200 vs MI300X
-    // - H200 GPU-board: ~1,729 kg (1.128 TB HBM3e)
-    // - MI300X GPU-board: ~2,000-4,000 kg (1.5 TB HBM3)
-    // - H200 is slightly lower due to less HBM memory
-    //
-    // NOTE: No public H200 PCF found. Extrapolated from H100 PCF.
-    // Recommended: Request PAIA/PCF from Supermicro/NVIDIA.
     embodiedPerGpuKg: 1_000,
+    otherComputeEmbodiedKg: 4_000,
     chassisWatts: 1_200,
     formFactor: "8-GPU Accelerator Node (8U)",
   },
@@ -106,21 +60,9 @@ export const HARDWARE_CONFIGS: Record<string, HardwareConfig> = {
     gpuCount: 8,
     gpuMemoryGb: 80, // 80GB HBM3 per GPU
     nodeIdleWatts: 700,
-    // 8× H100 @ 700W = 5,600W + 2× EPYC @ 360W = 720W + chassis overhead
     nodePeakWatts: 6_500,
-    // REAL DATA: NVIDIA HGX H100 PCF = 1,312 kg CO₂e cradle-to-gate
-    // This is for the GPU baseboard only (8× H100 + 640 GB HBM3)
-    // Per GPU: 1,312 kg / 8 = 164 kg (GPU-board only)
-    //
-    // Full server estimate (similar to H200, less HBM):
-    // - HGX H100 baseboard: 1,312 kg (640 GB HBM3)
-    // - System RAM, SSD, chassis, CPUs: ~4-6 t CO₂e
-    // - Total server: ~5.5-7.5 t CO₂e
-    // - Per GPU: ~700-950 kg
-    //
-    // Source: NVIDIA HGX H100 Product Carbon Footprint (public)
-    // Only vendor-published PCF for GPU accelerator boards found.
     embodiedPerGpuKg: 850,
+    otherComputeEmbodiedKg: 4_000,
     chassisWatts: 1_200,
     formFactor: "8-GPU Accelerator Node (8U)",
   },
@@ -130,10 +72,8 @@ export const HARDWARE_CONFIGS: Record<string, HardwareConfig> = {
     gpuMemoryGb: 80, // 80GB HBM2e per GPU
     nodeIdleWatts: 600,
     nodePeakWatts: 3_200,
-    // 7nm process, ~826 mm² die. Server-level data suggests full A100 server
-    // is 2,000-4,000 kg total embodied. With CPU/chassis/DRAM at ~1,200-1,800 kg,
-    // GPU itself is likely 800-1,500 kg range. Using conservative 1,200 kg.
     embodiedPerGpuKg: 1_200,
+    otherComputeEmbodiedKg: 4_000,
     chassisWatts: 1_000,
     formFactor: "8-GPU Accelerator Node",
   },
@@ -143,9 +83,9 @@ export const HARDWARE_CONFIGS: Record<string, HardwareConfig> = {
     gpuMemoryGb: 24, // 24GB GDDR6 per GPU
     nodeIdleWatts: 200,
     nodePeakWatts: 400,
-    // Ada Lovelace architecture, smaller die, lower power. Estimate based on
-    // die size ratio vs A100 and power envelope proportionality.
     embodiedPerGpuKg: 300,
+    // Smaller deployment: 2× 1U servers + 1 firewall + 1 switch
+    otherComputeEmbodiedKg: 2_500,
     chassisWatts: 600,
     formFactor: "2U Inference Server",
   },
@@ -156,6 +96,7 @@ export const HARDWARE_CONFIGS: Record<string, HardwareConfig> = {
     nodeIdleWatts: 150,
     nodePeakWatts: 250,
     embodiedPerGpuKg: 300,
+    otherComputeEmbodiedKg: 2_500,
     chassisWatts: 400,
     formFactor: "1U Inference Server",
   },

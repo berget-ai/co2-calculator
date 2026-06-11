@@ -129,6 +129,9 @@ export function calculateInference(params: InferenceParams): InferenceResult {
     lifetimeQueries,
   } = params;
 
+  // Clamp concurrency to valid range
+  const safeConcurrency = Math.max(1, Math.abs(concurrency));
+
   // --- Token-based time adjustment (Section 3.1) ---
   // Scale response time based on token count relative to defaults
   const tokenRatio = (inputTokens + outputTokens) / 
@@ -142,7 +145,7 @@ export function calculateInference(params: InferenceParams): InferenceResult {
   // --- GPU Time Allocation (Section 3.1) ---
   // Per-request GPU time = response time × (concurrency / gpus_in_node)
   // This accounts for the fact that GPUs are shared among concurrent requests
-  const gpuTimeSec = tokenAdjustedTime * Math.min(1, concurrency / gpusUsed);
+  const gpuTimeSec = tokenAdjustedTime * Math.min(1, safeConcurrency / gpusUsed);
   const gpuTimeH = gpuTimeSec / SECONDS_IN_HOUR;
 
   const { effectiveIntensity, isLowPeriod, factor } = applyTimeOfDay(
@@ -180,15 +183,20 @@ export function calculateInference(params: InferenceParams): InferenceResult {
   // Server chassis power is constant per node, NOT divided by concurrency
   // The CO₂ is divided among concurrent requests for per-request accounting
   const serverEnergyKwh = (hardware.chassisWatts * gpuTimeH) / 1_000;
-  const serverOperationalCO2 = (serverEnergyKwh * effectiveIntensity) / concurrency;
+  const serverOperationalCO2 = (serverEnergyKwh * effectiveIntensity) / safeConcurrency;
 
   // --- PUE overhead (grid-specific) ---
   const pue = deploymentGrid.typicalPue;
   const overheadCO2 = (gpuOperationalCO2 + serverOperationalCO2) * (pue - 1);
 
-  // --- Embodied (amortised per GPU-second, all GPUs used) ---
+  // --- Embodied GPU (amortised per GPU-second, all GPUs used) ---
   const embodiedPerGpuGrams = (hardware.embodiedPerGpuKg * 1_000) / GPU_LIFETIME_SECONDS;
-  const embodiedCO2 = embodiedPerGpuGrams * gpuTimeSec * gpusUsed;
+  const embodiedGpuCO2 = embodiedPerGpuGrams * gpuTimeSec * gpusUsed;
+
+  // --- Embodied Other Compute (shared infrastructure: CPU, RAM, SSD, firewalls, switches)
+  // Amortised over all concurrent requests on the node
+  const otherComputePerSecond = (hardware.otherComputeEmbodiedKg * 1_000) / GPU_LIFETIME_SECONDS;
+  const embodiedOtherCO2 = (otherComputePerSecond * gpuTimeSec) / safeConcurrency;
 
   // --- Training (amortised) ---
   const trainingCO2 = includeTraining
@@ -196,7 +204,7 @@ export function calculateInference(params: InferenceParams): InferenceResult {
     : 0;
 
   const totalCO2 =
-    gpuOperationalCO2 + serverOperationalCO2 + overheadCO2 + embodiedCO2 + trainingCO2;
+    gpuOperationalCO2 + serverOperationalCO2 + overheadCO2 + embodiedGpuCO2 + embodiedOtherCO2 + trainingCO2;
 
   const totalEnergyKwh = gpuEnergyKwh + serverEnergyKwh;
 
@@ -218,7 +226,8 @@ export function calculateInference(params: InferenceParams): InferenceResult {
       gpuOperational: mkComp(gpuOperationalCO2, gpuEnergyKwh, "GPU energy"),
       serverOperational: mkComp(serverOperationalCO2, serverEnergyKwh, "Server infrastructure"),
       datacenterOverhead: mkComp(overheadCO2, 0, `Cooling & overhead (PUE ${pue.toFixed(2)})`),
-      embodied: mkComp(embodiedCO2, 0, "Hardware embodied (amortised)"),
+      embodiedGpu: mkComp(embodiedGpuCO2, 0, "GPU embodied (amortised)"),
+      embodiedOther: mkComp(embodiedOtherCO2, 0, "Other compute embodied (amortised)"),
       trainingAmortised: mkComp(trainingCO2, 0, `Training amortised (${includeTraining ? "included" : "excluded"})`),
     },
     totalEnergyKwh,

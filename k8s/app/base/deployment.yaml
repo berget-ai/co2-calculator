@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: co2-calculator
+  labels:
+    app: co2-calculator
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: co2-calculator
+  template:
+    metadata:
+      labels:
+        app: co2-calculator
+    spec:
+      containers:
+        - name: co2-calculator
+          image: ghcr.io/berget-ai/co2-calculator:1.0.0
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      imagePullSecrets:
+        - name: regcred

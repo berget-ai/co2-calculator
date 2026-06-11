@@ -9,6 +9,16 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Separate Three.js and globe visualization into its own chunk
+          'globe-viz': ['react-globe.gl', 'three'],
+          // React and related libraries
+          'react-vendor': ['react', 'react-dom'],
+        },
+      },
+    },
   },
   resolve: {
     alias: {
