@@ -186,9 +186,14 @@ export function calculateInference(params: InferenceParams): InferenceResult {
   const pue = deploymentGrid.typicalPue;
   const overheadCO2 = (gpuOperationalCO2 + serverOperationalCO2) * (pue - 1);
 
-  // --- Embodied (amortised per GPU-second, all GPUs used) ---
+  // --- Embodied GPU (amortised per GPU-second, all GPUs used) ---
   const embodiedPerGpuGrams = (hardware.embodiedPerGpuKg * 1_000) / GPU_LIFETIME_SECONDS;
-  const embodiedCO2 = embodiedPerGpuGrams * gpuTimeSec * gpusUsed;
+  const embodiedGpuCO2 = embodiedPerGpuGrams * gpuTimeSec * gpusUsed;
+
+  // --- Embodied Other Compute (shared infrastructure: CPU, RAM, SSD, firewalls, switches)
+  // Amortised over all concurrent requests on the node
+  const otherComputePerSecond = (hardware.otherComputeEmbodiedKg * 1_000) / GPU_LIFETIME_SECONDS;
+  const embodiedOtherCO2 = (otherComputePerSecond * gpuTimeSec) / concurrency;
 
   // --- Training (amortised) ---
   const trainingCO2 = includeTraining
@@ -196,7 +201,7 @@ export function calculateInference(params: InferenceParams): InferenceResult {
     : 0;
 
   const totalCO2 =
-    gpuOperationalCO2 + serverOperationalCO2 + overheadCO2 + embodiedCO2 + trainingCO2;
+    gpuOperationalCO2 + serverOperationalCO2 + overheadCO2 + embodiedGpuCO2 + embodiedOtherCO2 + trainingCO2;
 
   const totalEnergyKwh = gpuEnergyKwh + serverEnergyKwh;
 
@@ -218,7 +223,8 @@ export function calculateInference(params: InferenceParams): InferenceResult {
       gpuOperational: mkComp(gpuOperationalCO2, gpuEnergyKwh, "GPU energy"),
       serverOperational: mkComp(serverOperationalCO2, serverEnergyKwh, "Server infrastructure"),
       datacenterOverhead: mkComp(overheadCO2, 0, `Cooling & overhead (PUE ${pue.toFixed(2)})`),
-      embodied: mkComp(embodiedCO2, 0, "Hardware embodied (amortised)"),
+      embodiedGpu: mkComp(embodiedGpuCO2, 0, "GPU embodied (amortised)"),
+      embodiedOther: mkComp(embodiedOtherCO2, 0, "Other compute embodied (amortised)"),
       trainingAmortised: mkComp(trainingCO2, 0, `Training amortised (${includeTraining ? "included" : "excluded"})`),
     },
     totalEnergyKwh,

@@ -25,21 +25,24 @@ const baseParams = (overrides: Partial<InferenceParams> = {}): InferenceParams =
 
 describe("calculateInference", () => {
   it("allocates GPUs based on memory requirements", () => {
-    // A 120B model in FP16 needs ~240GB memory
-    // H100: 80GB per GPU → needs 4 GPUs
-    // MI300X: 192GB per GPU → needs 2 GPUs
+    // A 120B model in FP16 (2 bytes/param, no modelSizeBytes override) needs ~288GB memory
+    // H100: 80GB per GPU → needs 4 GPUs (288/80 = 3.6 → ceil = 4)
+    // MI300X: 192GB per GPU → needs 2 GPUs (288/192 = 1.5 → ceil = 2)
     const largeModel = baseParams({
-      modelProfile: MODEL_PROFILES["openai/gpt-oss-120b"],
+      modelProfile: {
+        ...MODEL_PROFILES["openai/gpt-oss-120b"],
+        modelSizeBytes: undefined, // Force FP16 (2 bytes per param)
+      },
       hardware: HARDWARE_CONFIGS.h100,
     });
     const h100Result = calculateInference(largeModel);
-    expect(h100Result.gpusAllocated).toBe(4); // 240GB / 80GB = 3 → ceil = 3, but max 4 for 100B+
+    expect(h100Result.gpusAllocated).toBe(4); // 288GB / 80GB = 3.6 → ceil = 4
     
     const mi300xResult = calculateInference({
       ...largeModel,
       hardware: HARDWARE_CONFIGS.mi300x,
     });
-    expect(mi300xResult.gpusAllocated).toBe(2); // 240GB / 192GB = 1.25 → ceil = 2
+    expect(mi300xResult.gpusAllocated).toBe(2); // 288GB / 192GB = 1.5 → ceil = 2
   });
 
   it("allocates 1 GPU for small models that fit in memory", () => {
@@ -149,7 +152,8 @@ describe("calculateInference", () => {
       result.components.gpuOperational.co2Grams +
       result.components.serverOperational.co2Grams +
       result.components.datacenterOverhead.co2Grams +
-      result.components.embodied.co2Grams +
+      result.components.embodiedGpu.co2Grams +
+      result.components.embodiedOther.co2Grams +
       result.components.trainingAmortised.co2Grams;
     expect(result.totalCO2Grams).toBeCloseTo(sum, 4);
   });
@@ -157,10 +161,10 @@ describe("calculateInference", () => {
 
 describe("calculateComparisons", () => {
   it("returns realistic microwave time for small CO₂ amounts", () => {
-    const result = calculateComparisons(0.02, GRID_REGIONS.sweden);
-    // 0.02g CO2 on Swedish grid (8g/kWh) = 0.0025 kWh
-    // Microwave (0.8kW) = 0.0025/0.8 hours = 11.25 seconds
-    expect(result.microwaveSeconds).toBeCloseTo(11.25, 1);
+    const result = calculateComparisons(0.02);
+    // 0.02g CO2 at EU average (300 g/kWh) = 0.000067 kWh
+    // Microwave (0.8kW) = 0.000067/0.8 hours = 0.3 seconds
+    expect(result.microwaveSeconds).toBeCloseTo(0.3, 1);
   });
 
   it("scales linearly with CO₂", () => {
@@ -211,8 +215,8 @@ describe("fmtParams", () => {
   });
 
   it("formats billions", () => {
-    expect(fmtParams(8_000_000_000)).toBe("8B");
-    expect(fmtParams(70_000_000_000)).toBe("70B");
+    expect(fmtParams(8_000_000_000)).toBe("8.0B"); // Single-digit billions show 1 decimal
+    expect(fmtParams(70_000_000_000)).toBe("70B"); // Double-digit billions show 0 decimals
   });
 
   it("formats millions", () => {

@@ -1,28 +1,39 @@
-# ---------- Build stage ----------
+# Multi-stage build for static site
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Copy workspace files
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/co2-calculator/package.json ./packages/co2-calculator/
+COPY apps/demo/package.json ./apps/demo/
+
+# Install pnpm
+RUN npm install -g pnpm
+
 # Install dependencies
-COPY package*.json ./
-RUN npm ci
+RUN pnpm install --frozen-lockfile
 
-# Copy source and build
-COPY . .
-RUN npm run build
+# Copy source code
+COPY packages/co2-calculator/ ./packages/co2-calculator/
+COPY apps/demo/ ./apps/demo/
 
-# ---------- Runtime stage ----------
-FROM node:20-alpine
+# Build packages and app
+RUN pnpm --filter @berget/co2-calculator build
+RUN pnpm --filter @berget/co2-calculator-demo build
 
-WORKDIR /app
+# Production stage - nginx
+FROM nginx:alpine
 
-# Only production dependencies
-COPY package*.json ./
-RUN npm ci --omit=dev
+# Copy built static files
+COPY --from=builder /app/apps/demo/dist /usr/share/nginx/html
 
-# Copy built artifacts
-COPY --from=builder /app/dist ./dist
+# Copy nginx config
+COPY apps/demo/nginx.conf /etc/nginx/conf.d/default.conf
 
-EXPOSE 3001
+# Expose port
+EXPOSE 80
 
-CMD ["node", "dist/api/server.js"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget --quiet --tries=1 --spider http://localhost/ || exit 1

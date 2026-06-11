@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: co2-calculator
+  labels:
+    app: co2-calculator
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+  selector:
+    app: co2-calculator

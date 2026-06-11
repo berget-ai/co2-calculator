@@ -1,0 +1,50 @@
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageRepository
+metadata:
+  name: co2-calculator
+  namespace: flux-system
+spec:
+  image: ghcr.io/berget-ai/co2-calculator
+  interval: 1m
+  secretRef:
+    name: regcred
+---
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImagePolicy
+metadata:
+  name: co2-calculator-production
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: co2-calculator
+  policy:
+    semver:
+      range: ">=1.0.0"
+---
+apiVersion: image.toolkit.fluxcd.io/v1beta1
+kind: ImageUpdateAutomation
+metadata:
+  name: co2-calculator
+  namespace: flux-system
+spec:
+  interval: 1m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  git:
+    checkout:
+      ref:
+        branch: main
+    commit:
+      author:
+        name: Flux Bot
+        email: flux@berget.ai
+      messageTemplate: "chore: update co2-calculator image to {{ .AutomationObject }}{{ .NewTag }}"
+      signingKey:
+        secretRef:
+          name: flux-gpg-signing-key
+    push:
+      branch: main
+  policy:
+    semver:
+      range: ">=1.0.0"

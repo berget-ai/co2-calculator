@@ -65,6 +65,8 @@ export interface HardwareConfig {
   nodePeakWatts: number;
   /** Embodied CO₂ per GPU card in kg CO₂e */
   embodiedPerGpuKg: number;
+  /** Embodied CO₂ for other compute (CPU, RAM, SSD, chassis, network, firewalls) per node in kg CO₂e */
+  otherComputeEmbodiedKg: number;
   /** Server/chassis overhead power in watts */
   chassisWatts: number;
   /** Form factor description */
@@ -158,7 +160,8 @@ export interface InferenceResult {
     gpuOperational: InferenceComponent;
     serverOperational: InferenceComponent;
     datacenterOverhead: InferenceComponent; // PUE 1.2
-    embodied: InferenceComponent;
+    embodiedGpu: InferenceComponent;
+    embodiedOther: InferenceComponent;
     trainingAmortised: InferenceComponent;
   };
   /** Total energy consumed (all components, all GPUs) */

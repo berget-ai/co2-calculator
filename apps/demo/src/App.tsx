@@ -193,7 +193,8 @@ export function CO2Calculator() {
   const [selectedModel, setSelectedModel] = useState(MODEL_CATEGORIES.chat.defaultModel);
   const [region, setRegion] = useState("usa");
   const [lifetimeQueries, setLifetimeQueries] = useState(100_000_000);
-  const [hardwareCondition, setHardwareCondition] = useState<"new" | "refurbished">("new");
+  const [gpuCondition, setGpuCondition] = useState<"new" | "refurbished">("new");
+  const [otherComputeCondition, setOtherComputeCondition] = useState<"new" | "refurbished">("new");
   const [concurrency, setConcurrency] = useState(8);
   const [includeTraining, setIncludeTraining] = useState(false); // Default OFF per user request
 
@@ -203,9 +204,11 @@ export function CO2Calculator() {
 
   const result = useMemo(() => {
     if (!model || !grid) return null;
-    const hw = hardwareCondition === "refurbished" 
-      ? { ...HARDWARE_CONFIGS.h200, embodiedPerGpuKg: 0 }
-      : HARDWARE_CONFIGS.h200;
+    const hw = {
+      ...HARDWARE_CONFIGS.h200,
+      embodiedPerGpuKg: gpuCondition === "refurbished" ? 0 : HARDWARE_CONFIGS.h200.embodiedPerGpuKg,
+      otherComputeEmbodiedKg: otherComputeCondition === "refurbished" ? 0 : HARDWARE_CONFIGS.h200.otherComputeEmbodiedKg,
+    };
     
     return calculateInference({
       modelProfile: model,
@@ -219,14 +222,16 @@ export function CO2Calculator() {
       includeTraining,
       lifetimeQueries,
     });
-  }, [model, grid, hardwareCondition, category, concurrency, lifetimeQueries, includeTraining]);
+  }, [model, grid, gpuCondition, otherComputeCondition, category, concurrency, lifetimeQueries, includeTraining]);
 
   // Calculate results for all models in current category for comparison
   const modelComparisons = useMemo(() => {
     if (!grid) return [];
-    const hw = hardwareCondition === "refurbished" 
-      ? { ...HARDWARE_CONFIGS.h200, embodiedPerGpuKg: 0 }
-      : HARDWARE_CONFIGS.h200;
+    const hw = {
+      ...HARDWARE_CONFIGS.h200,
+      embodiedPerGpuKg: gpuCondition === "refurbished" ? 0 : HARDWARE_CONFIGS.h200.embodiedPerGpuKg,
+      otherComputeEmbodiedKg: otherComputeCondition === "refurbished" ? 0 : HARDWARE_CONFIGS.h200.otherComputeEmbodiedKg,
+    };
 
     return category.models.map(m => {
       const profile = MODEL_PROFILES[m.id];
@@ -261,13 +266,13 @@ export function CO2Calculator() {
         lifetimeQueries: modelLifetimeQueries,
       };
     }).filter(Boolean);
-  }, [grid, hardwareCondition, category, concurrency, includeTraining]);
+  }, [grid, gpuCondition, otherComputeCondition, category, concurrency, includeTraining]);
 
-  const totalSteps = 6;
+  const totalSteps = 7;
 
   // Navigation handlers
   const canGoBack = step > 1;
-  const canGoNext = step < 6;
+  const canGoNext = step < 7;
   
   const goBack = () => canGoBack && setStep(step - 1);
   const goNext = () => canGoNext && setStep(step + 1);
@@ -678,32 +683,72 @@ export function CO2Calculator() {
               Hardware
             </h1>
             <p style={{ color: C.muted, marginBottom: "1.5rem" }}>
-              New or refurbished? How many share the server?
+              GPU and supporting infrastructure — new or refurbished?
             </p>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "1.5rem" }}>
-              <Card 
-                selected={hardwareCondition === "new"} 
-                onClick={() => setHardwareCondition("new")}
-              >
-                <div style={{ fontSize: "2rem", marginBottom: "0.5rem", color: C.peak }}><Sparkles size={32} strokeWidth={1.5} /></div>
-                <div style={{ fontWeight: 600, color: C.peak }}>New Hardware</div>
-                <div style={{ fontSize: "0.75rem", color: C.muted }}>Full embodied carbon</div>
-                <div style={{ fontSize: "0.875rem", color: C.danger, marginTop: "0.5rem" }}>
-                  +{formatCO2((HARDWARE_CONFIGS.h200.embodiedPerGpuKg * 1000) / (5 * 365 * 24 * 3600) * 2)} per query
-                </div>
-              </Card>
-              <Card 
-                selected={hardwareCondition === "refurbished"} 
-                onClick={() => setHardwareCondition("refurbished")}
-              >
-                <div style={{ fontSize: "2rem", marginBottom: "0.5rem", color: C.peak }}><Recycle size={32} strokeWidth={1.5} /></div>
-                <div style={{ fontWeight: 600, color: C.peak }}>Refurbished</div>
-                <div style={{ fontSize: "0.75rem", color: C.muted }}>Zero embodied carbon</div>
-                <div style={{ fontSize: "0.875rem", color: C.moss, marginTop: "0.5rem" }}>
-                  0 g per query
-                </div>
-              </Card>
+            {/* GPU Selection */}
+            <div style={{ marginBottom: "1.5rem" }}>
+              <div style={{ fontSize: "0.875rem", fontWeight: 600, color: C.peak, marginBottom: "0.75rem" }}>
+                GPU (NVIDIA H200 ×8)
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                <Card 
+                  selected={gpuCondition === "new"} 
+                  onClick={() => setGpuCondition("new")}
+                >
+                  <div style={{ fontSize: "2rem", marginBottom: "0.5rem", color: C.peak }}><Sparkles size={32} strokeWidth={1.5} /></div>
+                  <div style={{ fontWeight: 600, color: C.peak }}>New GPU</div>
+                  <div style={{ fontSize: "0.75rem", color: C.muted }}>Full embodied carbon</div>
+                  <div style={{ fontSize: "0.875rem", color: C.danger, marginTop: "0.5rem" }}>
+                    +{formatCO2((HARDWARE_CONFIGS.h200.embodiedPerGpuKg * 1000) / (5 * 365 * 24 * 3600) * 2)} per query
+                  </div>
+                </Card>
+                <Card 
+                  selected={gpuCondition === "refurbished"} 
+                  onClick={() => setGpuCondition("refurbished")}
+                >
+                  <div style={{ fontSize: "2rem", marginBottom: "0.5rem", color: C.peak }}><Recycle size={32} strokeWidth={1.5} /></div>
+                  <div style={{ fontWeight: 600, color: C.peak }}>Refurbished GPU</div>
+                  <div style={{ fontSize: "0.75rem", color: C.muted }}>Zero embodied carbon</div>
+                  <div style={{ fontSize: "0.875rem", color: C.moss, marginTop: "0.5rem" }}>
+                    0 g per query
+                  </div>
+                </Card>
+              </div>
+            </div>
+
+            {/* Other Compute Selection */}
+            <div style={{ marginBottom: "1.5rem" }}>
+              <div style={{ fontSize: "0.875rem", fontWeight: 600, color: C.peak, marginBottom: "0.75rem" }}>
+                Other Compute (CPU, RAM, SSD, Network)
+              </div>
+              <div style={{ fontSize: "0.75rem", color: C.muted, marginBottom: "0.75rem" }}>
+                3× 1U servers + 2× firewalls + 2× switches
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                <Card 
+                  selected={otherComputeCondition === "new"} 
+                  onClick={() => setOtherComputeCondition("new")}
+                >
+                  <div style={{ fontSize: "2rem", marginBottom: "0.5rem", color: C.peak }}><Factory size={32} strokeWidth={1.5} /></div>
+                  <div style={{ fontWeight: 600, color: C.peak }}>New Infrastructure</div>
+                  <div style={{ fontSize: "0.75rem", color: C.muted }}>Full embodied carbon</div>
+                  <div style={{ fontSize: "0.875rem", color: C.danger, marginTop: "0.5rem" }}>
+                    +{formatCO2((HARDWARE_CONFIGS.h200.otherComputeEmbodiedKg * 1000) / (5 * 365 * 24 * 3600) / 8)} per query
+                  </div>
+                </Card>
+                <Card 
+                  selected={otherComputeCondition === "refurbished"} 
+                  onClick={() => setOtherComputeCondition("refurbished")}
+                >
+                  <div style={{ fontSize: "2rem", marginBottom: "0.5rem", color: C.peak }}><Recycle size={32} strokeWidth={1.5} /></div>
+                  <div style={{ fontWeight: 600, color: C.peak }}>Refurbished Infrastructure</div>
+                  <div style={{ fontSize: "0.75rem", color: C.muted }}>Zero embodied carbon</div>
+                  <div style={{ fontSize: "0.875rem", color: C.moss, marginTop: "0.5rem" }}>
+                    0 g per query
+                  </div>
+                </Card>
+              </div>
             </div>
 
             <Card>
@@ -729,73 +774,8 @@ export function CO2Calculator() {
           </div>
         )}
 
-        {/* STEP 5: Explanation */}
-        {step === 5 && (
-          <div>
-            <h1 style={{ fontSize: "1.75rem", fontWeight: 700, color: C.peak, marginBottom: "0.5rem" }}>
-              Why the Difference?
-            </h1>
-            <p style={{ color: C.muted, marginBottom: "1.5rem" }}>
-              Understanding what drives emissions
-            </p>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-              <Card>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
-                  <Zap size={24} strokeWidth={1.5} style={{ color: C.peak }} />
-                  <div style={{ fontWeight: 600, color: C.peak }}>Grid Carbon Intensity</div>
-                </div>
-                <p style={{ fontSize: "0.875rem", color: C.muted, margin: 0 }}>
-                  Sweden: 8 g/kWh (hydro + nuclear) vs Texas: 420 g/kWh (gas + coal). 
-                  Same GPU, same work, 50× difference in emissions.
-                </p>
-                <SourceCitation source="IEA 2024 / EPA eGRID 2023" url="https://www.iea.org/data-and-statistics" />
-              </Card>
-
-              <Card>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
-                  <Snowflake size={24} strokeWidth={1.5} style={{ color: C.peak }} />
-                  <div style={{ fontWeight: 600, color: C.peak }}>Cooling</div>
-                </div>
-                <p style={{ fontSize: "0.875rem", color: C.muted, margin: 0 }}>
-                  Cold climates use free-air cooling (PUE 1.15). Hot climates need 
-                  energy-intensive mechanical cooling (PUE 1.80). That's 57% more energy 
-                  just for cooling.
-                </p>
-                <SourceCitation source="Uptime Institute 2024" url="https://uptimeinstitute.com/resources/research-and-reports" />
-              </Card>
-
-              <Card>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
-                  <Droplets size={24} strokeWidth={1.5} style={{ color: C.peak }} />
-                  <div style={{ fontWeight: 600, color: C.peak }}>Water Usage</div>
-                </div>
-                <p style={{ fontSize: "0.875rem", color: C.muted, margin: 0 }}>
-                  Nordic datacenters use zero water. Evaporative cooling in hot/dry 
-                  climates can consume 1.5-2.0 liters per kWh. At scale, that's 
-                  millions of liters per day.
-                </p>
-                <SourceCitation source="Nature 2021 / US DOE" url="https://www.nature.com/articles/s41586-021-03439-8" />
-              </Card>
-
-              <Card>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
-                  <Recycle size={24} strokeWidth={1.5} style={{ color: C.peak }} />
-                  <div style={{ fontWeight: 600, color: C.peak }}>Hardware Lifecycle</div>
-                </div>
-                <p style={{ fontSize: "0.875rem", color: C.muted, margin: 0 }}>
-                  Manufacturing a GPU creates ~1 ton of CO₂. New hardware amortizes 
-                  this over its lifetime. Refurbished hardware has zero embodied carbon 
-                  since it was already manufactured.
-                </p>
-                <SourceCitation source="NVIDIA HGX PCF / Supermicro LCA" />
-              </Card>
-            </div>
-          </div>
-        )}
-
-        {/* STEP 6: Summary + Code */}
-        {step === 6 && result && (
+        {/* STEP 5: Results */}
+        {step === 5 && result && (
           <div>
             <h1 style={{ fontSize: "1.75rem", fontWeight: 700, color: C.peak, marginBottom: "0.5rem" }}>
               Your Carbon Footprint
@@ -822,13 +802,60 @@ export function CO2Calculator() {
               </div>
             </div>
 
+            {/* Training Toggle */}
+            <div style={{ 
+              background: "rgba(96, 165, 128, 0.08)", 
+              borderRadius: 12, 
+              padding: "1rem", 
+              border: `1px solid ${C.borderMoss}`,
+              marginBottom: "1.5rem",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <Factory size={18} strokeWidth={1.5} style={{ color: C.moss }} />
+                  <span style={{ fontWeight: 600, color: C.peak }}>Include Training Emissions</span>
+                </div>
+                <button
+                  onClick={() => setIncludeTraining(!includeTraining)}
+                  style={{
+                    width: 48,
+                    height: 26,
+                    borderRadius: 13,
+                    border: "none",
+                    background: includeTraining ? C.moss : "rgba(255,255,255,0.2)",
+                    cursor: "pointer",
+                    position: "relative",
+                    transition: "background 0.3s",
+                  }}
+                >
+                  <div style={{
+                    width: 20,
+                    height: 20,
+                    borderRadius: 10,
+                    background: "white",
+                    position: "absolute",
+                    top: 3,
+                    left: includeTraining ? 25 : 3,
+                    transition: "left 0.3s",
+                  }} />
+                </button>
+              </div>
+              <p style={{ fontSize: "0.875rem", color: C.muted, margin: 0 }}>
+                {includeTraining 
+                  ? `Training adds ${formatCO2(result.components.trainingAmortised.co2Grams)} per query. Total: ${formatCO2(result.totalCO2Grams)}.`
+                  : `Training emissions excluded. Toggle ON to include ${formatCO2(result.components.trainingAmortised.co2Grams)} per query.`
+                }
+              </p>
+            </div>
+
             {/* Breakdown */}
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1.5rem" }}>
               {[
                 { key: "gpuOperational", label: "GPU Energy", color: COMPONENT_COLORS.gpu.bg },
                 { key: "serverOperational", label: "Server & DC", color: COMPONENT_COLORS.server.bg },
                 { key: "datacenterOverhead", label: "Cooling", color: COMPONENT_COLORS.overhead.bg },
-                { key: "embodied", label: "Hardware", color: COMPONENT_COLORS.embodied.bg },
+                { key: "embodiedGpu", label: "GPU Hardware", color: COMPONENT_COLORS.embodied.bg },
+                { key: "embodiedOther", label: "Other Compute", color: COMPONENT_COLORS.embodied.bg },
                 ...(includeTraining ? [{ key: "trainingAmortised", label: "Training", color: COMPONENT_COLORS.training.bg }] : []),
               ].map((item) => {
                 const value = result.components[item.key as keyof typeof result.components].co2Grams;
@@ -935,11 +962,139 @@ export function CO2Calculator() {
                 );
               })()}
             </div>
+          </div>
+        )}
 
-            {/* Code Example */}
-            <div style={{ background: C.ghost, borderRadius: 12, padding: "1rem", border: `1px solid ${C.border}` }}>
+        {/* STEP 6: Why the Difference */}
+        {step === 6 && (
+          <div>
+            <h1 style={{ fontSize: "1.75rem", fontWeight: 700, color: C.peak, marginBottom: "0.5rem" }}>
+              Why the Difference?
+            </h1>
+            <p style={{ color: C.muted, marginBottom: "1.5rem" }}>
+              Understanding what drives emissions
+            </p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              <Card>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
+                  <Zap size={24} strokeWidth={1.5} style={{ color: C.peak }} />
+                  <div style={{ fontWeight: 600, color: C.peak }}>Grid Carbon Intensity</div>
+                </div>
+                <p style={{ fontSize: "0.875rem", color: C.muted, margin: 0 }}>
+                  Sweden: 8 g/kWh (hydro + nuclear) vs Texas: 420 g/kWh (gas + coal). 
+                  Same GPU, same work, 50× difference in emissions.
+                </p>
+                <SourceCitation source="IEA 2024 / EPA eGRID 2023" url="https://www.iea.org/data-and-statistics" />
+              </Card>
+
+              <Card>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
+                  <Snowflake size={24} strokeWidth={1.5} style={{ color: C.peak }} />
+                  <div style={{ fontWeight: 600, color: C.peak }}>Cooling</div>
+                </div>
+                <p style={{ fontSize: "0.875rem", color: C.muted, margin: 0 }}>
+                  Cold climates use free-air cooling (PUE 1.15). Hot climates need 
+                  energy-intensive mechanical cooling (PUE 1.80). That's 57% more energy 
+                  just for cooling.
+                </p>
+                <SourceCitation source="Uptime Institute 2024" url="https://uptimeinstitute.com/resources/research-and-reports" />
+              </Card>
+
+              <Card>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
+                  <Droplets size={24} strokeWidth={1.5} style={{ color: C.peak }} />
+                  <div style={{ fontWeight: 600, color: C.peak }}>Water Usage</div>
+                </div>
+                <p style={{ fontSize: "0.875rem", color: C.muted, margin: 0 }}>
+                  Nordic datacenters use zero water. Evaporative cooling in hot/dry 
+                  climates can consume 1.5-2.0 liters per kWh. At scale, that's 
+                  millions of liters per day.
+                </p>
+                <SourceCitation source="Nature 2021 / US DOE" url="https://www.nature.com/articles/s41586-021-03439-8" />
+              </Card>
+
+              <Card>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
+                  <Recycle size={24} strokeWidth={1.5} style={{ color: C.peak }} />
+                  <div style={{ fontWeight: 600, color: C.peak }}>Hardware Lifecycle</div>
+                </div>
+                <p style={{ fontSize: "0.875rem", color: C.muted, margin: 0 }}>
+                  Manufacturing a GPU creates ~1 ton of CO₂. New hardware amortizes 
+                  this over its lifetime. Refurbished hardware has zero embodied carbon 
+                  since it was already manufactured.
+                </p>
+                <SourceCitation source="NVIDIA HGX PCF / Supermicro LCA" />
+              </Card>
+            </div>
+          </div>
+        )}
+        {/* STEP 7: What now? */}
+        {step === 7 && (
+          <div>
+            <h1 style={{ fontSize: "1.75rem", fontWeight: 700, color: C.peak, marginBottom: "0.5rem" }}>
+              What Now?
+            </h1>
+            <p style={{ color: C.muted, marginBottom: "1.5rem" }}>
+              Start measuring CO₂ in every LLM call
+            </p>
+
+            {/* Call to action */}
+            <div style={{ 
+              background: "rgba(96, 165, 128, 0.08)", 
+              borderRadius: 12, 
+              padding: "1.5rem", 
+              border: `1px solid ${C.borderMoss}`,
+              marginBottom: "1.5rem",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
+                <Globe size={24} strokeWidth={1.5} style={{ color: C.moss }} />
+                <span style={{ fontWeight: 600, color: C.peak, fontSize: "1.125rem" }}>Include CO₂ in Every Response</span>
+              </div>
+              <p style={{ fontSize: "0.875rem", color: C.muted, margin: 0, marginBottom: "1rem" }}>
+                Just like Berget AI does — return <code style={{ background: "rgba(0,0,0,0.3)", padding: "0.125rem 0.25rem", borderRadius: 4, fontFamily: "monospace" }}>co2_grams</code> and <code style={{ background: "rgba(0,0,0,0.3)", padding: "0.125rem 0.25rem", borderRadius: 4, fontFamily: "monospace" }}>gpu_energy_joules</code> in your API responses. 
+                Your users deserve to know the environmental cost of each request.
+              </p>
+              
+              <div style={{ background: C.ghost, borderRadius: 12, padding: "1rem", border: `1px solid ${C.border}` }}>
+                <div style={{ fontSize: "0.875rem", color: C.peak, fontWeight: 600, marginBottom: "0.5rem" }}>
+                  <Code size={16} strokeWidth={1.5} style={{ marginRight: "0.5rem" }} /> Example: Berget AI API
+                </div>
+                <pre style={{
+                  margin: 0,
+                  padding: "0.75rem",
+                  background: "rgba(0,0,0,0.5)",
+                  borderRadius: 6,
+                  fontSize: "0.75rem",
+                  overflow: "auto",
+                  color: C.cloud,
+                }}>
+{`❯ curl https://api.berget.ai/v1/chat/completions \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer $BERGET_API_KEY" \\
+  -d '{
+    "model": "${selectedModel}",
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'
+
+{
+  "choices": [...],
+  "usage": {
+    "co2_grams": ${(result?.totalCO2Grams || 0).toFixed(6)},
+    "gpu_energy_joules": ${((result?.components.gpuOperational.energyKwh || 0) * 3_600_000).toFixed(1)},
+    "prompt_tokens": ${model?.defaultInputTokens || 0},
+    "completion_tokens": ${model?.defaultOutputTokens || 0},
+    "total_tokens": ${(model?.defaultInputTokens || 0) + (model?.defaultOutputTokens || 0)}
+  }
+}`}
+                </pre>
+              </div>
+            </div>
+
+            {/* Library code */}
+            <div style={{ background: C.ghost, borderRadius: 12, padding: "1rem", border: `1px solid ${C.border}`, marginBottom: "1.5rem" }}>
               <div style={{ fontSize: "0.875rem", color: C.peak, fontWeight: 600, marginBottom: "0.5rem" }}>
-                <Wrench size={16} strokeWidth={1.5} style={{ marginRight: "0.5rem" }} /> Use this in your code
+                <Wrench size={16} strokeWidth={1.5} style={{ marginRight: "0.5rem" }} /> Use this library
               </div>
               <pre style={{
                 margin: 0,
@@ -965,8 +1120,52 @@ const result = calculateInference({
   lifetimeQueries: ${lifetimeQueries.toLocaleString()},
 });
 
-// Total: ${formatCO2(result.totalCO2Grams)} CO₂e per request`}
+// Total: ${formatCO2(result?.totalCO2Grams || 0)} CO₂e per request`}
               </pre>
+            </div>
+
+            {/* Links */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+              <a 
+                href="https://github.com/berget-ai/co2-emissions-calculator" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  padding: "1rem",
+                  background: C.ghost,
+                  borderRadius: 12,
+                  border: `1px solid ${C.border}`,
+                  color: C.cloud,
+                  textDecoration: "none",
+                  fontSize: "0.875rem",
+                }}
+              >
+                <Code size={18} strokeWidth={1.5} />
+                <span>GitHub Repository</span>
+              </a>
+              <a 
+                href="https://berget.ai/docs" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  padding: "1rem",
+                  background: C.ghost,
+                  borderRadius: 12,
+                  border: `1px solid ${C.border}`,
+                  color: C.cloud,
+                  textDecoration: "none",
+                  fontSize: "0.875rem",
+                }}
+              >
+                <Globe size={18} strokeWidth={1.5} />
+                <span>Berget AI Docs</span>
+              </a>
             </div>
           </div>
         )}
@@ -984,7 +1183,8 @@ const result = calculateInference({
           setModelCategory("chat");
           setSelectedModel(MODEL_CATEGORIES.chat.defaultModel);
           setRegion("usa");
-          setHardwareCondition("new");
+          setGpuCondition("new");
+          setOtherComputeCondition("new");
           setConcurrency(8);
           setLifetimeQueries(100_000_000);
           setIncludeTraining(false);
@@ -1041,10 +1241,17 @@ function EmissionsFooter({
       step: 2,
     },
     { 
-      key: "embodied", 
-      value: result.components.embodied.co2Grams, 
+      key: "embodiedGpu", 
+      value: result.components.embodiedGpu.co2Grams, 
       color: COMPONENT_COLORS.embodied.bg,
-      label: `${COMPONENT_COLORS.embodied.label}${result.components.embodied.co2Grams === 0 ? " (0)" : ""}`,
+      label: `GPU${result.components.embodiedGpu.co2Grams === 0 ? " (0)" : ""}`,
+      step: 4,
+    },
+    { 
+      key: "embodiedOther", 
+      value: result.components.embodiedOther.co2Grams, 
+      color: COMPONENT_COLORS.embodied.bg,
+      label: `Infra${result.components.embodiedOther.co2Grams === 0 ? " (0)" : ""}`,
       step: 4,
     },
     ...(includeTraining ? [{
@@ -1176,7 +1383,7 @@ function EmissionsFooter({
             whiteSpace: "nowrap",
             minWidth: 80,
           }}>
-            {formatCO2(step === 6 ? total : currentTotal)}
+            {formatCO2(step === 7 ? total : currentTotal)}
           </div>
           
           {/* Navigation Buttons */}
@@ -1204,22 +1411,22 @@ function EmissionsFooter({
             ← Back
           </button>
           <button
-            onClick={step === 6 ? onReset : onNext}
-            disabled={!canGoNext && step !== 6}
+            onClick={step === 7 ? onReset : onNext}
+            disabled={!canGoNext && step !== 7}
             style={{
               flex: 2,
               padding: "0.75rem",
               borderRadius: 8,
-              background: step === 6 || canGoNext ? "hsl(45 15% 88%)" : "rgba(229, 221, 213, 0.2)",
-              color: step === 6 || canGoNext ? "#0A0A0A" : "rgba(255,255,255,0.3)",
+              background: step === 7 || canGoNext ? "hsl(45 15% 88%)" : "rgba(229, 221, 213, 0.2)",
+              color: step === 7 || canGoNext ? "#0A0A0A" : "rgba(255,255,255,0.3)",
               border: "none",
-              cursor: step === 6 || canGoNext ? "pointer" : "not-allowed",
+              cursor: step === 7 || canGoNext ? "pointer" : "not-allowed",
               fontSize: "0.875rem",
               fontWeight: 600,
               transition: "all 0.2s",
             }}
           >
-            {step === 6 ? "Start Over ↺" : "Next →"}
+            {step === 7 ? "Start Over ↺" : "Next →"}
           </button>
         </div>
         </div>
