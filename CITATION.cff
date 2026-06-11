@@ -1,0 +1,49 @@
+cff-version: 1.2.0
+message: "If you use this calculator or its methodology, please cite it as below."
+title: "CO₂ Impact Calculator for AI Inference"
+version: "2.3"
+date-released: "2026-06-09"
+license: "MIT"
+url: "https://github.com/berget-ai/co2-calculator"
+repository-code: "https://github.com/berget-ai/co2-calculator"
+abstract: >
+  A vendor-neutral, scientifically-grounded CO₂ emissions calculator for AI inference
+  workloads. Covers GPU operational energy, server infrastructure, datacenter cooling
+  (PUE), hardware embodied carbon, and training amortisation. Based on the Green
+  Software Foundation's SCI-AI specification. Methodology reviewed by Stockholm
+  Environment Institute (SEI).
+authors:
+  - family-names: "Landgren"
+    given-names: "Christian"
+    affiliation: "Berget AI"
+keywords:
+  - AI
+  - carbon footprint
+  - LLM
+  - inference
+  - sustainability
+  - green software
+  - CO2
+  - SCI-AI
+references:
+  - type: article
+    authors:
+      - family-names: "Gupta"
+        given-names: "Udit"
+    title: "Chasing Carbon: The Elusive Environmental Footprint of Computing"
+    year: 2021
+    url: "https://arxiv.org/abs/2011.02839"
+  - type: article
+    authors:
+      - family-names: "Fu"
+        given-names: "Zhenxiao"
+    title: "LLMCO2: Advancing Accurate Carbon Footprint Prediction for LLM Inferences"
+    year: 2024
+    url: "https://arxiv.org/abs/2410.02950"
+  - type: article
+    authors:
+      - family-names: "Luccioni"
+        given-names: "Alexandra Sasha"
+    title: "Power Hungry Processing: Watts Driving the Cost of AI Deployment?"
+    year: 2024
+    url: "https://arxiv.org/abs/2311.16863"
