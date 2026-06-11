@@ -784,114 +784,56 @@ export function CO2Calculator() {
               Complete breakdown per request
             </p>
 
-            {/* Total */}
+            {/* Total with Globe Background */}
             <div style={{ 
-              background: "rgba(229, 221, 213, 0.08)", 
+              position: "relative",
               borderRadius: 12, 
               padding: "1.5rem", 
               border: `1px solid ${C.borderStrong}`,
               marginBottom: "1.5rem",
               textAlign: "center",
+              overflow: "hidden",
+              minHeight: 200,
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "center",
             }}>
-              <div style={{ fontSize: "0.875rem", color: C.muted }}>Total CO₂ per request</div>
-              <div style={{ fontSize: "2.5rem", fontWeight: 700, color: C.stone }}>
-                {formatCO2(result.totalCO2Grams)}
-              </div>
-              <div style={{ fontSize: "0.75rem", color: C.muted }}>
-                {model?.displayName} on {grid.name}
-              </div>
-            </div>
-
-            {/* Training Toggle */}
-            <div style={{ 
-              background: "rgba(96, 165, 128, 0.08)", 
-              borderRadius: 12, 
-              padding: "1rem", 
-              border: `1px solid ${C.borderMoss}`,
-              marginBottom: "1.5rem",
-            }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                  <Factory size={18} strokeWidth={1.5} style={{ color: C.moss }} />
-                  <span style={{ fontWeight: 600, color: C.peak }}>Include Training Emissions</span>
+              {/* Globe background image */}
+              <div style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundImage: "url(//unpkg.com/three-globe/example/img/earth-dark.jpg)",
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                opacity: 0.4,
+                filter: "blur(1px)",
+              }} />
+              {/* Dark overlay for readability */}
+              <div style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: "linear-gradient(180deg, rgba(10,10,10,0.7) 0%, rgba(10,10,10,0.4) 50%, rgba(10,10,10,0.7) 100%)",
+              }} />
+              {/* Content */}
+              <div style={{ position: "relative", zIndex: 1 }}>
+                <div style={{ fontSize: "0.875rem", color: C.muted, marginBottom: "0.5rem" }}>Total CO₂ per request</div>
+                <div style={{ fontSize: "3rem", fontWeight: 700, color: C.stone, lineHeight: 1.1 }}>
+                  {formatCO2(result.totalCO2Grams)}
                 </div>
-                <button
-                  onClick={() => setIncludeTraining(!includeTraining)}
-                  style={{
-                    width: 48,
-                    height: 26,
-                    borderRadius: 13,
-                    border: "none",
-                    background: includeTraining ? C.moss : "rgba(255,255,255,0.2)",
-                    cursor: "pointer",
-                    position: "relative",
-                    transition: "background 0.3s",
-                  }}
-                >
-                  <div style={{
-                    width: 20,
-                    height: 20,
-                    borderRadius: 10,
-                    background: "white",
-                    position: "absolute",
-                    top: 3,
-                    left: includeTraining ? 25 : 3,
-                    transition: "left 0.3s",
-                  }} />
-                </button>
-              </div>
-              <p style={{ fontSize: "0.875rem", color: C.muted, margin: 0 }}>
-                {includeTraining 
-                  ? `Training adds ${formatCO2(result.components.trainingAmortised.co2Grams)} per query. Total: ${formatCO2(result.totalCO2Grams)}.`
-                  : `Training emissions excluded. Toggle ON to include ${formatCO2(result.components.trainingAmortised.co2Grams)} per query.`
-                }
-              </p>
-            </div>
-
-            {/* Breakdown */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1.5rem" }}>
-              {[
-                { key: "gpuOperational", label: "GPU Energy", color: COMPONENT_COLORS.gpu.bg },
-                { key: "serverOperational", label: "Server & DC", color: COMPONENT_COLORS.server.bg },
-                { key: "datacenterOverhead", label: "Cooling", color: COMPONENT_COLORS.overhead.bg },
-                { key: "embodiedGpu", label: "GPU Hardware", color: COMPONENT_COLORS.embodied.bg },
-                { key: "embodiedOther", label: "Other Compute", color: COMPONENT_COLORS.embodied.bg },
-                ...(includeTraining ? [{ key: "trainingAmortised", label: "Training", color: COMPONENT_COLORS.training.bg }] : []),
-              ].map((item) => {
-                const value = result.components[item.key as keyof typeof result.components].co2Grams;
-                const pct = (value / result.totalCO2Grams) * 100;
-                return (
-                  <div key={item.key} style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                    <div style={{ width: 12, height: 12, borderRadius: 3, background: item.color }} />
-                    <div style={{ flex: 1, fontSize: "0.875rem" }}>{item.label}</div>
-                    <div style={{ fontSize: "0.875rem", color: C.peak, fontWeight: 600 }}>{formatCO2(value)}</div>
-                    <div style={{ fontSize: "0.75rem", color: C.muted, width: 40, textAlign: "right" }}>{pct.toFixed(0)}%</div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Water */}
-            <div style={{ 
-              background: "rgba(26, 26, 26, 0.6)", 
-              borderRadius: 12, 
-              padding: "1rem", 
-              border: `1px solid ${C.borderStrong}`,
-              marginBottom: "1.5rem",
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
-                <Droplets size={16} strokeWidth={1.5} style={{ color: C.peak }} />
-                <span style={{ fontWeight: 600, color: C.peak }}>Water Usage</span>
-              </div>
-              <div style={{ fontSize: "1.25rem", color: result.waterLiters === 0 ? C.moss : C.stone }}>
-                {result.waterLiters === 0 
-                  ? "0 L (free-air cooling)" 
-                  : `${(result.waterLiters * 1000).toFixed(2)} ml per request`
-                }
+                <div style={{ fontSize: "0.75rem", color: C.muted, marginTop: "0.5rem" }}>
+                  {model?.displayName} on {grid.name}
+                </div>
               </div>
             </div>
 
-            {/* Coffee Comparison */}
+            {/* Coffee Comparison - moved up */}
             <div style={{ 
               background: "rgba(229, 221, 213, 0.06)", 
               borderRadius: 12, 
@@ -961,6 +903,52 @@ export function CO2Calculator() {
                   </div>
                 );
               })()}
+            </div>
+
+            {/* Training Toggle - moved down */}
+            <div style={{ 
+              background: "rgba(96, 165, 128, 0.08)", 
+              borderRadius: 12, 
+              padding: "1rem", 
+              border: `1px solid ${C.borderMoss}`,
+              marginBottom: "1.5rem",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <Factory size={18} strokeWidth={1.5} style={{ color: C.moss }} />
+                  <span style={{ fontWeight: 600, color: C.peak }}>Include Training Emissions</span>
+                </div>
+                <button
+                  onClick={() => setIncludeTraining(!includeTraining)}
+                  style={{
+                    width: 48,
+                    height: 26,
+                    borderRadius: 13,
+                    border: "none",
+                    background: includeTraining ? C.moss : "rgba(255,255,255,0.2)",
+                    cursor: "pointer",
+                    position: "relative",
+                    transition: "background 0.3s",
+                  }}
+                >
+                  <div style={{
+                    width: 20,
+                    height: 20,
+                    borderRadius: 10,
+                    background: "white",
+                    position: "absolute",
+                    top: 3,
+                    left: includeTraining ? 25 : 3,
+                    transition: "left 0.3s",
+                  }} />
+                </button>
+              </div>
+              <p style={{ fontSize: "0.875rem", color: C.muted, margin: 0 }}>
+                {includeTraining 
+                  ? `Training adds ${formatCO2(result.components.trainingAmortised.co2Grams)} per query. Total: ${formatCO2(result.totalCO2Grams)}.`
+                  : `Training emissions excluded. Toggle ON to include ${formatCO2(result.components.trainingAmortised.co2Grams)} per query.`
+                }
+              </p>
             </div>
           </div>
         )}
