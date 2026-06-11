@@ -168,8 +168,8 @@ describe("calculateComparisons", () => {
   });
 
   it("scales linearly with CO₂", () => {
-    const small = calculateComparisons(0.01, GRID_REGIONS.sweden);
-    const large = calculateComparisons(0.02, GRID_REGIONS.sweden);
+    const small = calculateComparisons(0.01);
+    const large = calculateComparisons(0.02);
     expect(large.microwaveSeconds).toBeCloseTo(small.microwaveSeconds * 2, 1);
   });
 });

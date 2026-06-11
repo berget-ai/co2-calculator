@@ -45,6 +45,6 @@ spec:
           name: flux-gpg-signing-key
     push:
       branch: main
-  policy:
-    semver:
-      range: ">=1.0.0"
+  update:
+    path: ./k8s/app/overlays/production
+    strategy: Setters
