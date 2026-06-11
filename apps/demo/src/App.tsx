@@ -802,15 +802,15 @@ export function CO2Calculator() {
               {/* Globe background image */}
               <div style={{
                 position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
+                top: "-50%",
+                left: "-50%",
+                right: "-50%",
+                bottom: "-50%",
                 backgroundImage: "url(//unpkg.com/three-globe/example/img/earth-dark.jpg)",
-                backgroundSize: "cover",
+                backgroundSize: "contain",
                 backgroundPosition: "center",
-                opacity: 0.4,
-                filter: "blur(1px)",
+                backgroundRepeat: "no-repeat",
+                opacity: 0.6,
               }} />
               {/* Dark overlay for readability */}
               <div style={{
@@ -819,7 +819,7 @@ export function CO2Calculator() {
                 left: 0,
                 right: 0,
                 bottom: 0,
-                background: "linear-gradient(180deg, rgba(10,10,10,0.7) 0%, rgba(10,10,10,0.4) 50%, rgba(10,10,10,0.7) 100%)",
+                background: "radial-gradient(ellipse at center, rgba(10,10,10,0.3) 0%, rgba(10,10,10,0.85) 70%)",
               }} />
               {/* Content */}
               <div style={{ position: "relative", zIndex: 1 }}>
@@ -833,7 +833,7 @@ export function CO2Calculator() {
               </div>
             </div>
 
-            {/* Coffee Comparison - moved up */}
+            {/* Coffee Comparison */}
             <div style={{ 
               background: "rgba(229, 221, 213, 0.06)", 
               borderRadius: 12, 
@@ -905,7 +905,50 @@ export function CO2Calculator() {
               })()}
             </div>
 
-            {/* Training Toggle - moved down */}
+            {/* Breakdown */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1.5rem" }}>
+              {[
+                { key: "gpuOperational", label: "GPU Energy", color: COMPONENT_COLORS.gpu.bg },
+                { key: "serverOperational", label: "Server & DC", color: COMPONENT_COLORS.server.bg },
+                { key: "datacenterOverhead", label: "Cooling", color: COMPONENT_COLORS.overhead.bg },
+                { key: "embodiedGpu", label: "GPU Hardware", color: COMPONENT_COLORS.embodied.bg },
+                { key: "embodiedOther", label: "Other Compute", color: COMPONENT_COLORS.embodied.bg },
+                ...(includeTraining ? [{ key: "trainingAmortised", label: "Training", color: COMPONENT_COLORS.training.bg }] : []),
+              ].map((item) => {
+                const value = result.components[item.key as keyof typeof result.components].co2Grams;
+                const pct = (value / result.totalCO2Grams) * 100;
+                return (
+                  <div key={item.key} style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                    <div style={{ width: 12, height: 12, borderRadius: 3, background: item.color }} />
+                    <div style={{ flex: 1, fontSize: "0.875rem" }}>{item.label}</div>
+                    <div style={{ fontSize: "0.875rem", color: C.peak, fontWeight: 600 }}>{formatCO2(value)}</div>
+                    <div style={{ fontSize: "0.75rem", color: C.muted, width: 40, textAlign: "right" }}>{pct.toFixed(0)}%</div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Water */}
+            <div style={{ 
+              background: "rgba(26, 26, 26, 0.6)", 
+              borderRadius: 12, 
+              padding: "1rem", 
+              border: `1px solid ${C.borderStrong}`,
+              marginBottom: "1.5rem",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                <Droplets size={16} strokeWidth={1.5} style={{ color: C.peak }} />
+                <span style={{ fontWeight: 600, color: C.peak }}>Water Usage</span>
+              </div>
+              <div style={{ fontSize: "1.25rem", color: result.waterLiters === 0 ? C.moss : C.stone }}>
+                {result.waterLiters === 0 
+                  ? "0 L (free-air cooling)" 
+                  : `${(result.waterLiters * 1000).toFixed(2)} ml per request`
+                }
+              </div>
+            </div>
+
+            {/* Training Toggle */}
             <div style={{ 
               background: "rgba(96, 165, 128, 0.08)", 
               borderRadius: 12, 
