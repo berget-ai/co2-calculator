@@ -1,0 +1,49 @@
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: co2-calculator-gateway
+  namespace: co2-calculator
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: co2.berget.ai
+spec:
+  gatewayClassName: eg
+  listeners:
+    - name: https
+      protocol: HTTPS
+      port: 443
+      hostname: "co2.berget.ai"
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: co2-calculator-tls
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: co2-calculator-route
+  namespace: co2-calculator
+spec:
+  parentRefs:
+    - name: co2-calculator-gateway
+      sectionName: https
+  hostnames:
+    - "co2.berget.ai"
+  rules:
+    - backendRefs:
+        - name: co2-calculator
+          port: 80
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: co2-calculator-tls
+  namespace: co2-calculator
+spec:
+  secretName: co2-calculator-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  commonName: "co2.berget.ai"
+  dnsNames:
+    - "co2.berget.ai"

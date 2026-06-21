@@ -5,6 +5,7 @@ namespace: co2-calculator
 
 resources:
   - ../../base
+  - gateway.yaml
 
 patches:
   - path: deployment-patch.yaml
