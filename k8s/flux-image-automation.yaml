@@ -6,8 +6,6 @@ metadata:
 spec:
   image: ghcr.io/berget-ai/co2-calculator
   interval: 1m
-  secretRef:
-    name: regcred
 ---
 apiVersion: image.toolkit.fluxcd.io/v1beta2
 kind: ImagePolicy
