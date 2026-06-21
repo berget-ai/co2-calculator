@@ -108,27 +108,47 @@ const getModelPopularity = (modelId: string): { queries: number; label: string }
 };
 
 const MODEL_CATEGORIES = {
-    chat: {
-      label: "Chat & Conversations",
-      description: "Customer support, Q&A, writing assistance",
-      icon: MessageSquare,
-      models: [
-      { id: "mistralai/Mistral-Small-3.2-24B-Instruct-2506", name: "Mistral Small (24B)" },
-      { id: "google/gemma-4-31B-it", name: "Gemma 4 (31B)" },
-      { id: "openai/gpt-oss-120b", name: "GPT-OSS (120B)" },
-      { id: "mistralai/Mistral-Medium-3.5-128B", name: "Mistral Medium (128B)" },
+  popular: {
+    label: "Popular Models",
+    description: "Most used models across providers",
+    icon: Sparkles,
+    models: [
+      { id: "mistralai/Mistral-Small-3.2-24B-Instruct-2506", name: "Mistral Small 24B" },
+      { id: "google/gemma-4-31B-it", name: "Gemma 4 31B" },
+      { id: "openai/gpt-4o-mini", name: "GPT-4o Mini" },
+      { id: "anthropic/claude-3-5-sonnet", name: "Claude 3.5 Sonnet" },
+      { id: "meta-llama/Llama-3.3-70B-Instruct", name: "Llama 3.3 70B" },
+      { id: "openai/gpt-oss-120b", name: "GPT-OSS 120B" },
     ],
     defaultModel: "mistralai/Mistral-Small-3.2-24B-Instruct-2506",
     responseTime: 0.8,
   },
-    code: {
-      label: "Code & Analysis",
-      description: "Software development, complex reasoning, research",
-      icon: Code,
-      models: [
-      { id: "google/gemma-4-31B-it", name: "Gemma 4 (31B)" },
-      { id: "zai-org/GLM-4.7", name: "GLM 4.7 (47B)" },
-      { id: "moonshotai/Kimi-K2.6", name: "Kimi K2.6 (1.1T MoE)" },
+  chat: {
+    label: "Chat & Conversations",
+    description: "Customer support, Q&A, writing assistance",
+    icon: MessageSquare,
+    models: [
+      { id: "mistralai/Mistral-Small-3.2-24B-Instruct-2506", name: "Mistral Small 24B" },
+      { id: "google/gemma-4-31B-it", name: "Gemma 4 31B" },
+      { id: "openai/gpt-4o-mini", name: "GPT-4o Mini" },
+      { id: "anthropic/claude-3-5-sonnet", name: "Claude 3.5 Sonnet" },
+      { id: "meta-llama/Llama-3.3-70B-Instruct", name: "Llama 3.3 70B" },
+      { id: "openai/gpt-oss-120b", name: "GPT-OSS 120B" },
+      { id: "mistralai/Mistral-Medium-3.5-128B", name: "Mistral Medium 128B" },
+    ],
+    defaultModel: "mistralai/Mistral-Small-3.2-24B-Instruct-2506",
+    responseTime: 0.8,
+  },
+  code: {
+    label: "Code & Analysis",
+    description: "Software development, complex reasoning, research",
+    icon: Code,
+    models: [
+      { id: "google/gemma-4-31B-it", name: "Gemma 4 31B" },
+      { id: "zai-org/GLM-4.7", name: "GLM 4.7 47B" },
+      { id: "moonshotai/Kimi-K2.6", name: "Kimi K2.6 1.1T MoE" },
+      { id: "openai/gpt-4o", name: "GPT-4o" },
+      { id: "anthropic/claude-3-opus", name: "Claude 3 Opus" },
     ],
     defaultModel: "zai-org/GLM-4.7",
     responseTime: 3.5,
@@ -189,7 +209,7 @@ function Card({ children, selected, onClick }: { children: React.ReactNode; sele
 
 export function CO2Calculator() {
   const [step, setStep] = useState(1);
-  const [modelCategory, setModelCategory] = useState<"chat" | "code">("chat");
+  const [modelCategory, setModelCategory] = useState<"popular" | "chat" | "code">("popular");
   const [selectedModel, setSelectedModel] = useState(MODEL_CATEGORIES.chat.defaultModel);
   const [region, setRegion] = useState("usa");
   const [lifetimeQueries, setLifetimeQueries] = useState(100_000_000);
@@ -316,7 +336,7 @@ export function CO2Calculator() {
                   key={key}
                   selected={modelCategory === key}
                   onClick={() => {
-                    setModelCategory(key as "chat" | "code");
+                    setModelCategory(key as "popular" | "chat" | "code");
                     setSelectedModel(cat.defaultModel);
                     setLifetimeQueries(getEstimatedLifetimeQueries(cat.defaultModel));
                   }}
@@ -1211,7 +1231,7 @@ const result = calculateInference({
         onNext={goNext}
         onReset={() => {
           setStep(1);
-          setModelCategory("chat");
+          setModelCategory("popular");
           setSelectedModel(MODEL_CATEGORIES.chat.defaultModel);
           setRegion("usa");
           setGpuCondition("new");

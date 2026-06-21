@@ -221,6 +221,21 @@ GPU power is interpolated between idle and peak based on **model-size-dependent 
 
 **Reference**: Fu, Z., Chen, F., Zhou, S., Li, H., & Jiang, L. (2024). LLMCO2: Advancing Accurate Carbon Footprint Prediction for LLM Inferences. arXiv:2410.02950. https://arxiv.org/abs/2410.02950
 
+**Alternative GPU energy model from EcoLogits** (Rincé & Banse, 2025): Using the ML.ENERGY Leaderboard dataset, EcoLogits fits a parametric model for GPU energy consumption per output token:
+
+```
+E_gpu(token) = α × e^(β × B) × P_active + γ
+```
+
+Where:
+- `P_active` = active parameters (total for dense, per-expert for MoE)
+- `B` = batch size (default 64)
+- `α = 1.17×10⁻⁶`, `β = -1.12×10⁻²`, `γ = 4.05×10⁻⁵`
+
+This model is **linear in parameters** and **exponential in batch size**, validated against production vLLM deployments on NVIDIA H100 GPUs.
+
+**Reference**: Rincé, S., & Banse, A. (2025). EcoLogits: Evaluating the Environmental Impacts of Generative AI. Journal of Open Source Software, 10(111), 7471. https://doi.org/10.21105/joss.07471
+
 **Our utilization model** (calibrated to LLMCO2 measurements):
 
 ```
