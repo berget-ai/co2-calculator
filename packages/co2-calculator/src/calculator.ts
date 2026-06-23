@@ -133,7 +133,10 @@ export function calculateInference(params: InferenceParams): InferenceResult {
   const safeConcurrency = Math.max(1, Math.abs(concurrency));
 
   // --- Token-based time adjustment (Section 3.1) ---
-  // Scale response time based on token count relative to defaults
+  // Scale response time based on token count relative to defaults.
+  // Square root models sub-linear scaling: doubling tokens does not double
+  // processing time because tokens are processed in parallel (prefill phase)
+  // and the decode phase has fixed overhead per step.
   const tokenRatio = (inputTokens + outputTokens) / 
     (modelProfile.defaultInputTokens + modelProfile.defaultOutputTokens);
   const tokenAdjustedTime = measuredResponseTimeSeconds * Math.sqrt(tokenRatio);
@@ -142,10 +145,19 @@ export function calculateInference(params: InferenceParams): InferenceResult {
   // Calculate GPUs needed based on memory requirements
   const gpusUsed = gpusForModel(modelProfile, hardware);
 
-  // --- GPU Time Allocation (Section 3.1) ---
-  // Per-request GPU time = response time × (concurrency / gpus_in_node)
-  // This accounts for the fact that GPUs are shared among concurrent requests
-  const gpuTimeSec = tokenAdjustedTime * Math.min(1, safeConcurrency / gpusUsed);
+  // --- Concurrency Impact (Section 3.2) ---
+  // When many requests hit the server simultaneously, each request takes
+  // longer due to resource contention (queueing, memory bandwidth, KV cache
+  // pressure). This is modelled by applyConcurrencyDelay() which applies a
+  // logarithmic delay factor above a baseline concurrency of 8.
+  //
+  // Note: The concurrency delay INCREASES per-request GPU time (each request
+  // takes longer). However, the fixed server infrastructure cost (chassis
+  // power, PUE overhead) is DIVIDED among all concurrent requests, creating
+  // a trade-off: higher concurrency → more GPU time per request, but less
+  // infrastructure cost per request.
+  const concurrencyAdjustedTime = applyConcurrencyDelay(tokenAdjustedTime, safeConcurrency);
+  const gpuTimeSec = concurrencyAdjustedTime;
   const gpuTimeH = gpuTimeSec / SECONDS_IN_HOUR;
 
   const { effectiveIntensity, isLowPeriod, factor } = applyTimeOfDay(
@@ -154,19 +166,27 @@ export function calculateInference(params: InferenceParams): InferenceResult {
   );
 
   // --- Power (per GPU) (Section 3.4) ---
-  // Utilization based on model size and inference characteristics
+  // GPU power is interpolated between idle and peak based on utilization.
+  //
   // LLMCO2 (Fu et al., 2024) shows inference utilization is 10-40% of peak,
-  // significantly lower than training, due to memory-bound decode phase.
-  // Reference: https://arxiv.org/abs/2410.02950
-  let utilization: number;
-  if (modelProfile.parameters <= 10_000_000_000) {
-    utilization = 0.15; // Small models: memory-bound, low utilization
-  } else if (modelProfile.parameters <= 40_000_000_000) {
-    utilization = 0.25; // Medium models: moderate compute
-  } else {
-    utilization = 0.35; // Large models: higher compute but still memory-bound
-  }
-  
+  // significantly lower than training, due to the memory-bound decode phase.
+  // However, LLMCO2 also warns that utilization is "highly variable" and that
+  // equation-based models using simple parameter-based heuristics are
+  // "inaccurate" — utilization depends on batch size, prompt length, KV cache
+  // pressure, sampling strategy, and framework-level optimizations.
+  //
+  // We use a fixed midpoint of 25% (the center of the 10-40% range) rather
+  // than parameter-based tiers. This is a conservative heuristic that:
+  // 1. Acknowledges the 10-40% range from LLMCO2 measurements
+  // 2. Avoids unsupported claims that parameter count determines utilization
+  // 3. Can be refined with EcoLogits' parametric model when more data is available
+  //
+  // The uncertainty (±15 percentage points) is documented in Section 9.
+  //
+  // Reference: Fu, Z. et al. (2024). LLMCO2. arXiv:2410.02950
+  // Alternative: EcoLogits (Rincé & Banse, 2025) — α × e^(β×B) × P_active + γ
+  const utilization = 0.25; // Midpoint of 10-40% range from LLMCO2
+
   // Base idle power that every GPU draws regardless of load
   const baseGpuPower = hardware.nodeIdleWatts / hardware.gpuCount;
   // Additional power when under load
@@ -189,13 +209,34 @@ export function calculateInference(params: InferenceParams): InferenceResult {
   const pue = deploymentGrid.typicalPue;
   const overheadCO2 = (gpuOperationalCO2 + serverOperationalCO2) * (pue - 1);
 
-  // --- Embodied GPU (amortised per GPU-second, all GPUs used) ---
-  const embodiedPerGpuGrams = (hardware.embodiedPerGpuKg * 1_000) / GPU_LIFETIME_SECONDS;
+  // --- Embodied GPU (amortised over projected lifetime utilization) ---
+  // Embodied emissions have already occurred with certainty. To ensure the
+  // full embodied carbon is accounted for over the hardware's lifetime, we
+  // amortise based on projected lifetime utilization rather than per-query
+  // GPU time.
+  //
+  // The projected lifetime utilization assumes the GPU is active (processing
+  // requests) for a fraction of its 5-year life. We use 50% as a conservative
+  // estimate: GPUs in inference deployments typically run at 30-70% utilization
+  // over their lifetime (batching, multiple tenants, scheduled maintenance).
+  //
+  // This means: embodiedPerGpuGrams × activeSecondsPerQuery × gpusUsed
+  // where activeSecondsPerQuery accounts for the GPU being "reserved" for this
+  // query's share of lifetime capacity.
+  //
+  // Reference: SEI review (Babis, 2026) — "The simplest tweak seems to be
+  // dividing total embodied emissions by projected lifetime utilization in
+  // GPU-seconds"
+  const PROJECTED_LIFETIME_UTILIZATION = 0.50; // 50% active over 5 years
+  const projectedActiveSeconds = GPU_LIFETIME_SECONDS * PROJECTED_LIFETIME_UTILIZATION;
+  const embodiedPerGpuGrams = (hardware.embodiedPerGpuKg * 1_000) / projectedActiveSeconds;
+  // Per-query allocation: this query's GPU time as a fraction of projected
+  // lifetime active time, multiplied by total embodied carbon
   const embodiedGpuCO2 = embodiedPerGpuGrams * gpuTimeSec * gpusUsed;
 
   // --- Embodied Other Compute (shared infrastructure: CPU, RAM, SSD, firewalls, switches)
-  // Amortised over all concurrent requests on the node
-  const otherComputePerSecond = (hardware.otherComputeEmbodiedKg * 1_000) / GPU_LIFETIME_SECONDS;
+  // Same lifetime utilization approach, divided among concurrent requests
+  const otherComputePerSecond = (hardware.otherComputeEmbodiedKg * 1_000) / projectedActiveSeconds;
   const embodiedOtherCO2 = (otherComputePerSecond * gpuTimeSec) / safeConcurrency;
 
   // --- Training (amortised) ---

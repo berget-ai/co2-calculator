@@ -25,9 +25,9 @@ const baseParams = (overrides: Partial<InferenceParams> = {}): InferenceParams =
 
 describe("calculateInference", () => {
   it("allocates GPUs based on memory requirements", () => {
-    // A 120B model in FP16 (2 bytes/param, no modelSizeBytes override) needs ~288GB memory
-    // H100: 80GB per GPU → needs 4 GPUs (288/80 = 3.6 → ceil = 4)
-    // MI300X: 192GB per GPU → needs 2 GPUs (288/192 = 1.5 → ceil = 2)
+    // A 120B model in FP16 (2 bytes/param, no modelSizeBytes override) needs ~268GB memory
+    // H100: 80GB per GPU → needs 4 GPUs (268/80 = 3.35 → ceil = 4)
+    // MI300X: 192GB per GPU → needs 2 GPUs (268/192 = 1.40 → ceil = 2)
     const largeModel = baseParams({
       modelProfile: {
         ...MODEL_PROFILES["openai/gpt-oss-120b"],
@@ -36,13 +36,13 @@ describe("calculateInference", () => {
       hardware: HARDWARE_CONFIGS.h100,
     });
     const h100Result = calculateInference(largeModel);
-    expect(h100Result.gpusAllocated).toBe(4); // 288GB / 80GB = 3.6 → ceil = 4
+    expect(h100Result.gpusAllocated).toBe(4); // 268GB / 80GB = 3.35 → ceil = 4
     
     const mi300xResult = calculateInference({
       ...largeModel,
       hardware: HARDWARE_CONFIGS.mi300x,
     });
-    expect(mi300xResult.gpusAllocated).toBe(2); // 288GB / 192GB = 1.5 → ceil = 2
+    expect(mi300xResult.gpusAllocated).toBe(2); // 268GB / 192GB = 1.40 → ceil = 2
   });
 
   it("allocates 1 GPU for small models that fit in memory", () => {
