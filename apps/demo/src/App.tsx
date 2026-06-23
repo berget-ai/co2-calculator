@@ -1,6 +1,6 @@
 import { useState, useMemo, lazy, Suspense } from "react";
 import {
-  Zap, Server, Snowflake, Droplets, Recycle, Factory, Coffee, Code, MessageSquare, Leaf, Wrench, Globe, Check, Sparkles
+  Zap, Server, Snowflake, Droplets, Recycle, Factory, Coffee, Code, MessageSquare, Leaf, Wrench, Globe, Check, Sparkles, RefreshCw
 } from "lucide-react";
 import {
   calculateInference,
@@ -12,6 +12,7 @@ import {
   getConcurrencyFromTrafficPattern,
   getEstimatedLifetimeQueries,
 } from "@berget/co2-calculator";
+import { useModelData, mergeModelData } from "./hooks/useModelData";
 
 // Lazy load GlobeSelector to avoid loading Three.js on initial page load
 const GlobeSelector = lazy(() => 
@@ -210,16 +211,25 @@ function Card({ children, selected, onClick }: { children: React.ReactNode; sele
 export function CO2Calculator() {
   const [step, setStep] = useState(1);
   const [modelCategory, setModelCategory] = useState<"popular" | "chat" | "code">("popular");
-  const [selectedModel, setSelectedModel] = useState(MODEL_CATEGORIES.chat.defaultModel);
+  const [selectedModel, setSelectedModel] = useState(MODEL_CATEGORIES.popular.defaultModel);
   const [region, setRegion] = useState("usa");
   const [lifetimeQueries, setLifetimeQueries] = useState(100_000_000);
   const [gpuCondition, setGpuCondition] = useState<"new" | "refurbished">("new");
   const [otherComputeCondition, setOtherComputeCondition] = useState<"new" | "refurbished">("new");
   const [concurrency, setConcurrency] = useState(8);
   const [includeTraining, setIncludeTraining] = useState(false); // Default OFF per user request
+  
+  // Fetch dynamic model data from EcoLogits and OpenRouter
+  const { data: fetchedModelData, loading: modelsLoading, error: modelsError, refresh: refreshModels } = useModelData();
+  
+  // Merge static and dynamic models
+  const allModels = useMemo(() => 
+    mergeModelData(MODEL_PROFILES, fetchedModelData),
+    [fetchedModelData]
+  );
 
   const category = MODEL_CATEGORIES[modelCategory];
-  const model = MODEL_PROFILES[selectedModel];
+  const model = allModels[selectedModel];
   const grid = GRID_REGIONS[region];
 
   const result = useMemo(() => {
@@ -254,7 +264,7 @@ export function CO2Calculator() {
     };
 
     return category.models.map(m => {
-      const profile = MODEL_PROFILES[m.id];
+      const profile = allModels[m.id];
       if (!profile) return null;
       
       // Each model has its own fixed lifetime based on real usage data
@@ -351,8 +361,33 @@ export function CO2Calculator() {
             </div>
 
             <div style={{ background: C.ghost, borderRadius: 12, padding: "1rem", border: `1px solid ${C.border}` }}>
-              <div style={{ fontSize: "0.75rem", color: C.muted, marginBottom: "0.5rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                Model
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                <div style={{ fontSize: "0.75rem", color: C.muted, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Model
+                </div>
+                {modelsLoading && (
+                  <div style={{ fontSize: "0.75rem", color: C.moss, display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                    <RefreshCw size={12} className="spin" /> Loading models...
+                  </div>
+                )}
+                {fetchedModelData && (
+                  <button
+                    onClick={refreshModels}
+                    style={{
+                      fontSize: "0.75rem",
+                      color: C.muted,
+                      background: "transparent",
+                      border: "none",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.25rem",
+                    }}
+                    title="Refresh model data"
+                  >
+                    <RefreshCw size={12} /> Refresh
+                  </button>
+                )}
               </div>
               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                 {category.models.map((m) => (
@@ -376,6 +411,11 @@ export function CO2Calculator() {
                   </button>
                 ))}
               </div>
+              {modelsError && (
+                <div style={{ fontSize: "0.75rem", color: C.danger, marginTop: "0.5rem" }}>
+                  Error loading models: {modelsError}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -850,6 +890,24 @@ export function CO2Calculator() {
                 <div style={{ fontSize: "0.75rem", color: C.muted, marginTop: "0.5rem" }}>
                   {model?.displayName} on {grid.name}
                 </div>
+                {!includeTraining && (
+                  <div style={{ fontSize: "0.75rem", color: C.moss, marginTop: "0.5rem", fontStyle: "italic" }}>
+                    Operational emissions only. Training and embodied excluded.
+                    {" "}
+                    {(() => {
+                      const operational = result.components.gpuOperational.co2Grams 
+                        + result.components.serverOperational.co2Grams 
+                        + result.components.datacenterOverhead.co2Grams;
+                      const fullTotal = operational 
+                        + result.components.embodiedGpu.co2Grams 
+                        + result.components.embodiedOther.co2Grams 
+                        + (model?.totalTrainingCO2Grams ? model.totalTrainingCO2Grams / lifetimeQueries : 0);
+                      return fullTotal > 0 
+                        ? `Operational = ${((operational / fullTotal) * 100).toFixed(0)}% of full lifecycle.`
+                        : "";
+                    })()}
+                  </div>
+                )}
               </div>
             </div>
 
