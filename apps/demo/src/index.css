@@ -145,3 +145,13 @@ h1, h2, h3, h4, h5, h6 {
 .animate-slide-up {
   animation: slideUp 0.6s ease-out;
 }
+
+/* Spinning refresh icon */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}

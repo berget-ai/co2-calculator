@@ -13,10 +13,10 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - co2-calculator.berget.cloud
+        - co2.berget.ai
       secretName: co2-calculator-tls
   rules:
-    - host: co2-calculator.berget.cloud
+    - host: co2.berget.ai
       http:
         paths:
           - path: /

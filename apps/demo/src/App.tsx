@@ -1,6 +1,6 @@
 import { useState, useMemo, lazy, Suspense } from "react";
 import {
-  Zap, Server, Snowflake, Droplets, Recycle, Factory, Coffee, Code, MessageSquare, Leaf, Wrench, Globe, Check, Sparkles
+  Zap, Server, Snowflake, Droplets, Recycle, Factory, Coffee, Code, MessageSquare, Leaf, Wrench, Globe, Check, Sparkles, RefreshCw
 } from "lucide-react";
 import {
   calculateInference,
@@ -12,6 +12,7 @@ import {
   getConcurrencyFromTrafficPattern,
   getEstimatedLifetimeQueries,
 } from "@berget/co2-calculator";
+import { useModelData, mergeModelData } from "./hooks/useModelData";
 
 // Lazy load GlobeSelector to avoid loading Three.js on initial page load
 const GlobeSelector = lazy(() => 
@@ -108,27 +109,47 @@ const getModelPopularity = (modelId: string): { queries: number; label: string }
 };
 
 const MODEL_CATEGORIES = {
-    chat: {
-      label: "Chat & Conversations",
-      description: "Customer support, Q&A, writing assistance",
-      icon: MessageSquare,
-      models: [
-      { id: "mistralai/Mistral-Small-3.2-24B-Instruct-2506", name: "Mistral Small (24B)" },
-      { id: "google/gemma-4-31B-it", name: "Gemma 4 (31B)" },
-      { id: "openai/gpt-oss-120b", name: "GPT-OSS (120B)" },
-      { id: "mistralai/Mistral-Medium-3.5-128B", name: "Mistral Medium (128B)" },
+  popular: {
+    label: "Popular Models",
+    description: "Most used models across providers",
+    icon: Sparkles,
+    models: [
+      { id: "mistralai/Mistral-Small-3.2-24B-Instruct-2506", name: "Mistral Small 24B" },
+      { id: "google/gemma-4-31B-it", name: "Gemma 4 31B" },
+      { id: "openai/gpt-4o-mini", name: "GPT-4o Mini" },
+      { id: "anthropic/claude-3-5-sonnet", name: "Claude 3.5 Sonnet" },
+      { id: "meta-llama/Llama-3.3-70B-Instruct", name: "Llama 3.3 70B" },
+      { id: "openai/gpt-oss-120b", name: "GPT-OSS 120B" },
     ],
     defaultModel: "mistralai/Mistral-Small-3.2-24B-Instruct-2506",
     responseTime: 0.8,
   },
-    code: {
-      label: "Code & Analysis",
-      description: "Software development, complex reasoning, research",
-      icon: Code,
-      models: [
-      { id: "google/gemma-4-31B-it", name: "Gemma 4 (31B)" },
-      { id: "zai-org/GLM-4.7", name: "GLM 4.7 (47B)" },
-      { id: "moonshotai/Kimi-K2.6", name: "Kimi K2.6 (1.1T MoE)" },
+  chat: {
+    label: "Chat & Conversations",
+    description: "Customer support, Q&A, writing assistance",
+    icon: MessageSquare,
+    models: [
+      { id: "mistralai/Mistral-Small-3.2-24B-Instruct-2506", name: "Mistral Small 24B" },
+      { id: "google/gemma-4-31B-it", name: "Gemma 4 31B" },
+      { id: "openai/gpt-4o-mini", name: "GPT-4o Mini" },
+      { id: "anthropic/claude-3-5-sonnet", name: "Claude 3.5 Sonnet" },
+      { id: "meta-llama/Llama-3.3-70B-Instruct", name: "Llama 3.3 70B" },
+      { id: "openai/gpt-oss-120b", name: "GPT-OSS 120B" },
+      { id: "mistralai/Mistral-Medium-3.5-128B", name: "Mistral Medium 128B" },
+    ],
+    defaultModel: "mistralai/Mistral-Small-3.2-24B-Instruct-2506",
+    responseTime: 0.8,
+  },
+  code: {
+    label: "Code & Analysis",
+    description: "Software development, complex reasoning, research",
+    icon: Code,
+    models: [
+      { id: "google/gemma-4-31B-it", name: "Gemma 4 31B" },
+      { id: "zai-org/GLM-4.7", name: "GLM 4.7 47B" },
+      { id: "moonshotai/Kimi-K2.6", name: "Kimi K2.6 1.1T MoE" },
+      { id: "openai/gpt-4o", name: "GPT-4o" },
+      { id: "anthropic/claude-3-opus", name: "Claude 3 Opus" },
     ],
     defaultModel: "zai-org/GLM-4.7",
     responseTime: 3.5,
@@ -189,17 +210,26 @@ function Card({ children, selected, onClick }: { children: React.ReactNode; sele
 
 export function CO2Calculator() {
   const [step, setStep] = useState(1);
-  const [modelCategory, setModelCategory] = useState<"chat" | "code">("chat");
-  const [selectedModel, setSelectedModel] = useState(MODEL_CATEGORIES.chat.defaultModel);
+  const [modelCategory, setModelCategory] = useState<"popular" | "chat" | "code">("popular");
+  const [selectedModel, setSelectedModel] = useState(MODEL_CATEGORIES.popular.defaultModel);
   const [region, setRegion] = useState("usa");
   const [lifetimeQueries, setLifetimeQueries] = useState(100_000_000);
   const [gpuCondition, setGpuCondition] = useState<"new" | "refurbished">("new");
   const [otherComputeCondition, setOtherComputeCondition] = useState<"new" | "refurbished">("new");
   const [concurrency, setConcurrency] = useState(8);
   const [includeTraining, setIncludeTraining] = useState(false); // Default OFF per user request
+  
+  // Fetch dynamic model data from EcoLogits and OpenRouter
+  const { data: fetchedModelData, loading: modelsLoading, error: modelsError, refresh: refreshModels } = useModelData();
+  
+  // Merge static and dynamic models
+  const allModels = useMemo(() => 
+    mergeModelData(MODEL_PROFILES, fetchedModelData),
+    [fetchedModelData]
+  );
 
   const category = MODEL_CATEGORIES[modelCategory];
-  const model = MODEL_PROFILES[selectedModel];
+  const model = allModels[selectedModel];
   const grid = GRID_REGIONS[region];
 
   const result = useMemo(() => {
@@ -234,7 +264,7 @@ export function CO2Calculator() {
     };
 
     return category.models.map(m => {
-      const profile = MODEL_PROFILES[m.id];
+      const profile = allModels[m.id];
       if (!profile) return null;
       
       // Each model has its own fixed lifetime based on real usage data
@@ -316,7 +346,7 @@ export function CO2Calculator() {
                   key={key}
                   selected={modelCategory === key}
                   onClick={() => {
-                    setModelCategory(key as "chat" | "code");
+                    setModelCategory(key as "popular" | "chat" | "code");
                     setSelectedModel(cat.defaultModel);
                     setLifetimeQueries(getEstimatedLifetimeQueries(cat.defaultModel));
                   }}
@@ -331,8 +361,33 @@ export function CO2Calculator() {
             </div>
 
             <div style={{ background: C.ghost, borderRadius: 12, padding: "1rem", border: `1px solid ${C.border}` }}>
-              <div style={{ fontSize: "0.75rem", color: C.muted, marginBottom: "0.5rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                Model
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                <div style={{ fontSize: "0.75rem", color: C.muted, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Model
+                </div>
+                {modelsLoading && (
+                  <div style={{ fontSize: "0.75rem", color: C.moss, display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                    <RefreshCw size={12} className="spin" /> Loading models...
+                  </div>
+                )}
+                {fetchedModelData && (
+                  <button
+                    onClick={refreshModels}
+                    style={{
+                      fontSize: "0.75rem",
+                      color: C.muted,
+                      background: "transparent",
+                      border: "none",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.25rem",
+                    }}
+                    title="Refresh model data"
+                  >
+                    <RefreshCw size={12} /> Refresh
+                  </button>
+                )}
               </div>
               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                 {category.models.map((m) => (
@@ -356,6 +411,11 @@ export function CO2Calculator() {
                   </button>
                 ))}
               </div>
+              {modelsError && (
+                <div style={{ fontSize: "0.75rem", color: C.danger, marginTop: "0.5rem" }}>
+                  Error loading models: {modelsError}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -784,110 +844,70 @@ export function CO2Calculator() {
               Complete breakdown per request
             </p>
 
-            {/* Total */}
+            {/* Total with Globe Background */}
             <div style={{ 
-              background: "rgba(229, 221, 213, 0.08)", 
+              position: "relative",
               borderRadius: 12, 
               padding: "1.5rem", 
               border: `1px solid ${C.borderStrong}`,
               marginBottom: "1.5rem",
               textAlign: "center",
+              overflow: "hidden",
+              minHeight: 200,
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "center",
             }}>
-              <div style={{ fontSize: "0.875rem", color: C.muted }}>Total CO₂ per request</div>
-              <div style={{ fontSize: "2.5rem", fontWeight: 700, color: C.stone }}>
-                {formatCO2(result.totalCO2Grams)}
-              </div>
-              <div style={{ fontSize: "0.75rem", color: C.muted }}>
-                {model?.displayName} on {grid.name}
-              </div>
-            </div>
-
-            {/* Training Toggle */}
-            <div style={{ 
-              background: "rgba(96, 165, 128, 0.08)", 
-              borderRadius: 12, 
-              padding: "1rem", 
-              border: `1px solid ${C.borderMoss}`,
-              marginBottom: "1.5rem",
-            }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                  <Factory size={18} strokeWidth={1.5} style={{ color: C.moss }} />
-                  <span style={{ fontWeight: 600, color: C.peak }}>Include Training Emissions</span>
+              {/* Globe background image */}
+              <div style={{
+                position: "absolute",
+                top: "-50%",
+                left: "-50%",
+                right: "-50%",
+                bottom: "-50%",
+                backgroundImage: "url(//unpkg.com/three-globe/example/img/earth-dark.jpg)",
+                backgroundSize: "contain",
+                backgroundPosition: "center",
+                backgroundRepeat: "no-repeat",
+                opacity: 0.6,
+              }} />
+              {/* Dark overlay for readability */}
+              <div style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: "radial-gradient(ellipse at center, rgba(10,10,10,0.3) 0%, rgba(10,10,10,0.85) 70%)",
+              }} />
+              {/* Content */}
+              <div style={{ position: "relative", zIndex: 1 }}>
+                <div style={{ fontSize: "0.875rem", color: C.muted, marginBottom: "0.5rem" }}>Total CO₂ per request</div>
+                <div style={{ fontSize: "3rem", fontWeight: 700, color: C.stone, lineHeight: 1.1 }}>
+                  {formatCO2(result.totalCO2Grams)}
                 </div>
-                <button
-                  onClick={() => setIncludeTraining(!includeTraining)}
-                  style={{
-                    width: 48,
-                    height: 26,
-                    borderRadius: 13,
-                    border: "none",
-                    background: includeTraining ? C.moss : "rgba(255,255,255,0.2)",
-                    cursor: "pointer",
-                    position: "relative",
-                    transition: "background 0.3s",
-                  }}
-                >
-                  <div style={{
-                    width: 20,
-                    height: 20,
-                    borderRadius: 10,
-                    background: "white",
-                    position: "absolute",
-                    top: 3,
-                    left: includeTraining ? 25 : 3,
-                    transition: "left 0.3s",
-                  }} />
-                </button>
-              </div>
-              <p style={{ fontSize: "0.875rem", color: C.muted, margin: 0 }}>
-                {includeTraining 
-                  ? `Training adds ${formatCO2(result.components.trainingAmortised.co2Grams)} per query. Total: ${formatCO2(result.totalCO2Grams)}.`
-                  : `Training emissions excluded. Toggle ON to include ${formatCO2(result.components.trainingAmortised.co2Grams)} per query.`
-                }
-              </p>
-            </div>
-
-            {/* Breakdown */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1.5rem" }}>
-              {[
-                { key: "gpuOperational", label: "GPU Energy", color: COMPONENT_COLORS.gpu.bg },
-                { key: "serverOperational", label: "Server & DC", color: COMPONENT_COLORS.server.bg },
-                { key: "datacenterOverhead", label: "Cooling", color: COMPONENT_COLORS.overhead.bg },
-                { key: "embodiedGpu", label: "GPU Hardware", color: COMPONENT_COLORS.embodied.bg },
-                { key: "embodiedOther", label: "Other Compute", color: COMPONENT_COLORS.embodied.bg },
-                ...(includeTraining ? [{ key: "trainingAmortised", label: "Training", color: COMPONENT_COLORS.training.bg }] : []),
-              ].map((item) => {
-                const value = result.components[item.key as keyof typeof result.components].co2Grams;
-                const pct = (value / result.totalCO2Grams) * 100;
-                return (
-                  <div key={item.key} style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                    <div style={{ width: 12, height: 12, borderRadius: 3, background: item.color }} />
-                    <div style={{ flex: 1, fontSize: "0.875rem" }}>{item.label}</div>
-                    <div style={{ fontSize: "0.875rem", color: C.peak, fontWeight: 600 }}>{formatCO2(value)}</div>
-                    <div style={{ fontSize: "0.75rem", color: C.muted, width: 40, textAlign: "right" }}>{pct.toFixed(0)}%</div>
+                <div style={{ fontSize: "0.75rem", color: C.muted, marginTop: "0.5rem" }}>
+                  {model?.displayName} on {grid.name}
+                </div>
+                {!includeTraining && (
+                  <div style={{ fontSize: "0.75rem", color: C.moss, marginTop: "0.5rem", fontStyle: "italic" }}>
+                    Operational emissions only. Training and embodied excluded.
+                    {" "}
+                    {(() => {
+                      const operational = result.components.gpuOperational.co2Grams 
+                        + result.components.serverOperational.co2Grams 
+                        + result.components.datacenterOverhead.co2Grams;
+                      const fullTotal = operational 
+                        + result.components.embodiedGpu.co2Grams 
+                        + result.components.embodiedOther.co2Grams 
+                        + (model?.totalTrainingCO2Grams ? model.totalTrainingCO2Grams / lifetimeQueries : 0);
+                      return fullTotal > 0 
+                        ? `Operational = ${((operational / fullTotal) * 100).toFixed(0)}% of full lifecycle.`
+                        : "";
+                    })()}
                   </div>
-                );
-              })}
-            </div>
-
-            {/* Water */}
-            <div style={{ 
-              background: "rgba(26, 26, 26, 0.6)", 
-              borderRadius: 12, 
-              padding: "1rem", 
-              border: `1px solid ${C.borderStrong}`,
-              marginBottom: "1.5rem",
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
-                <Droplets size={16} strokeWidth={1.5} style={{ color: C.peak }} />
-                <span style={{ fontWeight: 600, color: C.peak }}>Water Usage</span>
-              </div>
-              <div style={{ fontSize: "1.25rem", color: result.waterLiters === 0 ? C.moss : C.stone }}>
-                {result.waterLiters === 0 
-                  ? "0 L (free-air cooling)" 
-                  : `${(result.waterLiters * 1000).toFixed(2)} ml per request`
-                }
+                )}
               </div>
             </div>
 
@@ -961,6 +981,95 @@ export function CO2Calculator() {
                   </div>
                 );
               })()}
+            </div>
+
+            {/* Breakdown */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1.5rem" }}>
+              {[
+                { key: "gpuOperational", label: "GPU Energy", color: COMPONENT_COLORS.gpu.bg },
+                { key: "serverOperational", label: "Server & DC", color: COMPONENT_COLORS.server.bg },
+                { key: "datacenterOverhead", label: "Cooling", color: COMPONENT_COLORS.overhead.bg },
+                { key: "embodiedGpu", label: "GPU Hardware", color: COMPONENT_COLORS.embodied.bg },
+                { key: "embodiedOther", label: "Other Compute", color: COMPONENT_COLORS.embodied.bg },
+                ...(includeTraining ? [{ key: "trainingAmortised", label: "Training", color: COMPONENT_COLORS.training.bg }] : []),
+              ].map((item) => {
+                const value = result.components[item.key as keyof typeof result.components].co2Grams;
+                const pct = (value / result.totalCO2Grams) * 100;
+                return (
+                  <div key={item.key} style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                    <div style={{ width: 12, height: 12, borderRadius: 3, background: item.color }} />
+                    <div style={{ flex: 1, fontSize: "0.875rem" }}>{item.label}</div>
+                    <div style={{ fontSize: "0.875rem", color: C.peak, fontWeight: 600 }}>{formatCO2(value)}</div>
+                    <div style={{ fontSize: "0.75rem", color: C.muted, width: 40, textAlign: "right" }}>{pct.toFixed(0)}%</div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Water */}
+            <div style={{ 
+              background: "rgba(26, 26, 26, 0.6)", 
+              borderRadius: 12, 
+              padding: "1rem", 
+              border: `1px solid ${C.borderStrong}`,
+              marginBottom: "1.5rem",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                <Droplets size={16} strokeWidth={1.5} style={{ color: C.peak }} />
+                <span style={{ fontWeight: 600, color: C.peak }}>Water Usage</span>
+              </div>
+              <div style={{ fontSize: "1.25rem", color: result.waterLiters === 0 ? C.moss : C.stone }}>
+                {result.waterLiters === 0 
+                  ? "0 L (free-air cooling)" 
+                  : `${(result.waterLiters * 1000).toFixed(2)} ml per request`
+                }
+              </div>
+            </div>
+
+            {/* Training Toggle */}
+            <div style={{ 
+              background: "rgba(96, 165, 128, 0.08)", 
+              borderRadius: 12, 
+              padding: "1rem", 
+              border: `1px solid ${C.borderMoss}`,
+              marginBottom: "1.5rem",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <Factory size={18} strokeWidth={1.5} style={{ color: C.moss }} />
+                  <span style={{ fontWeight: 600, color: C.peak }}>Include Training Emissions</span>
+                </div>
+                <button
+                  onClick={() => setIncludeTraining(!includeTraining)}
+                  style={{
+                    width: 48,
+                    height: 26,
+                    borderRadius: 13,
+                    border: "none",
+                    background: includeTraining ? C.moss : "rgba(255,255,255,0.2)",
+                    cursor: "pointer",
+                    position: "relative",
+                    transition: "background 0.3s",
+                  }}
+                >
+                  <div style={{
+                    width: 20,
+                    height: 20,
+                    borderRadius: 10,
+                    background: "white",
+                    position: "absolute",
+                    top: 3,
+                    left: includeTraining ? 25 : 3,
+                    transition: "left 0.3s",
+                  }} />
+                </button>
+              </div>
+              <p style={{ fontSize: "0.875rem", color: C.muted, margin: 0 }}>
+                {includeTraining 
+                  ? `Training adds ${formatCO2(result.components.trainingAmortised.co2Grams)} per query. Total: ${formatCO2(result.totalCO2Grams)}.`
+                  : `Training emissions excluded. Toggle ON to include ${formatCO2(result.components.trainingAmortised.co2Grams)} per query.`
+                }
+              </p>
             </div>
           </div>
         )}
@@ -1180,7 +1289,7 @@ const result = calculateInference({
         onNext={goNext}
         onReset={() => {
           setStep(1);
-          setModelCategory("chat");
+          setModelCategory("popular");
           setSelectedModel(MODEL_CATEGORIES.chat.defaultModel);
           setRegion("usa");
           setGpuCondition("new");
