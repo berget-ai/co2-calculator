@@ -1,7 +1,5 @@
-import { useState, useMemo, useEffect } from "react";
-import {
-  Zap, Snowflake, Droplets, Recycle, Leaf, Code, Globe, MessageSquare, Sparkles, BookOpen, Calculator as CalculatorIcon
-} from "lucide-react";
+import { useState, useMemo } from "react";
+import { Leaf, Code, Globe } from "lucide-react";
 import {
   calculateInference,
   MODEL_PROFILES,
@@ -9,13 +7,10 @@ import {
   GRID_REGIONS,
 } from "@berget/co2-calculator";
 import { useModelData, mergeModelData } from "./hooks/useModelData";
-import { C, COMPONENT_COLORS, formatCO2, Card, SourceCitation } from "./components/shared";
-import { CategoryModelPicker } from "./components/CategoryModelPicker";
-import { RegionPicker } from "./components/RegionPicker";
-import { HardwarePicker } from "./components/HardwarePicker";
-import { ResultsPanel } from "./components/ResultsPanel";
+import { C, COMPONENT_COLORS, formatCO2 } from "./components/shared";
 import { ApiResponseBlock } from "./components/ApiResponseBlock";
 import { GuideMode } from "./components/GuideMode";
+import { MessageSquare, Sparkles } from "lucide-react";
 import type { CalculatorActions, CalculatorDerived, CalculatorState, ModelCategories, InferenceResult } from "./components/types";
 
 const MODEL_CATEGORIES: ModelCategories = {
@@ -66,35 +61,6 @@ const MODEL_CATEGORIES: ModelCategories = {
   },
 };
 
-function StepIndicator({ step, total }: { step: number; total: number }) {
-  return (
-    <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-      {Array.from({ length: total }, (_, i) => (
-        <div
-          key={i}
-          style={{
-            width: i + 1 === step ? 24 : 8,
-            height: 8,
-            borderRadius: 4,
-            background: i + 1 <= step ? "hsl(45 15% 88%)" : "rgba(229, 221, 213, 0.05)",
-            transition: "all 0.3s ease",
-          }}
-        />
-      ))}
-      <span style={{ fontSize: "0.75rem", color: C.muted, marginLeft: "0.5rem" }}>
-        {step}/{total}
-      </span>
-    </div>
-  );
-}
-
-type Mode = "guide" | "calculator";
-
-function getInitialMode(): Mode {
-  if (typeof window !== "undefined" && window.location.hash === "#calculator") return "calculator";
-  return "guide";
-}
-
 // The calculation always runs on operational + hardware emissions only.
 // Training is excluded app-wide: the figures are self-reported and carry
 // ±50% uncertainty, which would undermine the credibility of the total.
@@ -102,22 +68,12 @@ const INCLUDE_TRAINING = false;
 const LIFETIME_QUERIES = 0; // unused when training is excluded
 
 export function CO2Calculator() {
-  const [mode, setMode] = useState<Mode>(getInitialMode);
-  const [step, setStep] = useState(1);
   const [modelCategory, setModelCategory] = useState("popular");
   const [selectedModel, setSelectedModel] = useState("google/gemma-4-31B-it");
   const [region, setRegion] = useState("sweden");
   const [gpuCondition, setGpuCondition] = useState<"new" | "refurbished">("new");
   const [otherComputeCondition, setOtherComputeCondition] = useState<"new" | "refurbished">("refurbished");
   const [concurrency, setConcurrency] = useState(8);
-
-  // Sync mode to URL hash for shareability
-  useEffect(() => {
-    const hash = mode === "calculator" ? "#calculator" : "#guide";
-    if (window.location.hash !== hash) {
-      window.history.replaceState(null, "", hash);
-    }
-  }, [mode]);
 
   // Fetch dynamic model data from EcoLogits and OpenRouter
   const { data: fetchedModelData, loading: modelsLoading, error: modelsError, refresh: refreshModels } = useModelData();
@@ -154,15 +110,6 @@ export function CO2Calculator() {
     }) as InferenceResult;
   }, [model, grid, gpuCondition, otherComputeCondition, category, concurrency]);
 
-  const totalSteps = 5;
-
-  // Navigation handlers
-  const canGoBack = step > 1;
-  const canGoNext = step < totalSteps;
-
-  const goBack = () => canGoBack && setStep(step - 1);
-  const goNext = () => canGoNext && setStep(step + 1);
-
   const handleCategoryChange = (key: string) => {
     setModelCategory(key);
     const cat = MODEL_CATEGORIES[key];
@@ -173,17 +120,7 @@ export function CO2Calculator() {
     setSelectedModel(id);
   };
 
-  const handleReset = () => {
-    setStep(1);
-    setModelCategory("popular");
-    setSelectedModel("google/gemma-4-31B-it");
-    setRegion("sweden");
-    setGpuCondition("new");
-    setOtherComputeCondition("refurbished");
-    setConcurrency(8);
-  };
-
-  // Shared state/actions/derived bundles for both modes
+  // Shared state/actions/derived bundles
   const state: CalculatorState = {
     modelCategory, selectedModel, region,
     gpuCondition, otherComputeCondition, concurrency,
@@ -213,348 +150,69 @@ export function CO2Calculator() {
         background: C.night,
         color: C.cloud,
         fontFamily: "var(--berget-font-sans, 'DM Sans', system-ui, sans-serif)",
-        paddingBottom: "160px",
+        paddingBottom: "140px",
       }}
     >
       {/* Header */}
       <header style={{ borderBottom: `1px solid ${C.border}`, padding: "1rem 0" }}>
-        <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 1rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+        <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 1rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
             <Leaf size={20} strokeWidth={1.5} style={{ color: C.moss }} />
             <div>
               <div style={{ fontWeight: 600, color: C.peak, fontSize: "0.875rem" }}>CO₂ Impact Calculator</div>
             </div>
           </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-            {/* Mode toggle */}
-            <div
-              style={{
-                display: "flex",
-                background: C.ghost,
-                borderRadius: 8,
-                border: `1px solid ${C.border}`,
-                padding: 2,
-              }}
-            >
-              {(
-                [
-                  { key: "guide", label: "Guide", icon: BookOpen },
-                  { key: "calculator", label: "Calculator", icon: CalculatorIcon },
-                ] as const
-              ).map(({ key, label, icon: Icon }) => (
-                <button
-                  key={key}
-                  onClick={() => setMode(key)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.35rem",
-                    padding: "0.4rem 0.75rem",
-                    borderRadius: 6,
-                    border: "none",
-                    background: mode === key ? "rgba(229, 221, 213, 0.12)" : "transparent",
-                    color: mode === key ? C.peak : C.muted,
-                    cursor: "pointer",
-                    fontSize: "0.8rem",
-                    fontWeight: 500,
-                    transition: "all 0.2s",
-                  }}
-                >
-                  <Icon size={14} strokeWidth={1.5} />
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            {mode === "calculator" && <StepIndicator step={step} total={totalSteps} />}
-          </div>
+          <a
+            href="https://github.com/berget-ai/co2-emissions-calculator"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.35rem",
+              color: C.muted,
+              textDecoration: "none",
+              fontSize: "0.8rem",
+            }}
+          >
+            <Code size={14} strokeWidth={1.5} />
+            Source
+          </a>
         </div>
       </header>
 
       <main style={{ maxWidth: 800, margin: "0 auto", padding: "2rem 1rem" }}>
-        {mode === "guide" ? (
-          <GuideMode
-            state={state}
-            actions={actions}
-            derived={derived}
-            modelsLoading={modelsLoading}
-            modelsError={modelsError}
-            hasFetchedData={!!fetchedModelData}
-            onRefreshModels={refreshModels}
-            onModelSelect={handleModelSelect}
-            onOpenCalculator={() => setMode("calculator")}
-          />
-        ) : (
-          <>
-            {/* STEP 1: Use Case + Model */}
-            {step === 1 && (
-              <div>
-                <h1 style={{ fontSize: "1.75rem", fontWeight: 700, color: C.peak, marginBottom: "0.5rem" }}>
-                  What are you building?
-                </h1>
-                <p style={{ color: C.muted, marginBottom: "1.5rem" }}>Select your use case and model</p>
-
-                <CategoryModelPicker
-                  modelCategory={modelCategory}
-                  selectedModel={selectedModel}
-                  modelCategories={MODEL_CATEGORIES}
-                  onCategoryChange={handleCategoryChange}
-                  onModelSelect={handleModelSelect}
-                  modelsLoading={modelsLoading}
-                  modelsError={modelsError}
-                  hasFetchedData={!!fetchedModelData}
-                  onRefresh={refreshModels}
-                />
-              </div>
-            )}
-
-            {/* STEP 2: Region */}
-            {step === 2 && (
-              <div>
-                <h1 style={{ fontSize: "1.75rem", fontWeight: 700, color: C.peak, marginBottom: "0.5rem" }}>
-                  Where is it running?
-                </h1>
-                <p style={{ color: C.muted, marginBottom: "1.5rem" }}>Grid carbon intensity varies dramatically by location</p>
-
-                <RegionPicker region={region} onRegionSelect={setRegion} />
-              </div>
-            )}
-
-            {/* STEP 3: Hardware */}
-            {step === 3 && (
-              <div>
-                <h1 style={{ fontSize: "1.75rem", fontWeight: 700, color: C.peak, marginBottom: "0.5rem" }}>Hardware</h1>
-                <p style={{ color: C.muted, marginBottom: "1.5rem" }}>GPU and supporting infrastructure — new or refurbished?</p>
-
-                <HardwarePicker
-                  gpuCondition={gpuCondition}
-                  otherComputeCondition={otherComputeCondition}
-                  concurrency={concurrency}
-                  onGpuConditionChange={setGpuCondition}
-                  onOtherComputeConditionChange={setOtherComputeCondition}
-                  onConcurrencyChange={setConcurrency}
-                />
-              </div>
-            )}
-
-            {/* STEP 4: Results */}
-            {step === 4 && result && (
-              <div>
-                <h1 style={{ fontSize: "1.75rem", fontWeight: 700, color: C.peak, marginBottom: "0.5rem" }}>
-                  Your Carbon Footprint
-                </h1>
-                <p style={{ color: C.muted, marginBottom: "1.5rem" }}>Complete breakdown per request</p>
-
-                <ResultsPanel result={result} model={model} grid={grid} />
-              </div>
-            )}
-
-            {/* STEP 5: What now? */}
-            {step === 5 && (
-              <div>
-                <h1 style={{ fontSize: "1.75rem", fontWeight: 700, color: C.peak, marginBottom: "0.5rem" }}>What Now?</h1>
-                <p style={{ color: C.muted, marginBottom: "1.5rem" }}>Start measuring CO₂ in every LLM call</p>
-
-                {/* Call to action */}
-                <div
-                  style={{
-                    background: "rgba(96, 165, 128, 0.08)",
-                    borderRadius: 12,
-                    padding: "1.5rem",
-                    border: `1px solid ${C.borderMoss}`,
-                    marginBottom: "1.5rem",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
-                    <Globe size={24} strokeWidth={1.5} style={{ color: C.moss }} />
-                    <span style={{ fontWeight: 600, color: C.peak, fontSize: "1.125rem" }}>Include CO₂ in Every Response</span>
-                  </div>
-                  <p style={{ fontSize: "0.875rem", color: C.muted, margin: 0, marginBottom: "1rem" }}>
-                    Just like Berget AI does — return{" "}
-                    <code style={{ background: "rgba(0,0,0,0.3)", padding: "0.125rem 0.25rem", borderRadius: 4, fontFamily: "monospace" }}>
-                      co2_grams
-                    </code>{" "}
-                    and{" "}
-                    <code style={{ background: "rgba(0,0,0,0.3)", padding: "0.125rem 0.25rem", borderRadius: 4, fontFamily: "monospace" }}>
-                      gpu_energy_joules
-                    </code>{" "}
-                    in your API responses. Your users deserve to know the environmental cost of each request.
-                  </p>
-
-                  <div style={{ background: C.ghost, borderRadius: 12, padding: "1rem", border: `1px solid ${C.border}` }}>
-                    <div style={{ fontSize: "0.875rem", color: C.peak, fontWeight: 600, marginBottom: "0.5rem" }}>
-                      <Code size={16} strokeWidth={1.5} style={{ marginRight: "0.5rem" }} /> Example: Berget AI API
-                    </div>
-                    <ApiResponseBlock result={result} model={model} selectedModel={selectedModel} />
-                  </div>
-                </div>
-
-                {/* Library code */}
-                <div style={{ background: C.ghost, borderRadius: 12, padding: "1rem", border: `1px solid ${C.border}`, marginBottom: "1.5rem" }}>
-                  <div style={{ fontSize: "0.875rem", color: C.peak, fontWeight: 600, marginBottom: "0.5rem" }}>
-                    <Code size={16} strokeWidth={1.5} style={{ marginRight: "0.5rem" }} /> Use this library
-                  </div>
-                  <pre
-                    style={{
-                      margin: 0,
-                      padding: "0.75rem",
-                      background: "rgba(0,0,0,0.5)",
-                      borderRadius: 6,
-                      fontSize: "0.75rem",
-                      overflow: "auto",
-                      color: C.cloud,
-                    }}
-                  >
-{`import { calculateInference } from "@berget/co2-calculator";
-
-const result = calculateInference({
-  modelProfile: MODEL_PROFILES["${selectedModel}"],
-  hardware: HARDWARE_CONFIGS.h200,
-  deploymentGrid: GRID_REGIONS["${region}"],
-  measuredResponseTimeSeconds: ${category.responseTime},
-  inputTokens: ${model?.defaultInputTokens},
-  outputTokens: ${model?.defaultOutputTokens},
-  concurrency: ${concurrency},
-  hourOfDay: 14,
-});
-
-// Total: ${formatCO2(result?.totalCO2Grams || 0)} CO₂e per request`}
-                  </pre>
-                </div>
-
-                {/* Links */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
-                  <a
-                    href="https://github.com/berget-ai/co2-emissions-calculator"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.5rem",
-                      padding: "1rem",
-                      background: C.ghost,
-                      borderRadius: 12,
-                      border: `1px solid ${C.border}`,
-                      color: C.cloud,
-                      textDecoration: "none",
-                      fontSize: "0.875rem",
-                    }}
-                  >
-                    <Code size={18} strokeWidth={1.5} />
-                    <span>GitHub Repository</span>
-                  </a>
-                  <a
-                    href="https://berget.ai/docs"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.5rem",
-                      padding: "1rem",
-                      background: C.ghost,
-                      borderRadius: 12,
-                      border: `1px solid ${C.border}`,
-                      color: C.cloud,
-                      textDecoration: "none",
-                      fontSize: "0.875rem",
-                    }}
-                  >
-                    <Globe size={18} strokeWidth={1.5} />
-                    <span>Berget AI Docs</span>
-                  </a>
-                </div>
-              </div>
-            )}
-          </>
-        )}
+        <GuideMode
+          state={state}
+          actions={actions}
+          derived={derived}
+          modelsLoading={modelsLoading}
+          modelsError={modelsError}
+          hasFetchedData={!!fetchedModelData}
+          onRefreshModels={refreshModels}
+          onModelSelect={handleModelSelect}
+        />
       </main>
 
-      {/* Progressive Footer with Navigation */}
-      <EmissionsFooter
-        mode={mode}
-        step={step}
-        result={result}
-        onBack={goBack}
-        onNext={goNext}
-        onReset={handleReset}
-        canGoBack={canGoBack}
-        canGoNext={canGoNext}
-        totalSteps={totalSteps}
-      />
+      {/* Live emissions footer */}
+      <EmissionsFooter result={result} />
     </div>
   );
 }
 
-// ─── Progressive Emissions Footer ───
-function EmissionsFooter({
-  mode,
-  step,
-  result,
-  onBack,
-  onNext,
-  onReset,
-  canGoBack,
-  canGoNext,
-  totalSteps,
-}: {
-  mode: Mode;
-  step: number;
-  result: InferenceResult | null;
-  onBack: () => void;
-  onNext: () => void;
-  onReset: () => void;
-  canGoBack: boolean;
-  canGoNext: boolean;
-  totalSteps: number;
-}) {
+// ─── Live Emissions Footer ───
+function EmissionsFooter({ result }: { result: InferenceResult | null }) {
   if (!result) return null;
 
   const components = [
-    {
-      key: "gpu",
-      value: result.components.gpuOperational.co2Grams,
-      color: COMPONENT_COLORS.gpu.bg,
-      label: COMPONENT_COLORS.gpu.label,
-      step: 1,
-    },
-    {
-      key: "server",
-      value: result.components.serverOperational.co2Grams,
-      color: COMPONENT_COLORS.server.bg,
-      label: COMPONENT_COLORS.server.label,
-      step: 2,
-    },
-    {
-      key: "overhead",
-      value: result.components.datacenterOverhead.co2Grams,
-      color: COMPONENT_COLORS.overhead.bg,
-      label: `Cooling`,
-      step: 2,
-    },
-    {
-      key: "embodiedGpu",
-      value: result.components.embodiedGpu.co2Grams,
-      color: COMPONENT_COLORS.embodied.bg,
-      label: `GPU${result.components.embodiedGpu.co2Grams === 0 ? " (0)" : ""}`,
-      step: 3,
-    },
-    {
-      key: "embodiedOther",
-      value: result.components.embodiedOther.co2Grams,
-      color: COMPONENT_COLORS.embodied.bg,
-      label: `Infra${result.components.embodiedOther.co2Grams === 0 ? " (0)" : ""}`,
-      step: 3,
-    },
+    { key: "gpu", value: result.components.gpuOperational.co2Grams, color: COMPONENT_COLORS.gpu.bg, label: COMPONENT_COLORS.gpu.label },
+    { key: "server", value: result.components.serverOperational.co2Grams, color: COMPONENT_COLORS.server.bg, label: COMPONENT_COLORS.server.label },
+    { key: "overhead", value: result.components.datacenterOverhead.co2Grams, color: COMPONENT_COLORS.overhead.bg, label: "Cooling" },
+    { key: "embodiedGpu", value: result.components.embodiedGpu.co2Grams, color: COMPONENT_COLORS.embodied.bg, label: `GPU${result.components.embodiedGpu.co2Grams === 0 ? " (0)" : ""}` },
+    { key: "embodiedOther", value: result.components.embodiedOther.co2Grams, color: COMPONENT_COLORS.embodied.bg, label: `Infra${result.components.embodiedOther.co2Grams === 0 ? " (0)" : ""}` },
   ];
 
   const total = result.totalCO2Grams;
-  const isGuide = mode === "guide";
-  // In guide mode the full breakdown is always visible (running total)
-  const visibleComponents = isGuide ? components : components.filter((c) => c.step <= step);
-  const currentTotal = isGuide ? total : visibleComponents.reduce((sum, c) => sum + c.value, 0);
 
   return (
     <footer
@@ -573,9 +231,8 @@ function EmissionsFooter({
       <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 1rem" }}>
         {/* Progress bar with labels */}
         <div style={{ marginBottom: "0.75rem" }}>
-          {/* Labels above bar */}
           <div style={{ display: "flex", height: 20, marginBottom: 4 }}>
-            {visibleComponents.map((comp) => {
+            {components.map((comp) => {
               const width = (comp.value / total) * 100;
               return (
                 <div
@@ -601,37 +258,21 @@ function EmissionsFooter({
             })}
           </div>
 
-          {/* The bar */}
-          <div
-            style={{
-              display: "flex",
-              height: 8,
-              borderRadius: 4,
-              overflow: "hidden",
-              background: "rgba(26, 26, 26, 0.6)",
-            }}
-          >
+          <div style={{ display: "flex", height: 8, borderRadius: 4, overflow: "hidden", background: "rgba(26, 26, 26, 0.6)" }}>
             {components.map((comp) => {
-              const isVisible = isGuide || comp.step <= step;
               const width = (comp.value / total) * 100;
               return (
                 <div
                   key={comp.key}
-                  style={{
-                    width: `${width}%`,
-                    background: isVisible ? comp.color : "transparent",
-                    opacity: isVisible ? 1 : 0.1,
-                    transition: "all 0.5s ease",
-                  }}
+                  style={{ width: `${width}%`, background: comp.color, transition: "all 0.5s ease" }}
                   title={`${comp.label}: ${formatCO2(comp.value)}`}
                 />
               );
             })}
           </div>
 
-          {/* Values below bar */}
           <div style={{ display: "flex", height: 16, marginTop: 4 }}>
-            {visibleComponents.map((comp) => {
+            {components.map((comp) => {
               const width = (comp.value / total) * 100;
               return (
                 <div
@@ -657,70 +298,23 @@ function EmissionsFooter({
           </div>
         </div>
 
-        {/* Total + Navigation */}
+        {/* Total + label */}
         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-          {/* Total */}
           <div
             style={{
               fontSize: "1.1rem",
               fontWeight: 700,
-              color: step === 4 && !isGuide ? C.stone : C.peak,
+              color: C.peak,
               fontFamily: "var(--berget-font-mono, 'DM Mono', monospace)",
               whiteSpace: "nowrap",
               minWidth: 80,
             }}
           >
-            {formatCO2(isGuide || step === totalSteps ? total : currentTotal)}
+            {formatCO2(total)}
           </div>
-
-          {/* Navigation Buttons — wizard mode only */}
-          {!isGuide && (
-            <div style={{ display: "flex", gap: "0.75rem", flex: 1 }}>
-              <button
-                onClick={onBack}
-                disabled={!canGoBack}
-                style={{
-                  flex: 1,
-                  padding: "0.75rem",
-                  borderRadius: 8,
-                  background: "transparent",
-                  color: canGoBack ? C.muted : "rgba(255,255,255,0.2)",
-                  border: `1px solid ${canGoBack ? C.border : "rgba(255,255,255,0.1)"}`,
-                  cursor: canGoBack ? "pointer" : "not-allowed",
-                  fontSize: "0.875rem",
-                  fontWeight: 500,
-                  transition: "all 0.2s",
-                }}
-              >
-                ← Back
-              </button>
-              <button
-                onClick={step === totalSteps ? onReset : onNext}
-                disabled={!canGoNext && step !== totalSteps}
-                style={{
-                  flex: 2,
-                  padding: "0.75rem",
-                  borderRadius: 8,
-                  background: step === totalSteps || canGoNext ? "hsl(45 15% 88%)" : "rgba(229, 221, 213, 0.2)",
-                  color: step === totalSteps || canGoNext ? "#0A0A0A" : "rgba(255,255,255,0.3)",
-                  border: "none",
-                  cursor: step === totalSteps || canGoNext ? "pointer" : "not-allowed",
-                  fontSize: "0.875rem",
-                  fontWeight: 600,
-                  transition: "all 0.2s",
-                }}
-              >
-                {step === totalSteps ? "Start Over ↺" : "Next →"}
-              </button>
-            </div>
-          )}
-
-          {/* Guide mode: compact label instead of nav */}
-          {isGuide && (
-            <div style={{ flex: 1, fontSize: "0.75rem", color: C.muted, textAlign: "right" }}>
-              updates live as you read ↓
-            </div>
-          )}
+          <div style={{ flex: 1, fontSize: "0.75rem", color: C.muted, textAlign: "right" }}>
+            updates live as you read ↓
+          </div>
         </div>
       </div>
     </footer>

@@ -17,7 +17,6 @@ interface GuideProps {
   hasFetchedData: boolean;
   onRefreshModels: () => void;
   onModelSelect: (id: string) => void;
-  onOpenCalculator: () => void;
 }
 
 function Section({ id, children }: { id: string; children: React.ReactNode }) {
@@ -66,7 +65,6 @@ export function GuideMode({
   hasFetchedData,
   onRefreshModels,
   onModelSelect,
-  onOpenCalculator,
 }: GuideProps) {
   const { category, model, grid, result, modelCategories } = derived;
 
@@ -128,21 +126,7 @@ export function GuideMode({
 
         <p style={{ ...prose.p, marginTop: "1.5rem" }}>
           Every number in that response has a story. Below, we walk through exactly where each one comes from — and you
-          can change the assumptions as you read.{" "}
-          <button
-            onClick={onOpenCalculator}
-            style={{
-              background: "none",
-              border: "none",
-              color: C.moss,
-              cursor: "pointer",
-              fontSize: "inherit",
-              textDecoration: "underline",
-              padding: 0,
-            }}
-          >
-            Or skip straight to the calculator →
-          </button>
+          can change the assumptions as you read.
         </p>
       </header>
 
@@ -244,9 +228,7 @@ export function GuideMode({
         <h2 style={prose.h2}>Location, location, location</h2>
         <p style={prose.p}>
           The same GPU doing the same work can emit 50× more CO₂ depending on where it sits. Sweden's grid runs on hydro
-          and nuclear at roughly 8 g CO₂/kWh; a gas-and-coal-heavy grid can exceed 400 g. Climate matters too: cold
-          regions cool their datacenters with outside air (PUE 1.15), while hot regions burn energy on mechanical
-          cooling (PUE 1.80) — and evaporate millions of liters of water doing it.
+          and nuclear at roughly 8 g CO₂/kWh; a gas-and-coal-heavy grid can exceed 400 g.
         </p>
         <p style={prose.p}>
           Click around the globe. The difference is not a rounding error — it's the single biggest lever we have.
@@ -265,14 +247,42 @@ export function GuideMode({
         <MethodPanel
           assumptions={[
             "Grid carbon intensity is a regional yearly average, adjusted up (+15%) in peak periods and down (to 70%) in low-demand periods rather than modeled hour-by-hour.",
-            "Cooling overhead (PUE) and water use are modeled from climate, not measured per-datacenter.",
-            "Nordic free-air cooling is assumed to use no water; evaporative cooling elsewhere uses up to ~2 L/kWh.",
             "All figures on this page are shown for 14:00 (peak, conservative).",
           ]}
-          reasoning="Carbon intensity and cooling efficiency are the two largest geographical factors, and both are well-documented. We use conservative figures: for Sweden we assume 8 g/kWh even though the fossil-free PPA mix is closer to 2.5 g, to account for transmission losses and lifecycle effects. For time-of-day we deliberately over-estimate during the day and under-estimate at night, so that on balance the approximation lands near — or slightly above — the truth. Where a region has several plausible values, we pick the higher one."
+          reasoning="Carbon intensity is the single largest geographical factor, and it is well-documented. We use conservative figures: for Sweden we assume 8 g/kWh even though the fossil-free PPA mix is closer to 2.5 g, to account for transmission losses and lifecycle effects. For time-of-day we deliberately over-estimate during the day and under-estimate at night, so that on balance the approximation lands near — or slightly above — the truth. Where a region has several plausible values, we pick the higher one."
           sources={[
             { label: "IEA (2024) — Electricity Emissions Factors by Country", url: "https://www.iea.org/data-and-statistics" },
             { label: "EPA (2023) — eGRID Database", url: "https://www.epa.gov/egrid" },
+          ]}
+        />
+
+        {/* ── Cooling sub-section ── */}
+        <h3 style={{ fontSize: "1.2rem", fontWeight: 700, color: C.peak, marginTop: "3rem", marginBottom: "0.75rem" }}>
+          Why cooling is its own line item
+        </h3>
+        <p style={prose.p}>
+          Servers don't just consume power for computation — they consume power to get rid of the heat that computation
+          generates. That overhead is captured by <strong>PUE (Power Usage Effectiveness)</strong>: the ratio of total
+          facility energy to the energy that actually reaches the IT equipment. A PUE of 1.15 means 15% of the energy
+          goes to cooling and other overhead; a PUE of 2.0 means the cooling uses as much energy as the servers
+          themselves.
+        </p>
+        <p style={prose.p}>
+          And this is where geography really bites. In a cold Nordic climate you can cool with outside air for most of
+          the year — fans and filters, essentially — reaching a PUE around 1.15 with <em>zero water</em>. In a hot or
+          humid climate that free lunch disappears: you need energy-intensive mechanical chillers, pushing PUE toward
+          1.80, and the most common approach — evaporative cooling — consumes up to 2 liters of water per kWh. Same
+          model, same query, but a datacenter in Texas can spend over half again as much energy just staying cool, and
+          drain a scarce water supply doing it. Cooling isn't a footnote; it's a first-order difference.
+        </p>
+        <MethodPanel
+          assumptions={[
+            "Cooling overhead (PUE) and water use are modeled from regional climate, not measured per-datacenter.",
+            "Nordic free-air cooling is assumed to use no water (0.0 L/kWh); evaporative cooling in hot/dry climates uses up to ~2.0 L/kWh.",
+            "PUE ranges from ~1.15 (free-air, Nordics/Quebec) to ~2.0 (extreme cooling, hot climates).",
+          ]}
+          reasoning="Cooling is both an energy and a water problem, and both scale with climate. We model it as a multiplier on top of IT energy (PUE) plus a water-per-kWh factor, using climate-typical values rather than claiming to know any specific facility's real-time efficiency. This keeps the estimate honest: cooling is significant, well-documented, and strongly regional — but it varies from one building to the next."
+          sources={[
             { label: "Uptime Institute (2024) — Global Data Center Survey (PUE by region)", url: "https://uptimeinstitute.com/resources/research-and-reports" },
             { label: "Siddik et al. (2021) — The environmental footprint of data centers in the United States, Env. Res. Lett.", url: "https://doi.org/10.1088/1748-9326/ac8e40" },
           ]}
