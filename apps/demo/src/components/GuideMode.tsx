@@ -149,7 +149,7 @@ export function GuideMode({
       {/* ═══ THE PROBLEM ═══ */}
       <Section id="the-problem">
         <div style={prose.kicker}>The problem</div>
-        <h2 style={prose.h2}>You can't choose what you can't compare</h2>
+        <h2 style={prose.h2}>Your users can't choose what they can't compare</h2>
         <p style={prose.p}>
           AI's environmental footprint is real, and our industry has a responsibility to own it. But responsibility
           starts with measurement. Today, a developer choosing between two models or two providers has no way to compare
