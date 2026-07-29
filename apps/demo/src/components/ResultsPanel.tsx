@@ -1,4 +1,4 @@
-import { Coffee, Droplets, Factory } from "lucide-react";
+import { Coffee, Droplets } from "lucide-react";
 import { C, COMPONENT_COLORS, formatCO2 } from "./shared";
 import type { GridRegion, InferenceResult, ModelProfile } from "./types";
 
@@ -6,19 +6,9 @@ interface Props {
   result: InferenceResult;
   model: ModelProfile | undefined;
   grid: GridRegion | undefined;
-  lifetimeQueries: number;
-  includeTraining: boolean;
-  onIncludeTrainingChange: (v: boolean) => void;
 }
 
-export function ResultsPanel({
-  result,
-  model,
-  grid,
-  lifetimeQueries,
-  includeTraining,
-  onIncludeTrainingChange,
-}: Props) {
+export function ResultsPanel({ result, model, grid }: Props) {
   return (
     <div>
       {/* Total with Globe Background */}
@@ -73,23 +63,9 @@ export function ResultsPanel({
           <div style={{ fontSize: "0.75rem", color: C.muted, marginTop: "0.5rem" }}>
             {model?.displayName} on {grid?.name}
           </div>
-          {!includeTraining && (
-            <div style={{ fontSize: "0.75rem", color: C.moss, marginTop: "0.5rem", fontStyle: "italic" }}>
-              Operational emissions only. Training and embodied excluded.{" "}
-              {(() => {
-                const operational =
-                  result.components.gpuOperational.co2Grams +
-                  result.components.serverOperational.co2Grams +
-                  result.components.datacenterOverhead.co2Grams;
-                const fullTotal =
-                  operational +
-                  result.components.embodiedGpu.co2Grams +
-                  result.components.embodiedOther.co2Grams +
-                  (model?.totalTrainingCO2Grams ? model.totalTrainingCO2Grams / lifetimeQueries : 0);
-                return fullTotal > 0 ? `Operational = ${((operational / fullTotal) * 100).toFixed(0)}% of full lifecycle.` : "";
-              })()}
-            </div>
-          )}
+          <div style={{ fontSize: "0.75rem", color: C.moss, marginTop: "0.5rem", fontStyle: "italic" }}>
+            Operational + hardware emissions. Training excluded (too uncertain — see methodology).
+          </div>
         </div>
       </div>
 
@@ -176,7 +152,6 @@ export function ResultsPanel({
           { key: "datacenterOverhead", label: "Cooling", color: COMPONENT_COLORS.overhead.bg },
           { key: "embodiedGpu", label: "GPU Hardware", color: COMPONENT_COLORS.embodied.bg },
           { key: "embodiedOther", label: "Other Compute", color: COMPONENT_COLORS.embodied.bg },
-          ...(includeTraining ? [{ key: "trainingAmortised", label: "Training", color: COMPONENT_COLORS.training.bg }] : []),
         ].map((item) => {
           const value = result.components[item.key as keyof typeof result.components].co2Grams;
           const pct = (value / result.totalCO2Grams) * 100;
@@ -208,55 +183,6 @@ export function ResultsPanel({
         <div style={{ fontSize: "1.25rem", color: result.waterLiters === 0 ? C.moss : C.stone }}>
           {result.waterLiters === 0 ? "0 L (free-air cooling)" : `${(result.waterLiters * 1000).toFixed(2)} ml per request`}
         </div>
-      </div>
-
-      {/* Training Toggle */}
-      <div
-        style={{
-          background: "rgba(96, 165, 128, 0.08)",
-          borderRadius: 12,
-          padding: "1rem",
-          border: `1px solid ${C.borderMoss}`,
-          marginBottom: "1.5rem",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <Factory size={18} strokeWidth={1.5} style={{ color: C.moss }} />
-            <span style={{ fontWeight: 600, color: C.peak }}>Include Training Emissions</span>
-          </div>
-          <button
-            onClick={() => onIncludeTrainingChange(!includeTraining)}
-            style={{
-              width: 48,
-              height: 26,
-              borderRadius: 13,
-              border: "none",
-              background: includeTraining ? C.moss : "rgba(255,255,255,0.2)",
-              cursor: "pointer",
-              position: "relative",
-              transition: "background 0.3s",
-            }}
-          >
-            <div
-              style={{
-                width: 20,
-                height: 20,
-                borderRadius: 10,
-                background: "white",
-                position: "absolute",
-                top: 3,
-                left: includeTraining ? 25 : 3,
-                transition: "left 0.3s",
-              }}
-            />
-          </button>
-        </div>
-        <p style={{ fontSize: "0.875rem", color: C.muted, margin: 0 }}>
-          {includeTraining
-            ? `Training adds ${formatCO2(result.components.trainingAmortised.co2Grams)} per query. Total: ${formatCO2(result.totalCO2Grams)}.`
-            : `Training emissions excluded. Toggle ON to include ${formatCO2(result.components.trainingAmortised.co2Grams)} per query.`}
-        </p>
       </div>
     </div>
   );

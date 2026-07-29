@@ -1,10 +1,10 @@
-import { BookOpen, Calculator, Code, Globe, Wrench } from "lucide-react";
+import { Code, Globe, Wrench } from "lucide-react";
 import { CategoryModelPicker } from "./CategoryModelPicker";
 import { RegionPicker } from "./RegionPicker";
-import { TrainingExplorer } from "./TrainingExplorer";
 import { HardwarePicker } from "./HardwarePicker";
 import { ResultsPanel } from "./ResultsPanel";
 import { ApiResponseBlock } from "./ApiResponseBlock";
+import { MethodPanel } from "./MethodPanel";
 import { C, prose } from "./shared";
 import type { CalculatorActions, CalculatorDerived, CalculatorState } from "./types";
 
@@ -68,7 +68,7 @@ export function GuideMode({
   onModelSelect,
   onOpenCalculator,
 }: GuideProps) {
-  const { category, model, grid, result, modelComparisons, modelCategories } = derived;
+  const { category, model, grid, result, modelCategories } = derived;
 
   return (
     <article>
@@ -164,18 +164,29 @@ export function GuideMode({
           API response already reports tokens, we believe it should report CO₂ — as close to the true cost as physics
           allows. Here's how we do it.
         </p>
+        <MethodPanel
+          assumptions={[
+            "System boundary: the consumer side of inference — operational energy, datacenter overhead and hardware. Training is excluded (see below).",
+            "Network transmission and the end-user's device are out of scope.",
+          ]}
+          reasoning="We follow the Green Software Foundation's SCI-AI specification and adopt its 'consumer' boundary. We deliberately exclude model training: the underlying figures are self-reported, vary by ±50%, and would dominate the per-query number while being the least verifiable part. We prefer a smaller number we can defend over a bigger one we can't."
+          sources={[
+            { label: "Green Software Foundation — Software Carbon Intensity for AI (SCI-AI) Specification v2.0", url: "https://sci.greensoftware.foundation/" },
+            { label: "Full methodology document (METHODOLOGY.md), reviewed by the Stockholm Environment Institute", url: "https://github.com/berget-ai/co2-calculator/blob/main/METHODOLOGY.md" },
+          ]}
+        />
       </Section>
 
-      {/* ═══ §1 MODEL ═══ */}
+      {/* ═══ §1 MODEL & USE CASE ═══ */}
       <Section id="the-model">
         <div style={prose.kicker}>§1 · Where the numbers come from</div>
-        <h2 style={prose.h2}>It starts with a model</h2>
+        <h2 style={prose.h2}>First, choose a model and a type of usage</h2>
         <p style={prose.p}>
-          A larger model does more work per query: more parameters means more floating-point operations, more GPU time,
-          more energy. The first input to the calculation is simply <em>which model are you running?</em> Pick one below
-          and watch the JSON at the top — and the running total in the footer — update.
+          Start with what you're actually doing. A quick chat reply and a long code analysis are very different jobs —
+          and the model you pick sets the scale of the work. Pick a use case and a model below, and watch the JSON at
+          the top — and the running total in the footer — update.
         </p>
-        <InteractiveFrame label="pick a model">
+        <InteractiveFrame label="pick a model and use case">
           <CategoryModelPicker
             modelCategory={state.modelCategory}
             selectedModel={state.selectedModel}
@@ -188,6 +199,33 @@ export function GuideMode({
             onRefresh={onRefreshModels}
           />
         </InteractiveFrame>
+        <p style={prose.p}>
+          Under the hood, though, the model is mostly a means to an end. What the footprint really comes down to is
+          simpler: <strong>how many seconds your query occupies the infrastructure, and how many other users share it at
+          the same time.</strong> Model size, context length and whether the prompt is cached all feed into that single
+          number — GPU-seconds per query.
+        </p>
+        <p style={prose.p}>
+          Context length matters because a long prompt means more tokens to process, and a long conversation makes the
+          KV cache grow — more memory reads, more time on the GPU. A cached prompt (a prefix the model has already
+          processed) skips most of that work, which is why cached queries are dramatically cheaper in both latency and
+          emissions. And concurrency — the slider you'll meet in §3 — decides how many queries split the fixed cost of
+          keeping the servers running.
+        </p>
+        <MethodPanel
+          assumptions={[
+            "We treat GPU-seconds per query as the fundamental unit: everything else (model size, context, cache) is a means to estimate it.",
+            "A KV cache and activations add ~20% memory overhead on top of the raw model weights.",
+            "Cached prompts are modeled as cheaper, because re-processing a cached prefix is mostly skipped.",
+            "Model parameters and usage figures are refreshed from public sources (EcoLogits, Hugging Face, OpenRouter).",
+          ]}
+          reasoning="Rather than inventing per-model energy figures, we lean on published model cards and independent measurement projects, then scale by the actual time a query occupies the GPU. Two models of the same size can still differ — architecture, quantization and serving efficiency matter — so we treat per-model data as the best available estimate, not ground truth."
+          sources={[
+            { label: "Rincé & Banse (2025) — EcoLogits: Evaluating the Environmental Impacts of Generative AI, JOSS 10(111)", url: "https://doi.org/10.21105/joss.07471" },
+            { label: "Fu et al. (2024) — LLMCO2: Advancing Accurate Carbon Footprint Prediction for LLM Inferences, arXiv:2410.02950", url: "https://arxiv.org/abs/2410.02950" },
+            { label: "OpenRouter model activity API (usage statistics)", url: "https://openrouter.ai/" },
+          ]}
+        />
       </Section>
 
       {/* ═══ §2 LOCATION ═══ */}
@@ -200,48 +238,55 @@ export function GuideMode({
           regions cool their datacenters with outside air (PUE 1.15), while hot regions burn energy on mechanical
           cooling (PUE 1.80) — and evaporate millions of liters of water doing it.
         </p>
-        <p style={prose.p}>Click around the globe. The difference is not a rounding error — it's the single biggest lever we have.</p>
+        <p style={prose.p}>
+          Click around the globe. The difference is not a rounding error — it's the single biggest lever we have.
+        </p>
         <InteractiveFrame label="pick a region">
           <RegionPicker region={state.region} onRegionSelect={actions.setRegion} />
         </InteractiveFrame>
-      </Section>
-
-      {/* ═══ §3 TRAINING ═══ */}
-      <Section id="the-training">
-        <div style={prose.kicker}>§3 · Where the numbers come from</div>
-        <h2 style={prose.h2}>The one-time cost of training</h2>
         <p style={prose.p}>
-          Before a model answers its first prompt, it has already emitted a large, fixed amount of CO₂ during training.
-          We don't ignore that cost — we amortize it: total training emissions divided by the number of queries the
-          model serves over its lifetime. That's why a heavily-used model can have a <em>smaller</em> per-query training
-          cost than a cheaper-to-train but rarely-used one.
+          One more subtlety: <strong>when</strong> the query runs matters too. A grid's carbon intensity isn't constant
+          over the day — demand and the available generation mix shift hour by hour. We handle this with a deliberate
+          two-level approximation: a <em>peak-period factor</em> that scales the intensity up by ~15% during the day,
+          and a <em>low-period factor</em> that scales it down to ~70% at night. It's a rough model, but it nudges the
+          estimate in the right direction and avoids pretending the grid is flat. Throughout this page we show numbers
+          for 14:00 — the peak, conservative case.
         </p>
-        <InteractiveFrame label="explore training amortization">
-          <TrainingExplorer
-            model={model}
-            result={result}
-            lifetimeQueries={state.lifetimeQueries}
-            includeTraining={state.includeTraining}
-            onIncludeTrainingChange={actions.setIncludeTraining}
-            modelComparisons={modelComparisons}
-            selectedModel={state.selectedModel}
-            onModelSelect={(id, lq) => {
-              onModelSelect(id);
-              actions.setLifetimeQueries(lq);
-            }}
-          />
-        </InteractiveFrame>
+        <MethodPanel
+          assumptions={[
+            "Grid carbon intensity is a regional yearly average, adjusted up (+15%) in peak periods and down (to 70%) in low-demand periods rather than modeled hour-by-hour.",
+            "Cooling overhead (PUE) and water use are modeled from climate, not measured per-datacenter.",
+            "Nordic free-air cooling is assumed to use no water; evaporative cooling elsewhere uses up to ~2 L/kWh.",
+            "All figures on this page are shown for 14:00 (peak, conservative).",
+          ]}
+          reasoning="Carbon intensity and cooling efficiency are the two largest geographical factors, and both are well-documented. We use conservative figures: for Sweden we assume 8 g/kWh even though the fossil-free PPA mix is closer to 2.5 g, to account for transmission losses and lifecycle effects. For time-of-day we deliberately over-estimate during the day and under-estimate at night, so that on balance the approximation lands near — or slightly above — the truth. Where a region has several plausible values, we pick the higher one."
+          sources={[
+            { label: "IEA (2024) — Electricity Emissions Factors by Country", url: "https://www.iea.org/data-and-statistics" },
+            { label: "EPA (2023) — eGRID Database", url: "https://www.epa.gov/egrid" },
+            { label: "Uptime Institute (2024) — Global Data Center Survey (PUE by region)", url: "https://uptimeinstitute.com/resources/research-and-reports" },
+            { label: "Siddik et al. (2021) — The environmental footprint of data centers in the United States, Env. Res. Lett.", url: "https://doi.org/10.1088/1748-9326/ac8e40" },
+          ]}
+        />
       </Section>
 
-      {/* ═══ §4 HARDWARE ═══ */}
+      {/* ═══ §3 HARDWARE ═══ */}
       <Section id="the-hardware">
-        <div style={prose.kicker}>§4 · Where the numbers come from</div>
+        <div style={prose.kicker}>§3 · Where the numbers come from</div>
         <h2 style={prose.h2}>Hardware has a history</h2>
         <p style={prose.p}>
-          Manufacturing a GPU embodies roughly a ton of CO₂ before it ever computes anything. New hardware amortizes
-          that cost over its lifetime; refurbished hardware carries zero embodied carbon, because those emissions are
-          already spent. Utilization matters too — the more queries share a server, the smaller each query's share of
-          the infrastructure.
+          Every GPU carries the cost of its own manufacturing — and that cost is significant. We estimate roughly{" "}
+          <strong>1,000 kg of CO₂ per datacenter GPU</strong> (and ~4,000 kg for the surrounding node: CPU, memory,
+          storage, networking). The figures come from server-level life-cycle assessments by Dell and HPE, with the
+          non-GPU components subtracted. New hardware amortizes that cost over its lifetime; refurbished hardware
+          carries zero embodied carbon, because those emissions are already spent.
+        </p>
+        <p style={prose.p}>
+          Model size decides how many GPUs a query needs. A small, quantized model fits on a single card; a
+          trillion-parameter model has to be spread across several. And here's the part people miss:{" "}
+          <strong>a smaller model can often run on older, humbler hardware.</strong> An older inference card like the
+          NVIDIA L4 embodies only ~300 kg — a fraction of a flagship H200 — and because that hardware has already been
+          in service for years, much of its manufacturing footprint is already amortized. Choosing a right-sized model
+          on mature hardware can cut emissions dramatically before you've optimized anything else.
         </p>
         <InteractiveFrame label="configure hardware">
           <HardwarePicker
@@ -253,32 +298,52 @@ export function GuideMode({
             onConcurrencyChange={actions.setConcurrency}
           />
         </InteractiveFrame>
+        <MethodPanel
+          assumptions={[
+            "Embodied carbon is ~1,000 kg CO₂ per datacenter GPU and ~4,000 kg for the rest of the node (CPU, RAM, SSD, chassis, network), amortized over a 5-year lifetime and allocated per query by GPU-seconds.",
+            "GPUs needed per model = model size × bytes/parameter × 1.2 (KV-cache overhead), divided by GPU memory — so larger models span more GPUs.",
+            "Refurbished hardware is counted as zero embodied carbon — the manufacturing emissions are already spent.",
+            "Per-GPU figures carry ±30–50% uncertainty: NVIDIA/AMD don't publish per-GPU LCAs, so we derive them from server-level reports.",
+          ]}
+          reasoning="Manufacturing dominates lifecycle emissions for datacenter hardware, so embodied carbon can't be ignored despite the uncertainty. We estimate it with life-cycle assessment: manufacturer product-carbon-footprint data at the server level, disaggregated per component. The concurrency slider reflects a simple truth — a busy server divides its fixed costs across more work, so utilization is one of the cheapest emissions levers. And because older hardware has already amortized much of its footprint, right-sizing a model to mature hardware is often the single biggest saving available."
+          sources={[
+            { label: "NVIDIA (2024) — HGX H100 Product Carbon Footprint Summary", url: "https://images.nvidia.com/aem-dam/Solutions/documents/HGX-H100-PCF-Summary.pdf" },
+            { label: "Dell Technologies (2023) — Life Cycle Assessment of PowerEdge servers (R750: 2,181–3,880 kg embodied)" },
+            { label: "Gupta et al. (2021) — Chasing Carbon: The Elusive Environmental Footprint of Computing, HPCA", url: "https://doi.org/10.1109/HPCA51647.2021.00076" },
+            { label: "Boavizta — open-source IT hardware LCA tool", url: "https://www.boavizta.org/" },
+          ]}
+        />
       </Section>
 
-      {/* ═══ §5 TOGETHER ═══ */}
+      {/* ═══ §4 TOGETHER ═══ */}
       <Section id="the-total">
-        <div style={prose.kicker}>§5 · Where the numbers come from</div>
+        <div style={prose.kicker}>§4 · Where the numbers come from</div>
         <h2 style={prose.h2}>Putting it all together</h2>
         <p style={prose.p}>
-          Add operational energy, datacenter overhead, embodied hardware and (optionally) amortized training — and you
-          get the number at the top of this page. Small per query, but multiplied by billions of queries, it becomes
-          very real. That's exactly why it belongs in every response.
+          Add operational energy, datacenter overhead and embodied hardware — and you get the number at the top of this
+          page. Small per query, but multiplied by billions of queries, it becomes very real. That's exactly why it
+          belongs in every response.
         </p>
         {result && (
           <InteractiveFrame label="the full breakdown">
-            <ResultsPanel
-              result={result}
-              model={model}
-              grid={grid}
-              lifetimeQueries={state.lifetimeQueries}
-              includeTraining={state.includeTraining}
-              onIncludeTrainingChange={actions.setIncludeTraining}
-            />
+            <ResultsPanel result={result} model={model} grid={grid} />
           </InteractiveFrame>
         )}
+        <MethodPanel
+          assumptions={[
+            "The total is the sum of the components above — no hidden factors.",
+            "The coffee comparison anchors to an 800W microwave and Sweden's 8 g/kWh grid.",
+            "Water usage reflects the cooling model for the selected region.",
+          ]}
+          reasoning="We'd rather show a number you can interrogate than one you have to trust. Every component is visible in the breakdown, every assumption is listed in these panels, and the full derivation is in the open methodology document. If a figure looks wrong, you can trace exactly where it came from."
+          sources={[
+            { label: "Full methodology document (METHODOLOGY.md), reviewed by the Stockholm Environment Institute", url: "https://github.com/berget-ai/co2-calculator/blob/main/METHODOLOGY.md" },
+            { label: "Open-source calculator library (@berget/co2-calculator)", url: "https://github.com/berget-ai/co2-emissions-calculator" },
+          ]}
+        />
       </Section>
 
-      {/* ═══ §6 THE ASK ═══ */}
+      {/* ═══ THE ASK ═══ */}
       <Section id="the-standard">
         <div style={prose.kicker}>The standard we propose</div>
         <h2 style={prose.h2}>Adopt this. Demand this.</h2>
@@ -342,8 +407,6 @@ const result = calculateInference({
   outputTokens: ${model?.defaultOutputTokens},
   concurrency: ${state.concurrency},
   hourOfDay: 14,
-  includeTraining: true,
-  lifetimeQueries: ${state.lifetimeQueries.toLocaleString()},
 });
 
 // Total: ${result ? (result.totalCO2Grams < 1 ? (result.totalCO2Grams * 1000).toFixed(1) + " mg" : result.totalCO2Grams.toFixed(1) + " g") : "—"} CO₂e per request`}
@@ -397,6 +460,3 @@ const result = calculateInference({
     </article>
   );
 }
-
-// Re-export icons used by the header toggle for convenience
-export { BookOpen, Calculator };

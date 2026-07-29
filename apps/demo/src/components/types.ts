@@ -24,8 +24,6 @@ export type ModelProfile = {
   parameters: number;
   defaultInputTokens: number;
   defaultOutputTokens: number;
-  totalTrainingCO2Grams: number;
-  trainingSource?: string;
   popularity?: { downloadsPerMonth: number };
 };
 
@@ -42,7 +40,6 @@ export type InferenceComponents = {
   datacenterOverhead: { co2Grams: number };
   embodiedGpu: { co2Grams: number };
   embodiedOther: { co2Grams: number };
-  trainingAmortised: { co2Grams: number };
 };
 
 export type InferenceResult = {
@@ -51,37 +48,22 @@ export type InferenceResult = {
   components: InferenceComponents;
 };
 
-export interface ModelComparison {
-  id: string;
-  name: string;
-  parameters: number;
-  totalCO2: number;
-  trainingCO2: number;
-  popularity: string;
-  popularityQueries: number;
-  lifetimeQueries: number;
-}
-
 export interface CalculatorState {
   modelCategory: string;
   selectedModel: string;
   region: string;
-  lifetimeQueries: number;
   gpuCondition: "new" | "refurbished";
   otherComputeCondition: "new" | "refurbished";
   concurrency: number;
-  includeTraining: boolean;
 }
 
 export interface CalculatorActions {
   setModelCategory: (v: string) => void;
   setSelectedModel: (v: string) => void;
   setRegion: (v: string) => void;
-  setLifetimeQueries: (v: number) => void;
   setGpuCondition: (v: "new" | "refurbished") => void;
   setOtherComputeCondition: (v: "new" | "refurbished") => void;
   setConcurrency: (v: number) => void;
-  setIncludeTraining: (v: boolean) => void;
 }
 
 // Everything the guide/wizard sections need, computed once in App.
@@ -90,6 +72,5 @@ export interface CalculatorDerived {
   model: ModelProfile | undefined;
   grid: GridRegion | undefined;
   result: InferenceResult | null;
-  modelComparisons: ModelComparison[];
   modelCategories: ModelCategories;
 }

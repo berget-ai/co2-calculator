@@ -7,18 +7,16 @@ import {
   MODEL_PROFILES,
   HARDWARE_CONFIGS,
   GRID_REGIONS,
-  getEstimatedLifetimeQueries,
 } from "@berget/co2-calculator";
 import { useModelData, mergeModelData } from "./hooks/useModelData";
 import { C, COMPONENT_COLORS, formatCO2, Card, SourceCitation } from "./components/shared";
 import { CategoryModelPicker } from "./components/CategoryModelPicker";
 import { RegionPicker } from "./components/RegionPicker";
-import { TrainingExplorer } from "./components/TrainingExplorer";
 import { HardwarePicker } from "./components/HardwarePicker";
 import { ResultsPanel } from "./components/ResultsPanel";
 import { ApiResponseBlock } from "./components/ApiResponseBlock";
 import { GuideMode } from "./components/GuideMode";
-import type { CalculatorActions, CalculatorDerived, CalculatorState, ModelCategories, ModelComparison, InferenceResult } from "./components/types";
+import type { CalculatorActions, CalculatorDerived, CalculatorState, ModelCategories, InferenceResult } from "./components/types";
 
 const MODEL_CATEGORIES: ModelCategories = {
   popular: {
@@ -68,20 +66,6 @@ const MODEL_CATEGORIES: ModelCategories = {
   },
 };
 
-// ─── Model Popularity Data (from Hugging Face) ───
-const getModelPopularity = (modelId: string): { queries: number; label: string } => {
-  const profile = MODEL_PROFILES[modelId];
-  if (!profile?.popularity) return { queries: 0, label: "Unknown" };
-
-  const downloads = profile.popularity.downloadsPerMonth;
-  const estimatedQueries = downloads * 10; // Rough estimate: 10 queries per download
-
-  if (estimatedQueries > 50_000_000) return { queries: estimatedQueries, label: "Very Popular" };
-  if (estimatedQueries > 10_000_000) return { queries: estimatedQueries, label: "Popular" };
-  if (estimatedQueries > 1_000_000) return { queries: estimatedQueries, label: "Growing" };
-  return { queries: estimatedQueries, label: "Niche" };
-};
-
 function StepIndicator({ step, total }: { step: number; total: number }) {
   return (
     <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
@@ -111,17 +95,21 @@ function getInitialMode(): Mode {
   return "guide";
 }
 
+// The calculation always runs on operational + hardware emissions only.
+// Training is excluded app-wide: the figures are self-reported and carry
+// ±50% uncertainty, which would undermine the credibility of the total.
+const INCLUDE_TRAINING = false;
+const LIFETIME_QUERIES = 0; // unused when training is excluded
+
 export function CO2Calculator() {
   const [mode, setMode] = useState<Mode>(getInitialMode);
   const [step, setStep] = useState(1);
   const [modelCategory, setModelCategory] = useState("popular");
   const [selectedModel, setSelectedModel] = useState(MODEL_CATEGORIES.popular.defaultModel);
   const [region, setRegion] = useState("usa");
-  const [lifetimeQueries, setLifetimeQueries] = useState(100_000_000);
   const [gpuCondition, setGpuCondition] = useState<"new" | "refurbished">("new");
   const [otherComputeCondition, setOtherComputeCondition] = useState<"new" | "refurbished">("new");
   const [concurrency, setConcurrency] = useState(8);
-  const [includeTraining, setIncludeTraining] = useState(false);
 
   // Sync mode to URL hash for shareability
   useEffect(() => {
@@ -161,62 +149,16 @@ export function CO2Calculator() {
       outputTokens: model.defaultOutputTokens,
       concurrency,
       hourOfDay: 14,
-      includeTraining,
-      lifetimeQueries,
+      includeTraining: INCLUDE_TRAINING,
+      lifetimeQueries: LIFETIME_QUERIES,
     }) as InferenceResult;
-  }, [model, grid, gpuCondition, otherComputeCondition, category, concurrency, lifetimeQueries, includeTraining]);
+  }, [model, grid, gpuCondition, otherComputeCondition, category, concurrency]);
 
-  // Calculate results for all models in current category for comparison
-  const modelComparisons: ModelComparison[] = useMemo(() => {
-    if (!grid) return [];
-    const hw = {
-      ...HARDWARE_CONFIGS.h200,
-      embodiedPerGpuKg: gpuCondition === "refurbished" ? 0 : HARDWARE_CONFIGS.h200.embodiedPerGpuKg,
-      otherComputeEmbodiedKg: otherComputeCondition === "refurbished" ? 0 : HARDWARE_CONFIGS.h200.otherComputeEmbodiedKg,
-    };
-
-    return category.models
-      .map((m) => {
-        const profile = allModels[m.id];
-        if (!profile) return null;
-
-        // Each model has its own fixed lifetime based on real usage data
-        const modelLifetimeQueries = getEstimatedLifetimeQueries(m.id);
-
-        const res = calculateInference({
-          modelProfile: profile,
-          hardware: hw,
-          deploymentGrid: grid,
-          measuredResponseTimeSeconds: category.responseTime,
-          inputTokens: profile.defaultInputTokens,
-          outputTokens: profile.defaultOutputTokens,
-          concurrency,
-          hourOfDay: 14,
-          includeTraining,
-          lifetimeQueries: modelLifetimeQueries,
-        });
-
-        const popularity = getModelPopularity(m.id);
-
-        return {
-          id: m.id,
-          name: m.name,
-          parameters: profile.parameters,
-          totalCO2: res.totalCO2Grams,
-          trainingCO2: res.components.trainingAmortised.co2Grams,
-          popularity: popularity?.label || "Unknown",
-          popularityQueries: popularity?.queries || 0,
-          lifetimeQueries: modelLifetimeQueries,
-        };
-      })
-      .filter(Boolean) as ModelComparison[];
-  }, [grid, gpuCondition, otherComputeCondition, category, concurrency, includeTraining, allModels]);
-
-  const totalSteps = 7;
+  const totalSteps = 5;
 
   // Navigation handlers
   const canGoBack = step > 1;
-  const canGoNext = step < 7;
+  const canGoNext = step < totalSteps;
 
   const goBack = () => canGoBack && setStep(step - 1);
   const goNext = () => canGoNext && setStep(step + 1);
@@ -225,12 +167,10 @@ export function CO2Calculator() {
     setModelCategory(key);
     const cat = MODEL_CATEGORIES[key];
     setSelectedModel(cat.defaultModel);
-    setLifetimeQueries(getEstimatedLifetimeQueries(cat.defaultModel));
   };
 
   const handleModelSelect = (id: string) => {
     setSelectedModel(id);
-    setLifetimeQueries(getEstimatedLifetimeQueries(id));
   };
 
   const handleReset = () => {
@@ -241,25 +181,21 @@ export function CO2Calculator() {
     setGpuCondition("new");
     setOtherComputeCondition("new");
     setConcurrency(8);
-    setLifetimeQueries(100_000_000);
-    setIncludeTraining(false);
   };
 
   // Shared state/actions/derived bundles for both modes
   const state: CalculatorState = {
-    modelCategory, selectedModel, region, lifetimeQueries,
-    gpuCondition, otherComputeCondition, concurrency, includeTraining,
+    modelCategory, selectedModel, region,
+    gpuCondition, otherComputeCondition, concurrency,
   };
 
   const actions: CalculatorActions = {
     setModelCategory: handleCategoryChange,
     setSelectedModel: handleModelSelect,
     setRegion,
-    setLifetimeQueries,
     setGpuCondition,
     setOtherComputeCondition,
     setConcurrency,
-    setIncludeTraining,
   };
 
   const derived: CalculatorDerived = {
@@ -267,7 +203,6 @@ export function CO2Calculator() {
     model,
     grid,
     result,
-    modelComparisons,
     modelCategories: MODEL_CATEGORIES,
   };
 
@@ -386,32 +321,8 @@ export function CO2Calculator() {
               </div>
             )}
 
-            {/* STEP 3: Training vs Inference */}
+            {/* STEP 3: Hardware */}
             {step === 3 && (
-              <div>
-                <h1 style={{ fontSize: "1.75rem", fontWeight: 700, color: C.peak, marginBottom: "0.5rem" }}>
-                  The Training Cost
-                </h1>
-                <p style={{ color: C.muted, marginBottom: "1.5rem" }}>Training happens once. Inference happens billions of times.</p>
-
-                <TrainingExplorer
-                  model={model}
-                  result={result}
-                  lifetimeQueries={lifetimeQueries}
-                  includeTraining={includeTraining}
-                  onIncludeTrainingChange={setIncludeTraining}
-                  modelComparisons={modelComparisons}
-                  selectedModel={selectedModel}
-                  onModelSelect={(id, lq) => {
-                    setSelectedModel(id);
-                    setLifetimeQueries(lq);
-                  }}
-                />
-              </div>
-            )}
-
-            {/* STEP 4: Hardware */}
-            {step === 4 && (
               <div>
                 <h1 style={{ fontSize: "1.75rem", fontWeight: 700, color: C.peak, marginBottom: "0.5rem" }}>Hardware</h1>
                 <p style={{ color: C.muted, marginBottom: "1.5rem" }}>GPU and supporting infrastructure — new or refurbished?</p>
@@ -427,87 +338,20 @@ export function CO2Calculator() {
               </div>
             )}
 
-            {/* STEP 5: Results */}
-            {step === 5 && result && (
+            {/* STEP 4: Results */}
+            {step === 4 && result && (
               <div>
                 <h1 style={{ fontSize: "1.75rem", fontWeight: 700, color: C.peak, marginBottom: "0.5rem" }}>
                   Your Carbon Footprint
                 </h1>
                 <p style={{ color: C.muted, marginBottom: "1.5rem" }}>Complete breakdown per request</p>
 
-                <ResultsPanel
-                  result={result}
-                  model={model}
-                  grid={grid}
-                  lifetimeQueries={lifetimeQueries}
-                  includeTraining={includeTraining}
-                  onIncludeTrainingChange={setIncludeTraining}
-                />
+                <ResultsPanel result={result} model={model} grid={grid} />
               </div>
             )}
 
-            {/* STEP 6: Why the Difference */}
-            {step === 6 && (
-              <div>
-                <h1 style={{ fontSize: "1.75rem", fontWeight: 700, color: C.peak, marginBottom: "0.5rem" }}>
-                  Why the Difference?
-                </h1>
-                <p style={{ color: C.muted, marginBottom: "1.5rem" }}>Understanding what drives emissions</p>
-
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                  <Card>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
-                      <Zap size={24} strokeWidth={1.5} style={{ color: C.peak }} />
-                      <div style={{ fontWeight: 600, color: C.peak }}>Grid Carbon Intensity</div>
-                    </div>
-                    <p style={{ fontSize: "0.875rem", color: C.muted, margin: 0 }}>
-                      Sweden: 8 g/kWh (hydro + nuclear) vs Texas: 420 g/kWh (gas + coal). Same GPU, same work, 50×
-                      difference in emissions.
-                    </p>
-                    <SourceCitation source="IEA 2024 / EPA eGRID 2023" url="https://www.iea.org/data-and-statistics" />
-                  </Card>
-
-                  <Card>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
-                      <Snowflake size={24} strokeWidth={1.5} style={{ color: C.peak }} />
-                      <div style={{ fontWeight: 600, color: C.peak }}>Cooling</div>
-                    </div>
-                    <p style={{ fontSize: "0.875rem", color: C.muted, margin: 0 }}>
-                      Cold climates use free-air cooling (PUE 1.15). Hot climates need energy-intensive mechanical cooling
-                      (PUE 1.80). That's 57% more energy just for cooling.
-                    </p>
-                    <SourceCitation source="Uptime Institute 2024" url="https://uptimeinstitute.com/resources/research-and-reports" />
-                  </Card>
-
-                  <Card>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
-                      <Droplets size={24} strokeWidth={1.5} style={{ color: C.peak }} />
-                      <div style={{ fontWeight: 600, color: C.peak }}>Water Usage</div>
-                    </div>
-                    <p style={{ fontSize: "0.875rem", color: C.muted, margin: 0 }}>
-                      Nordic datacenters use zero water. Evaporative cooling in hot/dry climates can consume 1.5-2.0
-                      liters per kWh. At scale, that's millions of liters per day.
-                    </p>
-                    <SourceCitation source="Nature 2021 / US DOE" url="https://www.nature.com/articles/s41586-021-03439-8" />
-                  </Card>
-
-                  <Card>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
-                      <Recycle size={24} strokeWidth={1.5} style={{ color: C.peak }} />
-                      <div style={{ fontWeight: 600, color: C.peak }}>Hardware Lifecycle</div>
-                    </div>
-                    <p style={{ fontSize: "0.875rem", color: C.muted, margin: 0 }}>
-                      Manufacturing a GPU creates ~1 ton of CO₂. New hardware amortizes this over its lifetime.
-                      Refurbished hardware has zero embodied carbon since it was already manufactured.
-                    </p>
-                    <SourceCitation source="NVIDIA HGX PCF / Supermicro LCA" />
-                  </Card>
-                </div>
-              </div>
-            )}
-
-            {/* STEP 7: What now? */}
-            {step === 7 && (
+            {/* STEP 5: What now? */}
+            {step === 5 && (
               <div>
                 <h1 style={{ fontSize: "1.75rem", fontWeight: 700, color: C.peak, marginBottom: "0.5rem" }}>What Now?</h1>
                 <p style={{ color: C.muted, marginBottom: "1.5rem" }}>Start measuring CO₂ in every LLM call</p>
@@ -573,8 +417,6 @@ const result = calculateInference({
   outputTokens: ${model?.defaultOutputTokens},
   concurrency: ${concurrency},
   hourOfDay: 14,
-  includeTraining: true,
-  lifetimeQueries: ${lifetimeQueries.toLocaleString()},
 });
 
 // Total: ${formatCO2(result?.totalCO2Grams || 0)} CO₂e per request`}
@@ -635,12 +477,12 @@ const result = calculateInference({
         mode={mode}
         step={step}
         result={result}
-        includeTraining={includeTraining}
         onBack={goBack}
         onNext={goNext}
         onReset={handleReset}
         canGoBack={canGoBack}
         canGoNext={canGoNext}
+        totalSteps={totalSteps}
       />
     </div>
   );
@@ -651,22 +493,22 @@ function EmissionsFooter({
   mode,
   step,
   result,
-  includeTraining,
   onBack,
   onNext,
   onReset,
   canGoBack,
   canGoNext,
+  totalSteps,
 }: {
   mode: Mode;
   step: number;
   result: InferenceResult | null;
-  includeTraining: boolean;
   onBack: () => void;
   onNext: () => void;
   onReset: () => void;
   canGoBack: boolean;
   canGoNext: boolean;
+  totalSteps: number;
 }) {
   if (!result) return null;
 
@@ -697,26 +539,15 @@ function EmissionsFooter({
       value: result.components.embodiedGpu.co2Grams,
       color: COMPONENT_COLORS.embodied.bg,
       label: `GPU${result.components.embodiedGpu.co2Grams === 0 ? " (0)" : ""}`,
-      step: 4,
+      step: 3,
     },
     {
       key: "embodiedOther",
       value: result.components.embodiedOther.co2Grams,
       color: COMPONENT_COLORS.embodied.bg,
       label: `Infra${result.components.embodiedOther.co2Grams === 0 ? " (0)" : ""}`,
-      step: 4,
+      step: 3,
     },
-    ...(includeTraining
-      ? [
-          {
-            key: "training",
-            value: result.components.trainingAmortised.co2Grams,
-            color: COMPONENT_COLORS.training.bg,
-            label: COMPONENT_COLORS.training.label,
-            step: 3,
-          },
-        ]
-      : []),
   ];
 
   const total = result.totalCO2Grams;
@@ -833,13 +664,13 @@ function EmissionsFooter({
             style={{
               fontSize: "1.1rem",
               fontWeight: 700,
-              color: step === 6 && !isGuide ? C.stone : C.peak,
+              color: step === 4 && !isGuide ? C.stone : C.peak,
               fontFamily: "var(--berget-font-mono, 'DM Mono', monospace)",
               whiteSpace: "nowrap",
               minWidth: 80,
             }}
           >
-            {formatCO2(isGuide || step === 7 ? total : currentTotal)}
+            {formatCO2(isGuide || step === totalSteps ? total : currentTotal)}
           </div>
 
           {/* Navigation Buttons — wizard mode only */}
@@ -864,22 +695,22 @@ function EmissionsFooter({
                 ← Back
               </button>
               <button
-                onClick={step === 7 ? onReset : onNext}
-                disabled={!canGoNext && step !== 7}
+                onClick={step === totalSteps ? onReset : onNext}
+                disabled={!canGoNext && step !== totalSteps}
                 style={{
                   flex: 2,
                   padding: "0.75rem",
                   borderRadius: 8,
-                  background: step === 7 || canGoNext ? "hsl(45 15% 88%)" : "rgba(229, 221, 213, 0.2)",
-                  color: step === 7 || canGoNext ? "#0A0A0A" : "rgba(255,255,255,0.3)",
+                  background: step === totalSteps || canGoNext ? "hsl(45 15% 88%)" : "rgba(229, 221, 213, 0.2)",
+                  color: step === totalSteps || canGoNext ? "#0A0A0A" : "rgba(255,255,255,0.3)",
                   border: "none",
-                  cursor: step === 7 || canGoNext ? "pointer" : "not-allowed",
+                  cursor: step === totalSteps || canGoNext ? "pointer" : "not-allowed",
                   fontSize: "0.875rem",
                   fontWeight: 600,
                   transition: "all 0.2s",
                 }}
               >
-                {step === 7 ? "Start Over ↺" : "Next →"}
+                {step === totalSteps ? "Start Over ↺" : "Next →"}
               </button>
             </div>
           )}
