@@ -2,6 +2,7 @@ import { Code, Globe, Wrench } from "lucide-react";
 import { CategoryModelPicker } from "./CategoryModelPicker";
 import { RegionPicker } from "./RegionPicker";
 import { HardwarePicker } from "./HardwarePicker";
+import { ConcurrencyTimeExplorer } from "./ConcurrencyTimeExplorer";
 import { ResultsPanel } from "./ResultsPanel";
 import { ApiResponseBlock } from "./ApiResponseBlock";
 import { MethodPanel } from "./MethodPanel";
@@ -203,14 +204,23 @@ export function GuideMode({
           Context length matters the same way: a long prompt means more tokens to process, and a long conversation
           makes the KV cache grow — more memory reads, more time on the GPU. A cached prompt (a prefix the model has
           already processed) skips most of that work, which is why cached queries are dramatically cheaper in both
-          latency and emissions. And concurrency — the slider you'll meet in §3 — decides how many queries split the
-          fixed cost of keeping the servers running.
+          latency and emissions. And concurrency decides how many queries split the fixed cost of keeping the servers
+          running. Try it: here's roughly how long your request occupies the GPU, and how sharing the node changes it.
         </p>
+        <InteractiveFrame label="request length & sharing">
+          <ConcurrencyTimeExplorer
+            category={category}
+            model={model}
+            concurrency={state.concurrency}
+            onConcurrencyChange={actions.setConcurrency}
+          />
+        </InteractiveFrame>
         <MethodPanel
           assumptions={[
             "We treat GPU-seconds per query as the fundamental unit: everything else (model size, context, cache) is a means to estimate it.",
             "A KV cache and activations add ~20% memory overhead on top of the raw model weights.",
             "Cached prompts are modeled as cheaper, because re-processing a cached prefix is mostly skipped.",
+            "Request length scales sub-linearly with tokens (√token ratio) and grows slightly with concurrency (logarithmic delay above 8 concurrent users).",
             "Model parameters and usage figures are refreshed from public sources (EcoLogits, Hugging Face, OpenRouter).",
           ]}
           reasoning="Rather than inventing per-model energy figures, we lean on published model cards and independent measurement projects, then scale by the actual time a query occupies the GPU. Two models of the same size can still differ — architecture, quantization and serving efficiency matter — so we treat per-model data as the best available estimate, not ground truth."
@@ -312,10 +322,8 @@ export function GuideMode({
           <HardwarePicker
             gpuCondition={state.gpuCondition}
             otherComputeCondition={state.otherComputeCondition}
-            concurrency={state.concurrency}
             onGpuConditionChange={actions.setGpuCondition}
             onOtherComputeConditionChange={actions.setOtherComputeCondition}
-            onConcurrencyChange={actions.setConcurrency}
           />
         </InteractiveFrame>
         <MethodPanel
@@ -325,7 +333,7 @@ export function GuideMode({
             "Refurbished hardware is counted as zero embodied carbon — the manufacturing emissions are already spent.",
             "Per-GPU figures carry ±30–50% uncertainty: NVIDIA/AMD don't publish per-GPU LCAs, so we derive them from server-level reports.",
           ]}
-          reasoning="Manufacturing dominates lifecycle emissions for datacenter hardware, so embodied carbon can't be ignored despite the uncertainty. We estimate it with life-cycle assessment: manufacturer product-carbon-footprint data at the server level, disaggregated per component. The concurrency slider reflects a simple truth — a busy server divides its fixed costs across more work, so utilization is one of the cheapest emissions levers. And because older hardware has already amortized much of its footprint, right-sizing a model to mature hardware is often the single biggest saving available."
+          reasoning="Manufacturing dominates lifecycle emissions for datacenter hardware, so embodied carbon can't be ignored despite the uncertainty. We estimate it with life-cycle assessment: manufacturer product-carbon-footprint data at the server level, disaggregated per component. And because older hardware has already amortized much of its footprint, right-sizing a model to mature hardware is often the single biggest saving available."
           sources={[
             { label: "NVIDIA (2024) — HGX H100 Product Carbon Footprint Summary", url: "https://images.nvidia.com/aem-dam/Solutions/documents/HGX-H100-PCF-Summary.pdf" },
             { label: "Dell Technologies (2023) — Life Cycle Assessment of PowerEdge servers (R750: 2,181–3,880 kg embodied)" },

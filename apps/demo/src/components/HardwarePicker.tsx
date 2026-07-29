@@ -5,19 +5,15 @@ import { C, Card, formatCO2 } from "./shared";
 interface Props {
   gpuCondition: "new" | "refurbished";
   otherComputeCondition: "new" | "refurbished";
-  concurrency: number;
   onGpuConditionChange: (v: "new" | "refurbished") => void;
   onOtherComputeConditionChange: (v: "new" | "refurbished") => void;
-  onConcurrencyChange: (v: number) => void;
 }
 
 export function HardwarePicker({
   gpuCondition,
   otherComputeCondition,
-  concurrency,
   onGpuConditionChange,
   onOtherComputeConditionChange,
-  onConcurrencyChange,
 }: Props) {
   return (
     <div>
@@ -77,27 +73,6 @@ export function HardwarePicker({
           </Card>
         </div>
       </div>
-
-      <Card>
-        <div style={{ marginBottom: "1rem" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem" }}>
-            <span style={{ color: C.peak, fontWeight: 600 }}>Concurrent Requests</span>
-            <span style={{ color: C.moss }}>{concurrency}</span>
-          </div>
-          <input
-            type="range"
-            min={1}
-            max={64}
-            step={1}
-            value={concurrency}
-            onChange={(e) => onConcurrencyChange(Number(e.target.value))}
-            style={{ width: "100%" }}
-          />
-          <div style={{ fontSize: "0.75rem", color: C.muted, marginTop: "0.25rem" }}>
-            More concurrent requests = lower cost per request (shared infrastructure)
-          </div>
-        </div>
-      </Card>
     </div>
   );
 }
