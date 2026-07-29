@@ -139,14 +139,12 @@ export function GuideMode({
           AI's environmental footprint is real, and our industry has a responsibility to own it. But responsibility
           starts with measurement. Today, a developer choosing between two models or two providers has no way to compare
           their climate impact — not because the physics is unknowable, but because almost nobody publishes the numbers.
+          And when numbers do appear, they're calculated differently every time, so anyone can pick the boundary that
+          makes them look best. Comparability isn't a nice-to-have; it's the whole game.
         </p>
         <p style={prose.p}>
-          And when numbers do appear, they're calculated differently every time. Without a shared methodology, anyone
-          can pick the boundary that makes them look best. Comparability isn't a nice-to-have; it's the whole game.
-        </p>
-        <p style={prose.p}>
-          That's why we built this: an open attempt to both simplify and standardize the calculation. And just as every
-          API response already reports tokens, we believe it should report CO₂ — as close to the true cost as physics
+          That's why we built this: an open attempt to both simplify and standardize the calculation. Just as every API
+          response already reports tokens, we believe it should report CO₂ — as close to the true cost as physics
           allows. Here's how we do it.
         </p>
         <MethodPanel
@@ -189,23 +187,15 @@ export function GuideMode({
         <p style={prose.p}>
           Under the hood, though, the model is mostly a means to an end. What the footprint really comes down to is
           simpler: <strong>how many seconds your query occupies the infrastructure, and how many other users share it at
-          the same time.</strong> Model size, context length and whether the prompt is cached all feed into that single
-          number — GPU-seconds per query.
+          the same time.</strong> Everything else — model size, context length, caching — is just a means to estimate
+          that one number: GPU-seconds per query.
         </p>
         <p style={prose.p}>
-          Model size sets the floor for how much hardware is even required. A model has to fit in GPU memory to run at
-          all: its weights (parameter count × bytes per parameter, lower when quantized) plus roughly 20% extra for the
-          KV cache and activations. A small, quantized model fits on a single card; a trillion-parameter model must be
-          spread across several GPUs working in parallel — and every one of those GPUs then draws power for the full
-          duration of your query. So size doesn't just make each query slower; it multiplies how much hardware is
-          occupied while it runs.
-        </p>
-        <p style={prose.p}>
-          Context length matters the same way: a long prompt means more tokens to process, and a long conversation
-          makes the KV cache grow — more memory reads, more time on the GPU. A cached prompt (a prefix the model has
-          already processed) skips most of that work, which is why cached queries are dramatically cheaper in both
-          latency and emissions. And concurrency decides how many queries split the fixed cost of keeping the servers
-          running. Try it: here's roughly how long your request occupies the GPU, and how sharing the node changes it.
+          Size sets the floor: a model must fit in GPU memory (weights, plus ~20% for the KV cache), so a trillion-parameter
+          model occupies several GPUs at once while a small quantized one fits on a single card. Context length and cache
+          then stretch or shrink the time: long prompts mean more tokens and a growing KV cache, while a cached prefix
+          lets the model skip most of that work. And concurrency decides how many queries split the fixed cost of the
+          servers. Try it — here's roughly how long your request occupies the GPU, and how sharing the node changes it.
         </p>
         <InteractiveFrame label="request length & sharing">
           <ConcurrencyTimeExplorer
@@ -273,17 +263,16 @@ export function GuideMode({
         <p style={prose.p}>
           Servers don't just consume power for computation — they consume power to get rid of the heat that computation
           generates. That overhead is captured by <strong>PUE (Power Usage Effectiveness)</strong>: the ratio of total
-          facility energy to the energy that actually reaches the IT equipment. A PUE of 1.15 means 15% of the energy
-          goes to cooling and other overhead; a PUE of 2.0 means the cooling uses as much energy as the servers
-          themselves.
+          facility energy to the energy that actually reaches the IT equipment. The lower the PUE, the less energy is
+          wasted on overhead.
         </p>
         <p style={prose.p}>
           And this is where geography really bites. In a cold Nordic climate you can cool with outside air for most of
           the year — fans and filters, essentially — reaching a PUE around 1.15 with <em>zero water</em>. In a hot or
           humid climate that free lunch disappears: you need energy-intensive mechanical chillers, pushing PUE toward
           1.80, and the most common approach — evaporative cooling — consumes up to 2 liters of water per kWh. Same
-          model, same query, but a datacenter in Texas can spend over half again as much energy just staying cool, and
-          drain a scarce water supply doing it. Cooling isn't a footnote; it's a first-order difference.
+          model, same query, but a datacenter in Texas can use ~57% more energy just staying cool, and drain a scarce
+          water supply doing it. Cooling isn't a footnote; it's a first-order difference.
         </p>
         <MethodPanel
           assumptions={[
@@ -360,7 +349,8 @@ export function GuideMode({
         <MethodPanel
           assumptions={[
             "The total is the sum of the components above — no hidden factors.",
-            "The coffee comparison anchors to an 800W microwave and Sweden's 8 g/kWh grid.",
+            "Training is excluded throughout: provider figures are self-reported and vary by ±50%, so including them would make the headline number the least verifiable part of the result. We show only operational + hardware emissions, which we can stand behind.",
+            "The coffee comparison anchors to an 800W microwave; the Germany contrast applies the grid ratio only to the energy part, since embodied hardware emissions are location-independent.",
             "Water usage reflects the cooling model for the selected region.",
           ]}
           reasoning="We'd rather show a number you can interrogate than one you have to trust. Every component is visible in the breakdown, every assumption is listed in these panels, and the full derivation is in the open methodology document. If a figure looks wrong, you can trace exactly where it came from."
@@ -408,7 +398,7 @@ export function GuideMode({
         <h2 style={prose.h2}>Adopt this. Demand this.</h2>
         <p style={prose.p}>
           If you build on AI APIs: ask your provider for <code>co2_grams</code> in every response. If you provide them:
-          the method and the code above are open — use them, scrutinize them, improve them. Consumers can only make
+          the method and the code above are open — use them, scrutinize them, improve them. Your users can only make
           responsible choices when the numbers are on the table.
         </p>
 

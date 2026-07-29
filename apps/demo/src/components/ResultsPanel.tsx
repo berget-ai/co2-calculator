@@ -64,7 +64,16 @@ export function ResultsPanel({ result, model, grid }: Props) {
             {model?.displayName} on {grid?.name}
           </div>
           <div style={{ fontSize: "0.75rem", color: C.moss, marginTop: "0.5rem", fontStyle: "italic" }}>
-            Operational + hardware emissions. Training excluded (too uncertain — see methodology).
+            Operational + hardware emissions. Training excluded (too uncertain —{" "}
+            <a
+              href="https://github.com/berget-ai/co2-calculator/blob/main/METHODOLOGY.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: C.moss, textDecoration: "underline" }}
+            >
+              see methodology
+            </a>
+            ).
           </div>
         </div>
       </div>
@@ -89,6 +98,19 @@ export function ResultsPanel({ result, model, grid }: Props) {
           // Sweden: 0.03 kWh × 8 g/kWh = 0.24g CO₂
           const coffeeCO2PerSecond = 0.24 / 120; // grams CO2 per second of microwaving in Sweden
           const seconds = result.totalCO2Grams / coffeeCO2PerSecond;
+
+          // The grid-intensity multiplier applies only to the operational
+          // (energy) part of the footprint. Embodied hardware emissions are
+          // location-independent, so scaling the whole total by the grid
+          // ratio would overstate the difference.
+          const operational =
+            result.components.gpuOperational.co2Grams +
+            result.components.serverOperational.co2Grams +
+            result.components.datacenterOverhead.co2Grams;
+          const germanyRatio = 380 / 8;
+          const operationalOnGermany = operational * germanyRatio;
+          const germanySeconds = operationalOnGermany / coffeeCO2PerSecond;
+          const germanyMultiple = operational > 0 ? (operationalOnGermany / operational).toFixed(0) : "—";
 
           return (
             <div>
@@ -136,8 +158,10 @@ export function ResultsPanel({ result, model, grid }: Props) {
                   color: C.muted,
                 }}
               >
-                <strong style={{ color: C.peak }}>Context:</strong> Sweden's grid is 8 g/kWh (hydro + nuclear). In Germany
-                (380 g/kWh), the same AI request would equal {Math.round(seconds * (380 / 8))} seconds of microwaving.
+                <strong style={{ color: C.peak }}>Context:</strong> Sweden's grid is 8 g/kWh (hydro + nuclear); Germany's
+                is 380. The <em>energy</em> part of this request would emit ~{germanyMultiple}× more on the German grid
+                {operational > 0 ? ` (≈${Math.round(germanySeconds)}s of microwaving)` : ""} — the hardware part is the
+                same anywhere.
               </div>
             </div>
           );
