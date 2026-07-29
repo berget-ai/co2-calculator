@@ -343,6 +343,37 @@ export function GuideMode({
         />
       </Section>
 
+      {/* ═══ VERIFICATION ═══ */}
+      <Section id="the-verification">
+        <div style={prose.kicker}>Reality check</div>
+        <h2 style={prose.h2}>How do we verify these numbers are correct?</h2>
+        <p style={prose.p}>
+          Models are only useful if they're checked against reality. Because Berget AI owns its own hardware and
+          networking equipment — and isn't dependent on external cloud providers — we can measure, with high precision,
+          how much CO₂ our infrastructure actually emits each day. That lets us compare the totals reported through our
+          APIs against real, metered consumption, and validate our assumptions against the physical world.
+        </p>
+        <p style={prose.p}>
+          Doing that reconciliation in real time is hard, though. A full month's total emissions only become clear after
+          the fact, and they then have to be allocated back across every individual request made during that period. So
+          we run this revision continuously, refining the model as the metered data comes in. And because most teams
+          don't own their hardware the way we do, we share the code openly — so others can verify, adapt and improve it
+          for their own circumstances.
+        </p>
+        <MethodPanel
+          assumptions={[
+            "Continuous reconciliation against metered consumption is more practical than real-time per-request verification.",
+            "Monthly totals are allocated back across individual requests after the fact.",
+            "Berget AI owns and operates its own hardware and networking, so true consumption is directly measurable.",
+          ]}
+          reasoning="The calculator is a model, and any model can drift. Owning the hardware means we don't have to trust a cloud provider's estimate — we can read the meters. The gap between reported and measured emissions tells us whether our assumptions (PUE, idle draw, utilization) hold, and lets us tighten them over time. Open-sourcing the method is the point: verification shouldn't require owning a datacenter."
+          sources={[
+            { label: "Open-source calculator library (@berget/co2-calculator)", url: "https://github.com/berget-ai/co2-emissions-calculator" },
+            { label: "Full methodology document (METHODOLOGY.md), reviewed by the Stockholm Environment Institute", url: "https://github.com/berget-ai/co2-calculator/blob/main/METHODOLOGY.md" },
+          ]}
+        />
+      </Section>
+
       {/* ═══ THE ASK ═══ */}
       <Section id="the-standard">
         <div style={prose.kicker}>The standard we propose</div>
