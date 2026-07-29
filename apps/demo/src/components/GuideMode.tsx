@@ -208,11 +208,19 @@ export function GuideMode({
           number — GPU-seconds per query.
         </p>
         <p style={prose.p}>
-          Context length matters because a long prompt means more tokens to process, and a long conversation makes the
-          KV cache grow — more memory reads, more time on the GPU. A cached prompt (a prefix the model has already
-          processed) skips most of that work, which is why cached queries are dramatically cheaper in both latency and
-          emissions. And concurrency — the slider you'll meet in §3 — decides how many queries split the fixed cost of
-          keeping the servers running.
+          Model size sets the floor for how much hardware is even required. A model has to fit in GPU memory to run at
+          all: its weights (parameter count × bytes per parameter, lower when quantized) plus roughly 20% extra for the
+          KV cache and activations. A small, quantized model fits on a single card; a trillion-parameter model must be
+          spread across several GPUs working in parallel — and every one of those GPUs then draws power for the full
+          duration of your query. So size doesn't just make each query slower; it multiplies how much hardware is
+          occupied while it runs.
+        </p>
+        <p style={prose.p}>
+          Context length matters the same way: a long prompt means more tokens to process, and a long conversation
+          makes the KV cache grow — more memory reads, more time on the GPU. A cached prompt (a prefix the model has
+          already processed) skips most of that work, which is why cached queries are dramatically cheaper in both
+          latency and emissions. And concurrency — the slider you'll meet in §3 — decides how many queries split the
+          fixed cost of keeping the servers running.
         </p>
         <MethodPanel
           assumptions={[
