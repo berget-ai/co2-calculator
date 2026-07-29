@@ -182,9 +182,11 @@ export function GuideMode({
         <div style={prose.kicker}>§1 · Where the numbers come from</div>
         <h2 style={prose.h2}>First, choose a model and a type of usage</h2>
         <p style={prose.p}>
-          Start with what you're actually doing. A quick chat reply and a long code analysis are very different jobs —
-          and the model you pick sets the scale of the work. Pick a use case and a model below, and watch the JSON at
-          the top — and the running total in the footer — update.
+          Every calculation needs a concrete starting point: a workload. We can't reason about "AI's footprint" in the
+          abstract — only about a specific model doing a specific job. So the example below asks you to supply one:
+          pick the use case closest to yours, then a model. A quick chat reply and a long code analysis are very
+          different jobs, and the model you choose sets the scale of the work. Watch the JSON at the top — and the
+          running total in the footer — update as you change it.
         </p>
         <InteractiveFrame label="pick a model and use case">
           <CategoryModelPicker
