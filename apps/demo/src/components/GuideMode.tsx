@@ -85,7 +85,7 @@ export function GuideMode({
             letterSpacing: "-0.02em",
           }}
         >
-          Stop hiding the CO₂ emissions from AI inference.
+          Stop hiding the CO₂ emissions from AI.
         </h1>
         <p style={{ ...prose.p, fontSize: "1.125rem" }}>
           This is what transparency looks like. We share our full methodology and code — so the industry can be more
