@@ -105,10 +105,10 @@ export function CO2Calculator() {
   const [mode, setMode] = useState<Mode>(getInitialMode);
   const [step, setStep] = useState(1);
   const [modelCategory, setModelCategory] = useState("popular");
-  const [selectedModel, setSelectedModel] = useState(MODEL_CATEGORIES.popular.defaultModel);
-  const [region, setRegion] = useState("usa");
+  const [selectedModel, setSelectedModel] = useState("google/gemma-4-31B-it");
+  const [region, setRegion] = useState("sweden");
   const [gpuCondition, setGpuCondition] = useState<"new" | "refurbished">("new");
-  const [otherComputeCondition, setOtherComputeCondition] = useState<"new" | "refurbished">("new");
+  const [otherComputeCondition, setOtherComputeCondition] = useState<"new" | "refurbished">("refurbished");
   const [concurrency, setConcurrency] = useState(8);
 
   // Sync mode to URL hash for shareability
@@ -176,10 +176,10 @@ export function CO2Calculator() {
   const handleReset = () => {
     setStep(1);
     setModelCategory("popular");
-    setSelectedModel(MODEL_CATEGORIES.popular.defaultModel);
-    setRegion("usa");
+    setSelectedModel("google/gemma-4-31B-it");
+    setRegion("sweden");
     setGpuCondition("new");
-    setOtherComputeCondition("new");
+    setOtherComputeCondition("refurbished");
     setConcurrency(8);
   };
 
