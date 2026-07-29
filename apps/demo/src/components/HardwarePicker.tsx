@@ -1,0 +1,103 @@
+import { Factory, Sparkles, Recycle } from "lucide-react";
+import { HARDWARE_CONFIGS } from "@berget/co2-calculator";
+import { C, Card, formatCO2 } from "./shared";
+
+interface Props {
+  gpuCondition: "new" | "refurbished";
+  otherComputeCondition: "new" | "refurbished";
+  concurrency: number;
+  onGpuConditionChange: (v: "new" | "refurbished") => void;
+  onOtherComputeConditionChange: (v: "new" | "refurbished") => void;
+  onConcurrencyChange: (v: number) => void;
+}
+
+export function HardwarePicker({
+  gpuCondition,
+  otherComputeCondition,
+  concurrency,
+  onGpuConditionChange,
+  onOtherComputeConditionChange,
+  onConcurrencyChange,
+}: Props) {
+  return (
+    <div>
+      {/* GPU Selection */}
+      <div style={{ marginBottom: "1.5rem" }}>
+        <div style={{ fontSize: "0.875rem", fontWeight: 600, color: C.peak, marginBottom: "0.75rem" }}>
+          GPU (NVIDIA H200 ×8)
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+          <Card selected={gpuCondition === "new"} onClick={() => onGpuConditionChange("new")}>
+            <div style={{ fontSize: "2rem", marginBottom: "0.5rem", color: C.peak }}>
+              <Sparkles size={32} strokeWidth={1.5} />
+            </div>
+            <div style={{ fontWeight: 600, color: C.peak }}>New GPU</div>
+            <div style={{ fontSize: "0.75rem", color: C.muted }}>Full embodied carbon</div>
+            <div style={{ fontSize: "0.875rem", color: C.danger, marginTop: "0.5rem" }}>
+              +{formatCO2(((HARDWARE_CONFIGS.h200.embodiedPerGpuKg * 1000) / (5 * 365 * 24 * 3600)) * 2)} per query
+            </div>
+          </Card>
+          <Card selected={gpuCondition === "refurbished"} onClick={() => onGpuConditionChange("refurbished")}>
+            <div style={{ fontSize: "2rem", marginBottom: "0.5rem", color: C.peak }}>
+              <Recycle size={32} strokeWidth={1.5} />
+            </div>
+            <div style={{ fontWeight: 600, color: C.peak }}>Refurbished GPU</div>
+            <div style={{ fontSize: "0.75rem", color: C.muted }}>Zero embodied carbon</div>
+            <div style={{ fontSize: "0.875rem", color: C.moss, marginTop: "0.5rem" }}>0 g per query</div>
+          </Card>
+        </div>
+      </div>
+
+      {/* Other Compute Selection */}
+      <div style={{ marginBottom: "1.5rem" }}>
+        <div style={{ fontSize: "0.875rem", fontWeight: 600, color: C.peak, marginBottom: "0.75rem" }}>
+          Other Compute (CPU, RAM, SSD, Network)
+        </div>
+        <div style={{ fontSize: "0.75rem", color: C.muted, marginBottom: "0.75rem" }}>
+          3× 1U servers + 2× firewalls + 2× switches
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+          <Card selected={otherComputeCondition === "new"} onClick={() => onOtherComputeConditionChange("new")}>
+            <div style={{ fontSize: "2rem", marginBottom: "0.5rem", color: C.peak }}>
+              <Factory size={32} strokeWidth={1.5} />
+            </div>
+            <div style={{ fontWeight: 600, color: C.peak }}>New Infrastructure</div>
+            <div style={{ fontSize: "0.75rem", color: C.muted }}>Full embodied carbon</div>
+            <div style={{ fontSize: "0.875rem", color: C.danger, marginTop: "0.5rem" }}>
+              +{formatCO2((HARDWARE_CONFIGS.h200.otherComputeEmbodiedKg * 1000) / (5 * 365 * 24 * 3600) / 8)} per query
+            </div>
+          </Card>
+          <Card selected={otherComputeCondition === "refurbished"} onClick={() => onOtherComputeConditionChange("refurbished")}>
+            <div style={{ fontSize: "2rem", marginBottom: "0.5rem", color: C.peak }}>
+              <Recycle size={32} strokeWidth={1.5} />
+            </div>
+            <div style={{ fontWeight: 600, color: C.peak }}>Refurbished Infrastructure</div>
+            <div style={{ fontSize: "0.75rem", color: C.muted }}>Zero embodied carbon</div>
+            <div style={{ fontSize: "0.875rem", color: C.moss, marginTop: "0.5rem" }}>0 g per query</div>
+          </Card>
+        </div>
+      </div>
+
+      <Card>
+        <div style={{ marginBottom: "1rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+            <span style={{ color: C.peak, fontWeight: 600 }}>Concurrent Requests</span>
+            <span style={{ color: C.moss }}>{concurrency}</span>
+          </div>
+          <input
+            type="range"
+            min={1}
+            max={64}
+            step={1}
+            value={concurrency}
+            onChange={(e) => onConcurrencyChange(Number(e.target.value))}
+            style={{ width: "100%" }}
+          />
+          <div style={{ fontSize: "0.75rem", color: C.muted, marginTop: "0.25rem" }}>
+            More concurrent requests = lower cost per request (shared infrastructure)
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
