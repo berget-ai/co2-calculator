@@ -324,7 +324,7 @@ export function GuideMode({
           model, same query, but a datacenter in Texas can use ~57% more energy just staying cool, and drain a scarce
           water supply doing it. Cooling isn't a footnote; it's a first-order difference.
         </p>
-        <InteractiveFrame label="two ways to cool a server">
+        <InteractiveFrame label="on the datacenter roof">
           <CoolingWaterChart grid={grid} />
         </InteractiveFrame>
         <MethodPanel
