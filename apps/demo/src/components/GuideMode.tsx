@@ -4,6 +4,7 @@ import { RegionPicker } from "./RegionPicker";
 import { HardwarePicker } from "./HardwarePicker";
 import { ConcurrencyTimeExplorer } from "./ConcurrencyTimeExplorer";
 import { ConcurrencyChart } from "./ConcurrencyChart";
+import { DailyLoadChart } from "./DailyLoadChart";
 import { ResultsPanel } from "./ResultsPanel";
 import { ApiResponseBlock } from "./ApiResponseBlock";
 import { MethodPanel } from "./MethodPanel";
@@ -207,24 +208,15 @@ export function GuideMode({
           />
         </InteractiveFrame>
         <p style={prose.p}>
-          Notice something counter-intuitive when you drag the slider: <strong>sharing the node isn't a simple "more
-          is greener".</strong> Two forces pull in opposite directions. More concurrent users splits the fixed cost of
-          the servers, cooling and networking (the falling curve). But each extra user also queues behind the others,
-          so every query occupies the GPU a little longer — and since the GPU's own manufacturing footprint is billed
-          per GPU-second, that part creeps up (the rising curve). How steep each effect is depends on how much of your
-          stack is shareable at all: choose brand-new infrastructure in §3 and the shared part grows, making the dip in
-          the middle much deeper; with mostly-embodied hardware, the curve stays fairly flat. There's no single "right"
-          utilization — only a trade-off you can now see.
+          This is also the quiet case for <strong>shared infrastructure over a server of your own.</strong> If you ran
+          this model on an on-prem box, it would sit nearly idle most of the day — yet the servers, cooling and
+          networking would draw power around the clock, and their entire manufacturing footprint would land on your
+          queries alone. On a shared node those fixed costs are split across everyone using it, which is why a busy
+          shared GPU usually beats a private one that mostly waits. The catch: each extra concurrent user also queues
+          behind the others, so every query occupies the GPU a little longer — and since the GPU's own manufacturing
+          cost is billed per GPU-second, that part creeps up as sharing grows.
         </p>
-        <p style={prose.p}>
-          The dashed line is the same query run at night. Our time-of-day model deliberately <em>over</em>-estimates
-          during the day (×1.15) and <em>under</em>-estimates at night (×0.7) — but not symmetrically. Over a full
-          24-hour cycle the two roughly cancel, landing at about +2% versus a flat average: the daytime overestimate
-          "pays for" the night-time underestimate, with a small built-in margin so the long-run total stays
-          conservative rather than optimistic. And underneath it all, the GPUs aren't assumed to run hot around the
-          clock — an idle card sits in a low-power state, drawing only its idle watts until a query actually arrives.
-        </p>
-        <InteractiveFrame label="the sharing trade-off">
+        <InteractiveFrame label="shared vs solo — the concurrency trade-off">
           <ConcurrencyChart
             category={category}
             model={model}
@@ -234,6 +226,24 @@ export function GuideMode({
             otherComputeCondition={state.otherComputeCondition}
           />
         </InteractiveFrame>
+        <p style={prose.p}>
+          How deep the dip is depends on how much of your stack is shareable at all: choose brand-new infrastructure in
+          §3 and the shared (orange) part grows, making the middle sag more; with mostly-embodied hardware the curve
+          stays fairly flat. There's no single "right" utilization — only a trade-off you can now see.
+        </p>
+        <p style={prose.p}>
+          The second dimension is <strong>time.</strong> A typical day is busy around midday and quiet at night, and
+          the grid's carbon intensity follows: the marginal electricity at peak hours is dirtier than off-peak. We
+          model this with a day factor of ×1.15 and a night factor of ×0.7 — deliberately asymmetric, so that over a
+          full 24-hour cycle the daytime overestimate "pays for" the night-time underestimate and the long-run total
+          lands at about +2% (conservative, not optimistic). The upshot for you:{" "}
+          <em>moving a call to the night genuinely lowers its CO₂</em> — roughly 30% — because the cleaner off-peak mix
+          is real, not an accounting trick. And underneath it all, the GPUs aren't assumed to run hot around the clock:
+          an idle card sits in a low-power state, drawing only its idle watts until a query actually arrives.
+        </p>
+        <InteractiveFrame label="a typical day — usage and CO₂ by hour">
+          <DailyLoadChart />
+        </InteractiveFrame>
         <MethodPanel
           assumptions={[
             "We treat GPU-seconds per query as the fundamental unit: everything else (model size, context, cache) is a means to estimate it.",
@@ -241,7 +251,7 @@ export function GuideMode({
             "Cached prompts are modeled as cheaper, because re-processing a cached prefix is mostly skipped.",
             "Request length scales sub-linearly with tokens (√token ratio) and grows slightly with concurrency (logarithmic delay above 8 concurrent users).",
             "Server, cooling and shared-infra costs are divided by concurrency (sharing wins); GPU energy and GPU embodied carbon scale with the longer GPU-time (queueing loses). The net curve depends on how much of the stack is shareable — nearly flat when embodied hardware dominates, deeper-dipping when infrastructure is new.",
-            "Time-of-day: peak ×1.15 (day) and low ×0.7 (night) are asymmetric on purpose. Weighted over 24h they net to ≈+2%, so the daytime overestimate finances the night-time underestimate plus a small conservative margin.",
+            "Time-of-day: peak ×1.15 (day) and low ×0.7 (night) are asymmetric on purpose — weighted over 24h they net to ≈+2%, so the daytime overestimate finances the night-time underestimate plus a small conservative margin. Running at night genuinely emits less CO₂ (cleaner off-peak marginal mix), ~30% lower per query.",
             "Idle GPUs are modeled in a low-power state (idle watts), not at peak draw — only the active query time adds incremental power (25% of the idle→peak span).",
             "Model parameters and usage figures are refreshed from public sources (EcoLogits, Hugging Face, OpenRouter).",
           ]}
