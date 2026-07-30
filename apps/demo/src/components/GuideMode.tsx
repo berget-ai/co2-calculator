@@ -5,6 +5,7 @@ import { HardwarePicker } from "./HardwarePicker";
 import { ConcurrencyTimeExplorer } from "./ConcurrencyTimeExplorer";
 import { ConcurrencyChart } from "./ConcurrencyChart";
 import { DailyLoadChart } from "./DailyLoadChart";
+import { CoolingWaterChart } from "./CoolingWaterChart";
 import { ResultsPanel } from "./ResultsPanel";
 import { ApiResponseBlock } from "./ApiResponseBlock";
 import { MethodPanel } from "./MethodPanel";
@@ -307,7 +308,7 @@ export function GuideMode({
 
         {/* ── Cooling sub-section ── */}
         <h3 style={{ fontSize: "1.2rem", fontWeight: 700, color: C.peak, marginTop: "3rem", marginBottom: "0.75rem" }}>
-          Why cooling is its own line item
+          Cooling and water usage
         </h3>
         <p style={prose.p}>
           Servers don't just consume power for computation — they consume power to get rid of the heat that computation
@@ -323,6 +324,9 @@ export function GuideMode({
           model, same query, but a datacenter in Texas can use ~57% more energy just staying cool, and drain a scarce
           water supply doing it. Cooling isn't a footnote; it's a first-order difference.
         </p>
+        <InteractiveFrame label="two ways to cool a server">
+          <CoolingWaterChart grid={grid} />
+        </InteractiveFrame>
         <MethodPanel
           assumptions={[
             "Cooling overhead (PUE) and water use are modeled from regional climate, not measured per-datacenter.",

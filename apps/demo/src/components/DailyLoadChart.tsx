@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { C, Card } from "./shared";
 import { DEFAULT_TRAFFIC_PATTERN } from "@berget/co2-calculator";
 
@@ -33,6 +33,8 @@ export function DailyLoadChart({
   const padB = 28;
   const innerW = W - padL - padR;
   const innerH = H - padT - padB;
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const dragging = useRef(false);
 
   const hours = useMemo(() => {
     return DEFAULT_TRAFFIC_PATTERN.map((weight, hour) => {
@@ -55,9 +57,40 @@ export function DailyLoadChart({
   const cur = hours[Math.max(0, Math.min(23, hourOfDay))];
   const curFactor = cur.factor;
 
+  // Convert a pointer x-position to an hour and emit it.
+  const setFromClientX = (clientX: number) => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const relX = ((clientX - rect.left) / rect.width) * W; // viewBox coords
+    const frac = (relX - padL) / innerW;
+    const h = Math.round(frac * 23);
+    onHourChange(Math.max(0, Math.min(23, h)));
+  };
+
+  const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    dragging.current = true;
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+    setFromClientX(e.clientX);
+  };
+  const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (dragging.current) setFromClientX(e.clientX);
+  };
+  const onPointerUp = () => {
+    dragging.current = false;
+  };
+
   return (
     <div>
-      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}>
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${W} ${H}`}
+        style={{ width: "100%", height: "auto", display: "block", cursor: "ew-resize", touchAction: "none" }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerLeave={onPointerUp}
+      >
         {/* Night shading */}
         {hours.map((h) =>
           h.isLow ? (
