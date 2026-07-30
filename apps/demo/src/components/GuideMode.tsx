@@ -227,9 +227,15 @@ export function GuideMode({
           />
         </InteractiveFrame>
         <p style={prose.p}>
-          How deep the dip is depends on how much of your stack is shareable at all: choose brand-new infrastructure in
-          §3 and the shared (orange) part grows, making the middle sag more; with mostly-embodied hardware the curve
-          stays fairly flat. There's no single "right" utilization — only a trade-off you can now see.
+          Watch the white curve as you drag the slider. The sharing benefit is real but <strong>it runs out
+          fast</strong> — the server and infra costs are split across more users, but they've already been divided down
+          to almost nothing by around 8 concurrent users. Past that point there's nothing left to share, so the only
+          thing still moving is the queue: each extra user makes every query occupy the GPU a little longer, and that
+          GPU-time cost (including its embodied share) keeps creeping up. That's why the curve flattens and then rises
+          instead of sinking all the way — the sweet spot is where sharing is maxed out just before the queue starts to
+          bite. How deep that dip is depends on how much of your stack is shareable at all: choose brand-new
+          infrastructure in §3 and the shared (orange) part grows, deepening the sag; with mostly-embodied hardware the
+          curve stays fairly flat.
         </p>
         <p style={prose.p}>
           The second dimension is <strong>time.</strong> A typical day is busy around midday and quiet at night, and
@@ -242,7 +248,7 @@ export function GuideMode({
           an idle card sits in a low-power state, drawing only its idle watts until a query actually arrives.
         </p>
         <InteractiveFrame label="a typical day — usage and CO₂ by hour">
-          <DailyLoadChart />
+          <DailyLoadChart hourOfDay={state.hourOfDay} onHourChange={actions.setHourOfDay} />
         </InteractiveFrame>
         <MethodPanel
           assumptions={[

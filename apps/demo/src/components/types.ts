@@ -55,6 +55,7 @@ export interface CalculatorState {
   gpuCondition: "new" | "refurbished";
   otherComputeCondition: "new" | "refurbished";
   concurrency: number;
+  hourOfDay: number;
 }
 
 export interface CalculatorActions {
@@ -64,6 +65,7 @@ export interface CalculatorActions {
   setGpuCondition: (v: "new" | "refurbished") => void;
   setOtherComputeCondition: (v: "new" | "refurbished") => void;
   setConcurrency: (v: number) => void;
+  setHourOfDay: (v: number) => void;
 }
 
 // Everything the guide/wizard sections need, computed once in App.

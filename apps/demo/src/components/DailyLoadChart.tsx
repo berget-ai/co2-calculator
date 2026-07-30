@@ -1,9 +1,10 @@
 import { useMemo } from "react";
-import { C } from "./shared";
+import { C, Card } from "./shared";
 import { DEFAULT_TRAFFIC_PATTERN } from "@berget/co2-calculator";
 
 interface Props {
-  /** Low-period threshold (weight below = night/low) */
+  hourOfDay: number;
+  onHourChange: (h: number) => void;
   lowPeriodThreshold?: number;
   lowPeriodFactor?: number;
   peakPeriodFactor?: number;
@@ -12,11 +13,14 @@ interface Props {
 /**
  * Graph 2 — a 24-hour view of a typical day. Shows relative usage (the demand
  * curve) and the CO₂ intensity factor applied each hour: peak ×1.15 by day,
- * low ×0.7 by night. Makes the point that moving a call to the night actually
- * lowers its CO₂ (cleaner marginal mix), while the asymmetric factors net to
- * ≈+2% over the day so the long-run total stays honest.
+ * low ×0.7 by night. A slider lets the reader move the time of their request
+ * and see the factor change. Makes the point that moving a call to the night
+ * genuinely lowers its CO₂ (cleaner marginal mix), while the asymmetric
+ * factors net ≈+2% over the day so the long-run total stays honest.
  */
 export function DailyLoadChart({
+  hourOfDay,
+  onHourChange,
   lowPeriodThreshold = 0.2,
   lowPeriodFactor = 0.7,
   peakPeriodFactor = 1.15,
@@ -42,27 +46,22 @@ export function DailyLoadChart({
   const x = (h: number) => padL + (h / 23) * innerW;
   const bw = innerW / 24;
   const yW = (w: number) => padT + innerH - (w / maxWeight) * innerH;
-  // factor scale: 0.6 .. 1.3
   const yF = (f: number) => padT + innerH - ((f - 0.6) / (1.3 - 0.6)) * innerH;
 
   const factorPath = hours
     .map((h, i) => `${i === 0 ? "M" : "L"}${(x(h.hour) + bw / 2).toFixed(1)},${yF(h.factor).toFixed(1)}`)
     .join(" ");
 
+  const cur = hours[Math.max(0, Math.min(23, hourOfDay))];
+  const curFactor = cur.factor;
+
   return (
-    <div style={{ marginTop: "0.5rem" }}>
+    <div>
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}>
-        {/* Night shading (hours where weight <= threshold) */}
+        {/* Night shading */}
         {hours.map((h) =>
           h.isLow ? (
-            <rect
-              key={`n${h.hour}`}
-              x={x(h.hour)}
-              y={padT}
-              width={bw}
-              height={innerH}
-              fill="rgba(96,165,128,0.08)"
-            />
+            <rect key={`n${h.hour}`} x={x(h.hour)} y={padT} width={bw} height={innerH} fill="rgba(96,165,128,0.08)" />
           ) : null
         )}
 
@@ -74,7 +73,7 @@ export function DailyLoadChart({
             y={yW(h.weight)}
             width={bw - 2}
             height={padT + innerH - yW(h.weight)}
-            fill={h.isLow ? "rgba(96,165,128,0.5)" : "rgba(229,221,213,0.35)"}
+            fill={h.hour === hourOfDay ? "#E5DDD5" : h.isLow ? "rgba(96,165,128,0.5)" : "rgba(229,221,213,0.35)"}
             rx={1.5}
           />
         ))}
@@ -84,6 +83,18 @@ export function DailyLoadChart({
 
         {/* factor = 1.0 reference */}
         <line x1={padL} y1={yF(1)} x2={padL + innerW} y2={yF(1)} stroke="rgba(255,255,255,0.15)" strokeWidth="1" strokeDasharray="3 3" />
+
+        {/* "You are here" marker at selected hour */}
+        <line
+          x1={x(hourOfDay) + bw / 2}
+          y1={padT}
+          x2={x(hourOfDay) + bw / 2}
+          y2={padT + innerH}
+          stroke="rgba(229,221,213,0.4)"
+          strokeWidth="1"
+          strokeDasharray="3 3"
+        />
+        <circle cx={x(hourOfDay) + bw / 2} cy={yF(curFactor)} r="5" fill="#D4A574" stroke="#0A0A0A" strokeWidth="2" />
 
         {/* X axis labels */}
         {[0, 6, 12, 18, 23].map((h) => (
@@ -102,8 +113,32 @@ export function DailyLoadChart({
         <text x={padL + innerW + 6} y={yF(lowPeriodFactor) + 3} fill={C.moss} fontSize="9">×{lowPeriodFactor}</text>
       </svg>
 
+      {/* Time-of-day slider */}
+      <Card>
+        <div style={{ marginTop: "0.75rem", marginBottom: "0.25rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem", alignItems: "baseline" }}>
+            <span style={{ color: C.peak, fontWeight: 600, fontSize: "0.875rem" }}>Time of request</span>
+            <span style={{ color: C.moss, fontFamily: "var(--berget-font-mono, 'DM Mono', monospace)" }}>
+              {String(hourOfDay).padStart(2, "0")}:00 · ×{curFactor} {cur.isLow ? "(night)" : "(day)"}
+            </span>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={23}
+            step={1}
+            value={hourOfDay}
+            onChange={(e) => onHourChange(Number(e.target.value))}
+            style={{ width: "100%" }}
+          />
+          <div style={{ fontSize: "0.75rem", color: C.muted, marginTop: "0.25rem" }}>
+            Drag to see how the CO₂ intensity factor shifts across the day.
+          </div>
+        </div>
+      </Card>
+
       {/* Legend */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem", marginTop: "0.5rem", fontSize: "0.7rem", color: C.muted, alignItems: "center" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem", marginTop: "0.75rem", fontSize: "0.7rem", color: C.muted, alignItems: "center" }}>
         <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <span style={{ width: 12, height: 10, background: "rgba(229,221,213,0.35)", display: "inline-block", borderRadius: 2 }} /> usage (day)
         </span>

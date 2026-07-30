@@ -127,6 +127,12 @@ export function ConcurrencyChart({ category, model, grid, concurrency, gpuCondit
 
   const cur = dayPts[Math.min(Math.max(concurrency, XMIN), XMAX) - 1];
 
+  // Sweet spot = the concurrency with the lowest total. This is where the
+  // sharing benefit is fully captured, before queueing starts to dominate.
+  const optIdx = dayPts.reduce((best, p, i) => (p.total < dayPts[best].total ? i : best), 0);
+  const optConcurrency = optIdx + 1;
+  const optTotal = dayPts[optIdx].total;
+
   const fmt = (g: number) => (g < 1 ? `${(g * 1000).toFixed(1)} mg` : `${g.toFixed(2)} g`);
 
   return (
@@ -167,6 +173,19 @@ export function ConcurrencyChart({ category, model, grid, concurrency, gpuCondit
         {/* Shared (server+cooling+infra, falls) */}
         <path d={pathFor(dayPts, "shared")} fill="none" stroke="rgba(209,139,46,0.9)" strokeWidth="1.5" />
 
+        {/* Sweet-spot marker: lowest total */}
+        <circle cx={x(optConcurrency)} cy={y(optTotal)} r="6" fill="none" stroke={C.moss} strokeWidth="1.5" strokeDasharray="2 2" />
+        <text
+          x={x(optConcurrency)}
+          y={y(optTotal) - 10}
+          fill={C.moss}
+          fontSize="9"
+          textAnchor="middle"
+          fontWeight="600"
+        >
+          sweet spot
+        </text>
+
         {/* "You are here" marker */}
         <line x1={x(concurrency)} y1={padT} x2={x(concurrency)} y2={padT + innerH} stroke="rgba(229,221,213,0.35)" strokeWidth="1" strokeDasharray="3 3" />
         <circle cx={x(concurrency)} cy={y(cur.total)} r="5" fill="#E5DDD5" stroke="#0A0A0A" strokeWidth="2" />
@@ -178,10 +197,10 @@ export function ConcurrencyChart({ category, model, grid, concurrency, gpuCondit
           <span style={{ width: 14, height: 3, background: "#E5DDD5", display: "inline-block", borderRadius: 2 }} /> Total (day)
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <span style={{ width: 14, height: 3, background: "rgba(96,165,128,0.9)", display: "inline-block", borderRadius: 2 }} /> GPU hardware (shared less)
+          <span style={{ width: 14, height: 3, background: "rgba(96,165,128,0.9)", display: "inline-block", borderRadius: 2 }} /> More queueing → more CO₂
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <span style={{ width: 14, height: 3, background: "rgba(209,139,46,0.9)", display: "inline-block", borderRadius: 2 }} /> Server &amp; infra (shared more)
+          <span style={{ width: 14, height: 3, background: "rgba(209,139,46,0.9)", display: "inline-block", borderRadius: 2 }} /> More sharing → less CO₂
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <span style={{ width: 14, height: 3, background: "rgba(142,178,159,0.55)", display: "inline-block", borderRadius: 2 }} /> Night

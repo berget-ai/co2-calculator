@@ -74,6 +74,7 @@ export function CO2Calculator() {
   const [gpuCondition, setGpuCondition] = useState<"new" | "refurbished">("new");
   const [otherComputeCondition, setOtherComputeCondition] = useState<"new" | "refurbished">("refurbished");
   const [concurrency, setConcurrency] = useState(8);
+  const [hourOfDay, setHourOfDay] = useState(14);
 
   // Fetch dynamic model data from EcoLogits and OpenRouter
   const { data: fetchedModelData, loading: modelsLoading, error: modelsError, refresh: refreshModels } = useModelData();
@@ -104,11 +105,11 @@ export function CO2Calculator() {
       inputTokens: model.defaultInputTokens,
       outputTokens: model.defaultOutputTokens,
       concurrency,
-      hourOfDay: 14,
+      hourOfDay,
       includeTraining: INCLUDE_TRAINING,
       lifetimeQueries: LIFETIME_QUERIES,
     }) as InferenceResult;
-  }, [model, grid, gpuCondition, otherComputeCondition, category, concurrency]);
+  }, [model, grid, gpuCondition, otherComputeCondition, category, concurrency, hourOfDay]);
 
   const handleCategoryChange = (key: string) => {
     setModelCategory(key);
@@ -123,7 +124,7 @@ export function CO2Calculator() {
   // Shared state/actions/derived bundles
   const state: CalculatorState = {
     modelCategory, selectedModel, region,
-    gpuCondition, otherComputeCondition, concurrency,
+    gpuCondition, otherComputeCondition, concurrency, hourOfDay,
   };
 
   const actions: CalculatorActions = {
@@ -133,6 +134,7 @@ export function CO2Calculator() {
     setGpuCondition,
     setOtherComputeCondition,
     setConcurrency,
+    setHourOfDay,
   };
 
   const derived: CalculatorDerived = {
