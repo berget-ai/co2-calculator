@@ -197,10 +197,10 @@ export function ConcurrencyChart({ category, model, grid, concurrency, gpuCondit
           <span style={{ width: 14, height: 3, background: "#E5DDD5", display: "inline-block", borderRadius: 2 }} /> Total (day)
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <span style={{ width: 14, height: 3, background: "rgba(96,165,128,0.9)", display: "inline-block", borderRadius: 2 }} /> More queueing → more CO₂
+          <span style={{ width: 14, height: 3, background: "rgba(96,165,128,0.9)", display: "inline-block", borderRadius: 2 }} /> Query time
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <span style={{ width: 14, height: 3, background: "rgba(209,139,46,0.9)", display: "inline-block", borderRadius: 2 }} /> More sharing → less CO₂
+          <span style={{ width: 14, height: 3, background: "rgba(209,139,46,0.9)", display: "inline-block", borderRadius: 2 }} /> Embodied sharing
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <span style={{ width: 14, height: 3, background: "rgba(142,178,159,0.55)", display: "inline-block", borderRadius: 2 }} /> Night
