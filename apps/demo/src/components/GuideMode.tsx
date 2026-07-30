@@ -3,6 +3,7 @@ import { CategoryModelPicker } from "./CategoryModelPicker";
 import { RegionPicker } from "./RegionPicker";
 import { HardwarePicker } from "./HardwarePicker";
 import { ConcurrencyTimeExplorer } from "./ConcurrencyTimeExplorer";
+import { ConcurrencyChart } from "./ConcurrencyChart";
 import { ResultsPanel } from "./ResultsPanel";
 import { ApiResponseBlock } from "./ApiResponseBlock";
 import { MethodPanel } from "./MethodPanel";
@@ -205,12 +206,43 @@ export function GuideMode({
             onConcurrencyChange={actions.setConcurrency}
           />
         </InteractiveFrame>
+        <p style={prose.p}>
+          Notice something counter-intuitive when you drag the slider: <strong>sharing the node isn't a simple "more
+          is greener".</strong> Two forces pull in opposite directions. More concurrent users splits the fixed cost of
+          the servers, cooling and networking (the falling curve). But each extra user also queues behind the others,
+          so every query occupies the GPU a little longer — and since the GPU's own manufacturing footprint is billed
+          per GPU-second, that part creeps up (the rising curve). How steep each effect is depends on how much of your
+          stack is shareable at all: choose brand-new infrastructure in §3 and the shared part grows, making the dip in
+          the middle much deeper; with mostly-embodied hardware, the curve stays fairly flat. There's no single "right"
+          utilization — only a trade-off you can now see.
+        </p>
+        <p style={prose.p}>
+          The dashed line is the same query run at night. Our time-of-day model deliberately <em>over</em>-estimates
+          during the day (×1.15) and <em>under</em>-estimates at night (×0.7) — but not symmetrically. Over a full
+          24-hour cycle the two roughly cancel, landing at about +2% versus a flat average: the daytime overestimate
+          "pays for" the night-time underestimate, with a small built-in margin so the long-run total stays
+          conservative rather than optimistic. And underneath it all, the GPUs aren't assumed to run hot around the
+          clock — an idle card sits in a low-power state, drawing only its idle watts until a query actually arrives.
+        </p>
+        <InteractiveFrame label="the sharing trade-off">
+          <ConcurrencyChart
+            category={category}
+            model={model}
+            grid={grid}
+            concurrency={state.concurrency}
+            gpuCondition={state.gpuCondition}
+            otherComputeCondition={state.otherComputeCondition}
+          />
+        </InteractiveFrame>
         <MethodPanel
           assumptions={[
             "We treat GPU-seconds per query as the fundamental unit: everything else (model size, context, cache) is a means to estimate it.",
             "A KV cache and activations add ~20% memory overhead on top of the raw model weights.",
             "Cached prompts are modeled as cheaper, because re-processing a cached prefix is mostly skipped.",
             "Request length scales sub-linearly with tokens (√token ratio) and grows slightly with concurrency (logarithmic delay above 8 concurrent users).",
+            "Server, cooling and shared-infra costs are divided by concurrency (sharing wins); GPU energy and GPU embodied carbon scale with the longer GPU-time (queueing loses). The net curve depends on how much of the stack is shareable — nearly flat when embodied hardware dominates, deeper-dipping when infrastructure is new.",
+            "Time-of-day: peak ×1.15 (day) and low ×0.7 (night) are asymmetric on purpose. Weighted over 24h they net to ≈+2%, so the daytime overestimate finances the night-time underestimate plus a small conservative margin.",
+            "Idle GPUs are modeled in a low-power state (idle watts), not at peak draw — only the active query time adds incremental power (25% of the idle→peak span).",
             "Model parameters and usage figures are refreshed from public sources (EcoLogits, Hugging Face, OpenRouter).",
           ]}
           reasoning="Rather than inventing per-model energy figures, we lean on published model cards and independent measurement projects, then scale by the actual time a query occupies the GPU. Two models of the same size can still differ — architecture, quantization and serving efficiency matter — so we treat per-model data as the best available estimate, not ground truth."
