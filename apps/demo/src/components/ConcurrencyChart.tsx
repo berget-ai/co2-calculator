@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { C } from "./shared";
 import type { GridRegion, ModelCategoryDef, ModelProfile } from "./types";
 import { HARDWARE_CONFIGS } from "@berget/co2-calculator";
@@ -10,6 +10,7 @@ interface Props {
   concurrency: number;
   gpuCondition: "new" | "refurbished";
   otherComputeCondition: "new" | "refurbished";
+  onConcurrencyChange: (v: number) => void;
 }
 
 // Mirror of the library's applyConcurrencyDelay.
@@ -91,7 +92,7 @@ function computePoint(
  * component, with a "you are here" marker at the current slider value and a
  * night curve to show the time-of-day compensation.
  */
-export function ConcurrencyChart({ category, model, grid, concurrency, gpuCondition, otherComputeCondition }: Props) {
+export function ConcurrencyChart({ category, model, grid, concurrency, gpuCondition, otherComputeCondition, onConcurrencyChange }: Props) {
   const W = 560;
   const H = 220;
   const padL = 46;
@@ -102,6 +103,8 @@ export function ConcurrencyChart({ category, model, grid, concurrency, gpuCondit
   const innerH = H - padT - padB;
   const XMIN = 1;
   const XMAX = 64;
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const dragging = useRef(false);
 
   const { dayPts, nightPts, maxY } = useMemo(() => {
     const day: Curve[] = [];
@@ -127,17 +130,42 @@ export function ConcurrencyChart({ category, model, grid, concurrency, gpuCondit
 
   const cur = dayPts[Math.min(Math.max(concurrency, XMIN), XMAX) - 1];
 
-  // Sweet spot = the concurrency with the lowest total. This is where the
-  // sharing benefit is fully captured, before queueing starts to dominate.
-  const optIdx = dayPts.reduce((best, p, i) => (p.total < dayPts[best].total ? i : best), 0);
-  const optConcurrency = optIdx + 1;
-  const optTotal = dayPts[optIdx].total;
-
   const fmt = (g: number) => (g < 1 ? `${(g * 1000).toFixed(1)} mg` : `${g.toFixed(2)} g`);
+
+  // Convert a pointer x-position to a concurrency value and emit it.
+  const setFromClientX = (clientX: number) => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const relX = ((clientX - rect.left) / rect.width) * W; // viewBox coords
+    const frac = (relX - padL) / innerW;
+    const c = Math.round(XMIN + frac * (XMAX - XMIN));
+    onConcurrencyChange(Math.max(XMIN, Math.min(XMAX, c)));
+  };
+
+  const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    dragging.current = true;
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+    setFromClientX(e.clientX);
+  };
+  const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (dragging.current) setFromClientX(e.clientX);
+  };
+  const onPointerUp = () => {
+    dragging.current = false;
+  };
 
   return (
     <div style={{ marginTop: "1rem" }}>
-      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}>
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${W} ${H}`}
+        style={{ width: "100%", height: "auto", display: "block", cursor: "ew-resize", touchAction: "none" }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerLeave={onPointerUp}
+      >
         {/* Axes */}
         <line x1={padL} y1={padT} x2={padL} y2={padT + innerH} stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
         <line x1={padL} y1={padT + innerH} x2={padL + innerW} y2={padT + innerH} stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
@@ -152,7 +180,7 @@ export function ConcurrencyChart({ category, model, grid, concurrency, gpuCondit
           </g>
         ))}
         <text x={padL + innerW / 2} y={H - 4} fill="rgba(255,255,255,0.45)" fontSize="9" textAnchor="middle">
-          concurrent users
+          concurrent users (drag in the chart)
         </text>
 
         {/* Y ticks (0, mid, max) */}
@@ -172,19 +200,6 @@ export function ConcurrencyChart({ category, model, grid, concurrency, gpuCondit
         <path d={pathFor(dayPts, "embodiedGpu")} fill="none" stroke="rgba(96,165,128,0.9)" strokeWidth="1.5" />
         {/* Shared (server+cooling+infra, falls) */}
         <path d={pathFor(dayPts, "shared")} fill="none" stroke="rgba(209,139,46,0.9)" strokeWidth="1.5" />
-
-        {/* Sweet-spot marker: lowest total */}
-        <circle cx={x(optConcurrency)} cy={y(optTotal)} r="6" fill="none" stroke={C.moss} strokeWidth="1.5" strokeDasharray="2 2" />
-        <text
-          x={x(optConcurrency)}
-          y={y(optTotal) - 10}
-          fill={C.moss}
-          fontSize="9"
-          textAnchor="middle"
-          fontWeight="600"
-        >
-          sweet spot
-        </text>
 
         {/* "You are here" marker */}
         <line x1={x(concurrency)} y1={padT} x2={x(concurrency)} y2={padT + innerH} stroke="rgba(229,221,213,0.35)" strokeWidth="1" strokeDasharray="3 3" />

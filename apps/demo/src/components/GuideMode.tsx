@@ -224,6 +224,7 @@ export function GuideMode({
             concurrency={state.concurrency}
             gpuCondition={state.gpuCondition}
             otherComputeCondition={state.otherComputeCondition}
+            onConcurrencyChange={actions.setConcurrency}
           />
         </InteractiveFrame>
         <p style={prose.p}>
