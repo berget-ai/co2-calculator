@@ -43,9 +43,6 @@ spec:
         name: Flux Bot
         email: flux@berget.ai
       messageTemplate: "chore: update co2-calculator image to {{ .AutomationObject }}{{ .NewTag }}"
-      signingKey:
-        secretRef:
-          name: flux-gpg-signing-key
     push:
       branch: main
   update:
