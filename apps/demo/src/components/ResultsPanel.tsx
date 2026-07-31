@@ -56,9 +56,10 @@ export function ResultsPanel({ result, model, grid }: Props) {
         />
         {/* Content */}
         <div style={{ position: "relative", zIndex: 1 }}>
-          <div style={{ fontSize: "0.875rem", color: C.muted, marginBottom: "0.5rem" }}>Total CO₂ per request</div>
+          <div style={{ fontSize: "0.875rem", color: C.muted, marginBottom: "0.5rem" }}>Total CO₂e per request</div>
           <div style={{ fontSize: "3rem", fontWeight: 700, color: C.stone, lineHeight: 1.1 }}>
-            {formatCO2(result.totalCO2Grams)}
+            {formatCO2(result.totalCO2Grams)}{" "}
+            <span style={{ fontSize: "1.25rem", fontWeight: 500, color: C.muted }}>CO₂e</span>
           </div>
           <div style={{ fontSize: "0.75rem", color: C.muted, marginTop: "0.5rem" }}>
             {model?.displayName} on {grid?.name}

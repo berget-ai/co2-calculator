@@ -17,7 +17,9 @@ spec:
     name: co2-calculator
   policy:
     semver:
-      range: ">=1.0.0"
+      # Match every image built from a main push, including prereleases
+      # (e.g. 1.0.1-rc.2). Production deploys on every merge to main for now.
+      range: ">=1.0.0-0"
 ---
 apiVersion: image.toolkit.fluxcd.io/v1beta1
 kind: ImageUpdateAutomation

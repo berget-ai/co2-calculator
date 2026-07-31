@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Leaf, Code, Globe } from "lucide-react";
+import { Leaf, Code, Globe, Coffee, Droplet } from "lucide-react";
 import {
   calculateInference,
   MODEL_PROFILES,
@@ -216,6 +216,11 @@ function EmissionsFooter({ result }: { result: InferenceResult | null }) {
 
   const total = result.totalCO2Grams;
 
+  // Coffee comparison: an 800W microwave for 2 min (120s) ≈ 0.24 g CO₂ on
+  // Sweden's grid → grams CO₂ per second of microwaving.
+  const coffeeCO2PerSecond = 0.24 / 120;
+  const coffeeSeconds = total / coffeeCO2PerSecond;
+
   return (
     <footer
       style={{
@@ -312,8 +317,43 @@ function EmissionsFooter({ result }: { result: InferenceResult | null }) {
               minWidth: 80,
             }}
           >
-            {formatCO2(total)}
+            {formatCO2(total)}{" "}
+            <span style={{ fontSize: "0.7rem", fontWeight: 500, color: C.muted }}>CO₂e</span>
           </div>
+          {/* Coffee comparison — the most intuitive anchor we have */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.35rem",
+              fontSize: "0.75rem",
+              color: C.cloud,
+              whiteSpace: "nowrap",
+              fontFamily: "var(--berget-font-mono, 'DM Mono', monospace)",
+            }}
+            title="Same energy as microwaving a cup of coffee (800W, Swedish grid)"
+          >
+            <Coffee size={13} strokeWidth={1.5} style={{ color: C.muted, flexShrink: 0 }} />
+            {coffeeSeconds < 1 ? "<1" : Math.round(coffeeSeconds)}s
+          </div>
+          {/* Water usage — only shown when the region actually consumes water */}
+          {result.waterLiters > 0 && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.35rem",
+                fontSize: "0.75rem",
+                color: "#6FA8DC",
+                whiteSpace: "nowrap",
+                fontFamily: "var(--berget-font-mono, 'DM Mono', monospace)",
+              }}
+              title="Cooling water consumed per request (evaporative cooling)"
+            >
+              <Droplet size={13} strokeWidth={1.5} style={{ flexShrink: 0 }} />
+              {(result.waterLiters * 1000).toFixed(2)} ml
+            </div>
+          )}
           <div style={{ flex: 1, fontSize: "0.75rem", color: C.muted, textAlign: "right" }}>
             updates live as you read ↓
           </div>
