@@ -6,6 +6,10 @@ interface Props {
   grid: GridRegion | undefined;
   region?: string;
   onRegionSelect?: (region: string) => void;
+  /** Operational energy of the current request (kWh) — drives fan speed + heat molecule count. */
+  energyKwh?: number;
+  /** Cooling water consumed by the current request (litres) — drives water flow speed. */
+  waterLiters?: number;
 }
 
 type FullGrid = GridRegion & {
@@ -36,8 +40,15 @@ const WATER_BLUE = "#6FA8DC";
  * flow rate derives from the region's water intensity — so any region's numbers
  * plug in and render correctly.
  */
-export function CoolingWaterChart({ grid, region, onRegionSelect }: Props) {
+export function CoolingWaterChart({ grid, region, onRegionSelect, energyKwh, waterLiters }: Props) {
   const uid = useId().replace(/:/g, "");
+
+  // Normalise the current request's energy + water against a reference request
+  // (a ~0.1 Wh job, ~0.5 ml of water) so the animation scales sensibly across
+  // the whole range the calculator can produce. Clamped so it never freezes or
+  // explodes.
+  const energyScale = energyKwh !== undefined ? Math.min(Math.max(energyKwh / 0.0001, 0.4), 3) : 1;
+  const waterScale = waterLiters !== undefined ? Math.min(Math.max(waterLiters / 0.0005, 0.4), 3) : 1;
   const g = (grid || {}) as FullGrid;
   const name = g.name ?? "Sweden";
   const water = g.waterLitersPerKwh ?? 0.0;
@@ -108,6 +119,8 @@ export function CoolingWaterChart({ grid, region, onRegionSelect }: Props) {
             temp={p.data.temp}
             pue={p.data.pue}
             water={p.data.water}
+            energyScale={energyScale}
+            waterScale={waterScale}
           />
         ))}
       </div>
@@ -197,19 +210,23 @@ function fanCount(pue: number): number {
   return Math.min(Math.max(Math.round((pue - 1) * 6), 1), 5); // 1 at 1.15, ~5 at 2.0
 }
 
-/** Fan spin period (seconds/rev): higher PUE → faster spin (shorter period). */
-function fanPeriod(pue: number): number {
-  return Math.max(1.6 - (pue - 1) * 1.6, 0.45); // ~1.4s at 1.15 → ~0.45s at 2.0
+/** Fan spin period (seconds/rev): higher PUE → faster spin (shorter period).
+ *  energyScale further speeds them up when the request carries more energy. */
+function fanPeriod(pue: number, energyScale: number): number {
+  const base = Math.max(1.6 - (pue - 1) * 1.6, 0.45); // ~1.4s at 1.15 → ~0.45s at 2.0
+  return Math.max(base / energyScale, 0.2);
 }
 
 // ─── One scene: hall at the bottom, sky above, heat rising ───
-function Scene({ uid, kind, active, temp, pue, water }: {
+function Scene({ uid, kind, active, temp, pue, water, energyScale, waterScale }: {
   uid: string;
   kind: "cold" | "hot";
   active: boolean;
   temp: number;
   pue: number;
   water: number;
+  energyScale: number;
+  waterScale: number;
 }) {
   const cold = kind === "cold";
 
@@ -222,7 +239,10 @@ function Scene({ uid, kind, active, temp, pue, water }: {
   const airRef = useRef<Particle[]>([]);
 
   const vSpeed = riseSpeed(temp, water, !cold);
-  const fSpeed = flowSpeed(water);
+  // The water flows faster the more water the request actually sends through.
+  const fSpeed = flowSpeed(water) * waterScale;
+  // More energy in the request → more heat molecules to reject.
+  const heatCount = (base: number) => Math.round(base * energyScale);
 
   // Spawn a vapour/heat molecule across the hall's full width. In the hot scene
   // small water vapour particles spawn ON the pipe and rise; in the cold scene
@@ -250,15 +270,16 @@ function Scene({ uid, kind, active, temp, pue, water }: {
   });
 
   useEffect(() => {
-    // seed an initial population, staggered through the channel
-    const n = cold ? 8 : 13; // vapour: enough to read as a stream, not a crowd
+    // seed an initial population, staggered through the channel. Count scales
+    // with the request's energy — more joules → more heat to reject.
+    const n = cold ? heatCount(8) : heatCount(13);
     particlesRef.current = Array.from({ length: n }, () => {
       const p = spawn();
       p.y = CHANNEL_TOP + Math.random() * (p.maxY - CHANNEL_TOP);
       return p;
     });
     // seed warm air between the hall and the pipe (hot scene)
-    airRef.current = cold ? [] : Array.from({ length: 6 }, () => {
+    airRef.current = cold ? [] : Array.from({ length: heatCount(6) }, () => {
       const p = spawnAir();
       p.y = (PIPE_Y + 8) + Math.random() * (HALL_Y - 8 - (PIPE_Y + 8));
       return p;
@@ -291,7 +312,7 @@ function Scene({ uid, kind, active, temp, pue, water }: {
     raf.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cold, temp, water, vSpeed, fSpeed]);
+  }, [cold, temp, water, vSpeed, fSpeed, energyScale]);
 
   // Line-art palette: white geometry, red = air heat, blue = water.
   const ink = "rgba(255,255,255,0.55)";      // thin structural lines
@@ -352,7 +373,7 @@ function Scene({ uid, kind, active, temp, pue, water }: {
              both scale with the region's PUE */
           (() => {
             const n = fanCount(pue);
-            const dur = fanPeriod(pue);
+            const dur = fanPeriod(pue, energyScale);
             const spacing = 26;
             const startX = CX - ((n - 1) * spacing) / 2;
             return Array.from({ length: n }, (_, i) => (
@@ -415,7 +436,7 @@ function Scene({ uid, kind, active, temp, pue, water }: {
                 speed scale with PUE (more cooling work → more, faster fans) */}
             {(() => {
               const n = Math.min(fanCount(pue), 4); // cap so the row stays readable
-              const dur = fanPeriod(pue);
+              const dur = fanPeriod(pue, energyScale);
               const spacing = 30;
               const startX = CX - ((n - 1) * spacing) / 2;
               return Array.from({ length: n }, (_, i) => (

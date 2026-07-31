@@ -87,11 +87,14 @@ export function GuideMode({
             letterSpacing: "-0.02em",
           }}
         >
-          Stop hiding the CO₂ emissions from AI.
+          AI industry: stop hiding your CO₂ emissions.
         </h1>
         <p style={{ ...prose.p, fontSize: "1.125rem" }}>
-          This is what transparency looks like. We share our full methodology and code — so the industry can be more
-          responsible, and users can be more informed.
+          There's real confusion about AI's emissions — and the reason is a lack of transparency. At Berget AI we've
+          committed to being 100% transparent about ours, and to letting our users act on that information: by
+          optimizing their queries and choosing smaller models for simpler tasks, they can cut their emissions. Now
+          we're releasing our methods and code as open source, so the rest of the AI industry can hopefully adapt
+          faster — and start reporting emissions as part of their token usage too.
         </p>
 
         {/* The live JSON */}
@@ -129,8 +132,8 @@ export function GuideMode({
         </div>
 
         <p style={{ ...prose.p, marginTop: "1.5rem" }}>
-          Every number in that response has a story. Below, we walk through exactly where each one comes from — and you
-          can change the assumptions as you read.
+          Now let's dig into these numbers from first principles — and hopefully give you an intuition for the CO₂
+          emissions of the AI industry.
         </p>
       </header>
 
@@ -139,11 +142,11 @@ export function GuideMode({
         <div style={prose.kicker}>The problem</div>
         <h2 style={prose.h2}>Your users can't choose what they can't compare</h2>
         <p style={prose.p}>
-          AI's environmental footprint is real, and our industry has a responsibility to own it. But responsibility
-          starts with measurement. Today, a developer choosing between two models or two providers has no way to compare
-          their climate impact — not because the physics is unknowable, but because almost nobody publishes the numbers.
-          And when numbers do appear, they're calculated differently every time, so anyone can pick the boundary that
-          makes them look best. Comparability isn't a nice-to-have; it's the whole game.
+          AI's environmental footprint is real, and our industry has a responsibility to measure it. Today, a developer
+          choosing between two models or two providers has no way to compare their climate impact — not because the
+          physics is unknowable, but because almost nobody publishes the numbers. And when numbers do appear, they're
+          calculated differently every time, so anyone can pick the boundary that makes them look best. Comparability
+          isn't a nice-to-have; it's the whole game.
         </p>
         <p style={prose.p}>
           That's why we built this: an open attempt to both simplify and standardize the calculation. Just as every API
@@ -165,7 +168,7 @@ export function GuideMode({
 
       {/* ═══ §1 MODEL & USE CASE ═══ */}
       <Section id="the-model">
-        <div style={prose.kicker}>§1 · Where the numbers come from</div>
+        <div style={prose.kicker}>§1 · The workload</div>
         <h2 style={prose.h2}>First, choose a model and a type of usage</h2>
         <p style={prose.p}>
           Every calculation needs a concrete starting point: a workload. We can't reason about "AI's footprint" in the
@@ -274,7 +277,7 @@ export function GuideMode({
 
       {/* ═══ §2 LOCATION ═══ */}
       <Section id="the-location">
-        <div style={prose.kicker}>§2 · Where the numbers come from</div>
+        <div style={prose.kicker}>§2 · The grid</div>
         <h2 style={prose.h2}>Location, location, location</h2>
         <p style={prose.p}>
           The same GPU doing the same work can emit 50× more CO₂ depending on where it sits. Sweden's grid runs on hydro
@@ -325,7 +328,13 @@ export function GuideMode({
           water supply doing it. Cooling isn't a footnote; it's a first-order difference.
         </p>
         <InteractiveFrame label="the sky the heat has to be rejected into">
-          <CoolingWaterChart grid={grid} region={state.region} onRegionSelect={actions.setRegion} />
+          <CoolingWaterChart
+            grid={grid}
+            region={state.region}
+            onRegionSelect={actions.setRegion}
+            energyKwh={result?.components.gpuOperational.energyKwh}
+            waterLiters={result?.waterLiters}
+          />
         </InteractiveFrame>
         <MethodPanel
           assumptions={[
@@ -343,7 +352,7 @@ export function GuideMode({
 
       {/* ═══ §3 HARDWARE ═══ */}
       <Section id="the-hardware">
-        <div style={prose.kicker}>§3 · Where the numbers come from</div>
+        <div style={prose.kicker}>§3 · The hardware</div>
         <h2 style={prose.h2}>Hardware has a history</h2>
         <p style={prose.p}>
           Every GPU carries the cost of its own manufacturing — and that cost is significant. We estimate roughly{" "}
@@ -387,12 +396,12 @@ export function GuideMode({
 
       {/* ═══ §4 TOGETHER ═══ */}
       <Section id="the-total">
-        <div style={prose.kicker}>§4 · Where the numbers come from</div>
+        <div style={prose.kicker}>§4 · The total</div>
         <h2 style={prose.h2}>Putting it all together</h2>
         <p style={prose.p}>
-          Add operational energy, datacenter overhead and embodied hardware — and you get the number at the top of this
-          page. Small per query, but multiplied by billions of queries, it becomes very real. That's exactly why it
-          belongs in every response.
+          Add operational energy, datacenter overhead and embodied hardware — and you get the figure that's been
+          following you down this page. Small per query, but multiplied by billions of queries it becomes very real.
+          That's exactly why it belongs in every response.
         </p>
         {result && (
           <InteractiveFrame label="the full breakdown">
