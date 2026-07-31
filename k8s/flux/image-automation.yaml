@@ -42,7 +42,9 @@ spec:
       author:
         name: Flux Bot
         email: flux@berget.ai
-      messageTemplate: "chore: update co2-calculator image to {{ .AutomationObject }}{{ .NewTag }}"
+      messageTemplate: |
+        chore: update co2-calculator image
+        {{range .Updated.Images}}{{println .}}{{end}}
       # No GPG signingKey — the cluster has no flux-gpg-signing-key secret, and
       # requiring it blocks the automation from committing the new image tag.
     push:
