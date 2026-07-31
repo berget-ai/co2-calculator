@@ -28,9 +28,12 @@ metadata:
   namespace: flux-system
 spec:
   interval: 1m
+  # Must reference the GitRepository that owns this repo's manifests — not the
+  # infra repo. ImageUpdateAutomation can only see GitRepositories in its own
+  # namespace, and co2-emissions-calculator lives here in flux-system.
   sourceRef:
     kind: GitRepository
-    name: flux-system
+    name: co2-emissions-calculator
   git:
     checkout:
       ref:
