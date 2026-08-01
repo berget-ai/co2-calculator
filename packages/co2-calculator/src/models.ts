@@ -18,49 +18,19 @@ export const MODEL_PROFILES: Record<string, ModelProfile> = {
   // -----------------------------------------------------------------------
   // Text Generation
   // -----------------------------------------------------------------------
-  "meta-llama/Llama-3.1-8B-Instruct": {
-    modelId: "meta-llama/Llama-3.1-8B-Instruct",
-    displayName: "Llama 3.1 8B",
-    architecture: "dense-transformer",
-    parameters: 8_000_000_000,
-    modelSizeBytes: 8_000_000_000 * 2, // FP16: ~16GB
-    totalTrainingCO2Grams: 420_000_000, // 420 tons CO2eq (Meta sustainability report)
-    trainingSource: "Meta sustainability report (HF: 10M+ downloads/month)",
-    defaultInputTokens: 800,
-    defaultOutputTokens: 400,
-    defaultResponseTimeSeconds: 1.2,
-    popularity: {
-      downloadsPerMonth: 10_031_112,
-      hfLikes: 6039,
-    },
-  },
-  "meta-llama/Llama-3.3-70B-Instruct": {
-    modelId: "meta-llama/Llama-3.3-70B-Instruct",
-    displayName: "Llama 3.3 70B",
-    architecture: "dense-transformer",
-    parameters: 70_000_000_000,
-    modelSizeBytes: 70_000_000_000 * 2, // FP16: ~140GB
-    totalTrainingCO2Grams: 2_040_000_000, // 2,040 tons CO2eq (Meta sustainability report)
-    trainingSource: "Meta sustainability report (HF: 691K+ downloads/month)",
-    defaultInputTokens: 1_000,
-    defaultOutputTokens: 500,
-    defaultResponseTimeSeconds: 12.0,
-    popularity: {
-      downloadsPerMonth: 691_453,
-      hfLikes: 2810,
-    },
-  },
   "mistralai/Mistral-Small-3.2-24B-Instruct-2506": {
     modelId: "mistralai/Mistral-Small-3.2-24B-Instruct-2506",
     displayName: "Mistral Small 24B",
     architecture: "dense-transformer",
     parameters: 24_000_000_000,
-    modelSizeBytes: 24_000_000_000 * 2, // FP16: ~48GB
+    modelSizeBytes: 24_000_000_000 * 2, // BF16: ~48GB
     totalTrainingCO2Grams: 3_200_000_000, // 3,200 tons (Mistral env. report estimate)
     trainingSource: "Mistral AI env. report (HF: 538K+ downloads/month)",
     defaultInputTokens: 800,
-    defaultOutputTokens: 500,
-    defaultResponseTimeSeconds: 8.0,
+    defaultOutputTokens: 190, // Measured mean output tokens/req (7d) via Prometheus
+    defaultResponseTimeSeconds: 0.2, // Measured p50 GPU time, queue excluded (7d) via Prometheus vllm
+    defaultConcurrency: 1, // Measured ~0.08 via Little's Law (24h); rounds to ~1 concurrent request
+    cachedPromptFraction: 0.62, // Measured: 62% of prompt tokens from KV cache (7d, vLLM)
     popularity: {
       downloadsPerMonth: 537_956,
       hfLikes: 593,
@@ -71,48 +41,32 @@ export const MODEL_PROFILES: Record<string, ModelProfile> = {
     displayName: "Mistral Medium 128B",
     architecture: "dense-transformer",
     parameters: 128_000_000_000,
-    modelSizeBytes: 128_000_000_000 * 2, // FP16: ~256GB
+    modelSizeBytes: 128_000_000_000 * 1, // FP8: ~128GB
     totalTrainingCO2Grams: 17_000_000_000, // 17,000 tons (SCI-AI extrapolation)
-    trainingSource: "SCI-AI extrapolation (HF: 390K+ downloads/month)",
+    trainingSource: "SCI-AI extrapolation (Berget AI OpenRouter metadata: 128B dense, FP8)",
     defaultInputTokens: 1_000,
-    defaultOutputTokens: 800,
-    defaultResponseTimeSeconds: 20.0,
+    defaultOutputTokens: 30, // Measured mean output tokens/req (7d) via Prometheus
+    defaultResponseTimeSeconds: 0.2, // Measured p50 GPU time, queue excluded (7d) via Prometheus vllm
+    defaultConcurrency: 1, // Measured ~0.02 via Little's Law (24h); node sits mostly idle
+    cachedPromptFraction: 0, // Measured: prefix cache not hit (7d, vLLM)
     popularity: {
       downloadsPerMonth: 390_474,
       hfLikes: 349,
     },
   },
-  "openai/gpt-oss-120b": {
-    modelId: "openai/gpt-oss-120b",
-    displayName: "GPT-OSS 117B",
+  "zai-org/GLM-5.2": {
+    modelId: "zai-org/GLM-5.2",
+    displayName: "GLM 5.2 (753B MoE)",
     architecture: "mixture-of-experts",
-    parameters: 117_000_000_000, // 117B total params (MoE with 128 experts, 4 active per token, 5.1B active)
-    modelSizeBytes: 117_000_000_000 * 0.5, // MXFP4: ~58GB (fits on single 80GB GPU)
-    totalTrainingCO2Grams: 15_000_000_000, // 15,000 tons (OpenAI estimate for 117B MoE)
-    trainingSource: "OpenAI MoE training estimate (HF: 4M+ downloads/month, 117B params)",
+    parameters: 753_000_000_000, // 753B total params (MoE)
+    modelSizeBytes: 753_000_000_000 * 1, // FP8: ~753GB
+    totalTrainingCO2Grams: 52_000_000_000, // parameter-scaling estimate (Zhipu AI undisclosed)
+    trainingSource: "Parameter-scaling estimate (Berget AI OpenRouter metadata, 753B MoE, FP8)",
     defaultInputTokens: 1_000,
-    defaultOutputTokens: 800,
-    defaultResponseTimeSeconds: 18.0,
-    popularity: {
-      downloadsPerMonth: 4_012_993,
-      hfLikes: 4870,
-    },
-  },
-  "zai-org/GLM-4.7": {
-    modelId: "zai-org/GLM-4.7",
-    displayName: "GLM 4.7 358B",
-    architecture: "mixture-of-experts",
-    parameters: 358_000_000_000, // 358B total params (MoE with 160 experts, 8 active per token)
-    modelSizeBytes: 358_000_000_000 * 0.5, // INT4/FP8: ~179GB
-    totalTrainingCO2Grams: 25_000_000_000, // 25,000 tons (Zhipu AI estimate for 358B MoE)
-    trainingSource: "Zhipu AI training logs (HF: 66K+ downloads/month, 358B params)",
-    defaultInputTokens: 800,
-    defaultOutputTokens: 600,
-    defaultResponseTimeSeconds: 10.0,
-    popularity: {
-      downloadsPerMonth: 65_674,
-      hfLikes: 2040,
-    },
+    defaultOutputTokens: 549, // Measured mean output tokens/req (7d) via Prometheus
+    defaultResponseTimeSeconds: 5.8, // Measured p50 GPU time, queue excluded (7d) via Prometheus sglang
+    defaultConcurrency: 1, // Measured ~0.9 via Little's Law (24h)
+    cachedPromptFraction: 0, // Prefix cache disabled on the SGLang B300 deployment
   },
   "google/gemma-4-31B-it": {
     modelId: "google/gemma-4-31B-it",
@@ -123,28 +77,120 @@ export const MODEL_PROFILES: Record<string, ModelProfile> = {
     totalTrainingCO2Grams: 4_100_000_000, // 4,100 tons (Google DeepMind estimate)
     trainingSource: "Google DeepMind sustain. (HF: 10M+ downloads/month, 30.7B params)",
     defaultInputTokens: 600,
-    defaultOutputTokens: 400,
-    defaultResponseTimeSeconds: 6.0,
+    defaultOutputTokens: 397, // Measured mean output tokens/req (7d) via Prometheus
+    defaultResponseTimeSeconds: 1, // Measured p50 GPU time, queue excluded (7d) via Prometheus vllm
+    defaultConcurrency: 7, // Measured ~6.75 via Little's Law (24h) — the busiest shared model
+    cachedPromptFraction: 0.60, // Measured: 60% of prompt tokens from KV cache (7d, vLLM)
     popularity: {
       downloadsPerMonth: 10_131_972,
       hfLikes: 2950,
     },
   },
-  "moonshotai/Kimi-K2.6": {
-    modelId: "moonshotai/Kimi-K2.6",
-    displayName: "Kimi K2.6 (1.1T MoE)",
+  "moonshotai/Kimi-K3": {
+    modelId: "moonshotai/Kimi-K3",
+    displayName: "Kimi K3 (2.8T MoE)",
     architecture: "mixture-of-experts",
-    parameters: 1_100_000_000_000,
-    modelSizeBytes: 1_100_000_000_000 * 0.5, // INT4: ~550GB (MoE, sparse)
-    totalTrainingCO2Grams: 50_000_000_000, // 50,000 tons (MoE 1.1T parameter scaling estimate)
-    trainingSource: "MoE 1.1T parameter scaling estimate (HF: 2.9M+ downloads/month)",
+    parameters: 2_800_000_000_000, // 2.8T total params (104B active)
+    modelSizeBytes: 2_800_000_000_000 * 0.5, // INT4: ~1.4TB
+    totalTrainingCO2Grams: 140_000_000_000, // parameter-scaling estimate (Moonshot AI undisclosed)
+    trainingSource: "Parameter-scaling estimate (Berget AI OpenRouter metadata, 2.8T MoE / 104B active, INT4)",
     defaultInputTokens: 5_000,
-    defaultOutputTokens: 200,
+    defaultOutputTokens: 488, // Measured mean output tokens/req (7d) via Prometheus
+    defaultResponseTimeSeconds: 5.5, // Measured p50 GPU time, queue excluded (7d) via Prometheus sglang
+    defaultConcurrency: 3, // Measured ~2.7 via Little's Law (24h)
+    cachedPromptFraction: 0, // Prefix cache disabled on the SGLang B300 deployment
+  },
+
+  // -----------------------------------------------------------------------
+  // Frontier / Closed Models
+  //
+  // Parameter counts are EcoLogits estimates (github.com/mlco2/ecologits).
+  // Closed providers do not disclose sizes, so these are midpoints of the
+  // published min/max ranges; MoE figures are total parameters.
+  // -----------------------------------------------------------------------
+  "anthropic/claude-opus-4-5": {
+    modelId: "anthropic/claude-opus-4-5",
+    displayName: "Claude Opus 4.5",
+    architecture: "mixture-of-experts",
+    parameters: 670_000_000_000, // EcoLogits total (MoE)
+    modelSizeBytes: 670_000_000_000 * 0.5, // ~335GB quantised
+    totalTrainingCO2Grams: 33_500_000_000, // parameter-scaling estimate (undisclosed)
+    trainingSource: "EcoLogits parameter estimate (Anthropic undisclosed)",
+    defaultInputTokens: 1_000,
+    defaultOutputTokens: 800,
+    defaultResponseTimeSeconds: 18.0,
+  },
+  "anthropic/claude-sonnet-4-5": {
+    modelId: "anthropic/claude-sonnet-4-5",
+    displayName: "Claude Sonnet 4.5",
+    architecture: "mixture-of-experts",
+    parameters: 440_000_000_000, // EcoLogits total (MoE)
+    modelSizeBytes: 440_000_000_000 * 0.5, // ~220GB quantised
+    totalTrainingCO2Grams: 22_000_000_000, // parameter-scaling estimate (undisclosed)
+    trainingSource: "EcoLogits parameter estimate (Anthropic undisclosed)",
+    defaultInputTokens: 1_000,
+    defaultOutputTokens: 800,
+    defaultResponseTimeSeconds: 12.0,
+  },
+  "openai/gpt-5": {
+    modelId: "openai/gpt-5",
+    displayName: "GPT-5",
+    architecture: "mixture-of-experts",
+    parameters: 300_000_000_000, // EcoLogits total (MoE)
+    modelSizeBytes: 300_000_000_000 * 0.5, // ~150GB quantised
+    totalTrainingCO2Grams: 15_000_000_000, // parameter-scaling estimate (undisclosed)
+    trainingSource: "EcoLogits parameter estimate (OpenAI undisclosed)",
+    defaultInputTokens: 1_000,
+    defaultOutputTokens: 800,
+    defaultResponseTimeSeconds: 10.0,
+  },
+  "openai/gpt-5-pro": {
+    modelId: "openai/gpt-5-pro",
+    displayName: "GPT-5 Pro",
+    architecture: "mixture-of-experts",
+    parameters: 3_600_000_000_000, // EcoLogits total (MoE)
+    modelSizeBytes: 3_600_000_000_000 * 0.5, // ~1.8TB quantised
+    totalTrainingCO2Grams: 180_000_000_000, // parameter-scaling estimate (undisclosed)
+    trainingSource: "EcoLogits parameter estimate (OpenAI undisclosed)",
+    defaultInputTokens: 1_000,
+    defaultOutputTokens: 800,
+    defaultResponseTimeSeconds: 30.0,
+  },
+  "google/gemini-2.5-pro": {
+    modelId: "google/gemini-2.5-pro",
+    displayName: "Gemini 2.5 Pro",
+    architecture: "mixture-of-experts",
+    parameters: 2_000_000_000_000, // EcoLogits total (MoE)
+    modelSizeBytes: 2_000_000_000_000 * 0.5, // ~1TB quantised
+    totalTrainingCO2Grams: 100_000_000_000, // parameter-scaling estimate (undisclosed)
+    trainingSource: "EcoLogits parameter estimate (Google undisclosed)",
+    defaultInputTokens: 1_000,
+    defaultOutputTokens: 800,
     defaultResponseTimeSeconds: 20.0,
-    popularity: {
-      downloadsPerMonth: 2_880_537,
-      hfLikes: 1430,
-    },
+  },
+  "google/gemini-3-pro": {
+    modelId: "google/gemini-3-pro",
+    displayName: "Gemini 3 Pro",
+    architecture: "mixture-of-experts",
+    parameters: 1_200_000_000_000, // EcoLogits total (MoE)
+    modelSizeBytes: 1_200_000_000_000 * 0.5, // ~600GB quantised
+    totalTrainingCO2Grams: 60_000_000_000, // parameter-scaling estimate (undisclosed)
+    trainingSource: "EcoLogits parameter estimate (Google undisclosed)",
+    defaultInputTokens: 1_000,
+    defaultOutputTokens: 800,
+    defaultResponseTimeSeconds: 16.0,
+  },
+  "mistralai/mistral-large-2512": {
+    modelId: "mistralai/mistral-large-2512",
+    displayName: "Mistral Large 123B",
+    architecture: "dense-transformer",
+    parameters: 123_000_000_000, // EcoLogits (dense)
+    modelSizeBytes: 123_000_000_000 * 2, // FP16: ~246GB
+    totalTrainingCO2Grams: 16_000_000_000, // Mistral env. report extrapolation
+    trainingSource: "EcoLogits / Mistral AI env. report (123B dense)",
+    defaultInputTokens: 1_000,
+    defaultOutputTokens: 800,
+    defaultResponseTimeSeconds: 18.0,
   },
 
   // -----------------------------------------------------------------------

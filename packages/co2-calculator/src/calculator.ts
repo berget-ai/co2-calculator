@@ -121,23 +121,55 @@ export function calculateInference(params: InferenceParams): InferenceResult {
     hardware,
     deploymentGrid,
     measuredResponseTimeSeconds,
-    inputTokens,
     outputTokens,
-    concurrency,
     hourOfDay,
     includeTraining,
     lifetimeQueries,
   } = params;
 
-  // Clamp concurrency to valid range
-  const safeConcurrency = Math.max(1, Math.abs(concurrency));
+  const deployment = params.deployment ?? "shared";
+  const caching = params.caching ?? true;
+
+  // --- Concurrency (Section 3.2) ---
+  // On-prem: you run the model yourself, so there is no sharing — concurrency
+  // is 1 and the full infrastructure/embodied cost lands on your queries.
+  // Shared: when no explicit concurrency is given, derive it from the model's
+  // measured production concurrency (Little's Law) scaled by the time-of-day
+  // traffic pattern, so a popular model at peak hour shares more than a quiet
+  // one at night. Falls back to a generic default for models we don't serve.
+  const GENERIC_DEFAULT_CONCURRENCY = 8;
+  // Clamp hourOfDay into [0,23] and guard against non-finite values so the
+  // traffic-pattern lookup and everything downstream can never go NaN.
+  const safeHour = Number.isFinite(hourOfDay) ? Math.max(0, Math.min(23, Math.floor(hourOfDay))) : 14;
+  const timeOfDayWeight = DEFAULT_TRAFFIC_PATTERN[safeHour] ?? 0.5;
+  const derivedConcurrency =
+    (modelProfile.defaultConcurrency ?? GENERIC_DEFAULT_CONCURRENCY) *
+    (timeOfDayWeight / 0.5); // normalise so the afternoon plateau (0.5) = model baseline
+  const rawConcurrency = params.concurrency ?? derivedConcurrency;
+  const concurrency =
+    deployment === "onprem"
+      ? 1
+      : Math.max(1, Math.round(Number.isFinite(rawConcurrency) ? rawConcurrency : GENERIC_DEFAULT_CONCURRENCY));
+
+  const safeConcurrency = concurrency;
+
+  // --- Caching (KV prefix cache) ---
+  // When enabled, the model's measured cachedPromptFraction of the prompt is
+  // served from the KV cache and skips the prefill phase, so only the
+  // uncached share of input tokens drives prefill GPU time. The fraction is
+  // clamped to [0,1] and guarded against non-finite values so a bad measured
+  // value can never produce negative/NaN effective tokens.
+  const inputTokens = params.inputTokens;
+  const rawFraction = caching ? modelProfile.cachedPromptFraction ?? 0 : 0;
+  const cachedFraction = Number.isFinite(rawFraction) ? Math.max(0, Math.min(1, rawFraction)) : 0;
+  const effectiveInputTokens = inputTokens * (1 - cachedFraction);
 
   // --- Token-based time adjustment (Section 3.1) ---
   // Scale response time based on token count relative to defaults.
   // Square root models sub-linear scaling: doubling tokens does not double
   // processing time because tokens are processed in parallel (prefill phase)
   // and the decode phase has fixed overhead per step.
-  const tokenRatio = (inputTokens + outputTokens) / 
+  const tokenRatio = (effectiveInputTokens + outputTokens) /
     (modelProfile.defaultInputTokens + modelProfile.defaultOutputTokens);
   const tokenAdjustedTime = measuredResponseTimeSeconds * Math.sqrt(tokenRatio);
 

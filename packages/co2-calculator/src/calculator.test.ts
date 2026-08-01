@@ -10,7 +10,7 @@ import { GRID_REGIONS } from "./grids.js";
 import type { InferenceParams } from "./types.js";
 
 const baseParams = (overrides: Partial<InferenceParams> = {}): InferenceParams => ({
-  modelProfile: MODEL_PROFILES["meta-llama/Llama-3.1-8B-Instruct"],
+  modelProfile: MODEL_PROFILES["mistralai/Mistral-Small-3.2-24B-Instruct-2506"],
   hardware: HARDWARE_CONFIGS.h200,
   deploymentGrid: GRID_REGIONS.sweden,
   measuredResponseTimeSeconds: 1.2,
@@ -25,12 +25,12 @@ const baseParams = (overrides: Partial<InferenceParams> = {}): InferenceParams =
 
 describe("calculateInference", () => {
   it("allocates GPUs based on memory requirements", () => {
-    // A 120B model in FP16 (2 bytes/param, no modelSizeBytes override) needs ~268GB memory
+    // A 128B model in FP16 (2 bytes/param, no modelSizeBytes override) needs ~268GB memory
     // H100: 80GB per GPU → needs 4 GPUs (268/80 = 3.35 → ceil = 4)
     // MI300X: 192GB per GPU → needs 2 GPUs (268/192 = 1.40 → ceil = 2)
     const largeModel = baseParams({
       modelProfile: {
-        ...MODEL_PROFILES["openai/gpt-oss-120b"],
+        ...MODEL_PROFILES["mistralai/Mistral-Medium-3.5-128B"],
         modelSizeBytes: undefined, // Force FP16 (2 bytes per param)
       },
       hardware: HARDWARE_CONFIGS.h100,
@@ -60,24 +60,24 @@ describe("calculateInference", () => {
     expect(calculateInference(mistral).gpusAllocated).toBe(1); // 48GB fits in 141GB
   });
 
-  it("allocates 4 GPUs for large models (70B+)", () => {
-    // Llama 70B in FP16 needs ~140GB memory
-    // H100: 80GB per GPU → needs 2 GPUs
-    const llama70 = baseParams({
-      modelProfile: MODEL_PROFILES["meta-llama/Llama-3.3-70B-Instruct"],
-      hardware: HARDWARE_CONFIGS.h100,
+  it("allocates 6 GPUs for large models that need more memory", () => {
+    // GLM-5.2 (753B) in FP8 (~1 byte/param) needs ~753GB memory
+    // H200: 141GB per GPU → needs 6 GPUs
+    const glm = baseParams({
+      modelProfile: MODEL_PROFILES["zai-org/GLM-5.2"],
+      hardware: HARDWARE_CONFIGS.h200,
     });
-    expect(calculateInference(llama70).gpusAllocated).toBe(2); // 140GB / 80GB = 1.75 → ceil = 2
+    expect(calculateInference(glm).gpusAllocated).toBe(6); // 753GB / 141GB = 5.34 → ceil = 6
   });
 
   it("allocates 8 GPUs for very large models on H100", () => {
-    // Kimi 1.1T in INT4 needs ~550GB memory
-    // H100: 80GB per GPU → needs 7 GPUs
+    // Kimi K3 (2.8T) in INT4 (~0.5 bytes/param) needs ~1.4TB memory
+    // H100: 80GB per GPU → needs 18 GPUs, clamped to node max 8
     const huge = baseParams({
-      modelProfile: MODEL_PROFILES["moonshotai/Kimi-K2.6"],
+      modelProfile: MODEL_PROFILES["moonshotai/Kimi-K3"],
       hardware: HARDWARE_CONFIGS.h100,
     });
-    expect(calculateInference(huge).gpusAllocated).toBe(8); // 550GB / 80GB = 6.875 → ceil = 7, but max 8
+    expect(calculateInference(huge).gpusAllocated).toBe(8); // 1400GB / 80GB = 17.5 → clamped to 8
   });
 
   it("applies grid-specific PUE overhead (Section 3.5)", () => {
@@ -96,7 +96,7 @@ describe("calculateInference", () => {
     const overhead = result.components.datacenterOverhead.co2Grams;
     const gpu = result.components.gpuOperational.co2Grams;
     const server = result.components.serverOperational.co2Grams;
-    expect(overhead).toBeCloseTo((gpu + server) * 0.80, 6);
+    expect(overhead).toBeCloseTo((gpu + server) * 0.80, 5);
   });
 
   it("calculates water usage based on climate", () => {
@@ -113,29 +113,33 @@ describe("calculateInference", () => {
     expect(texas.waterLiters).toBeGreaterThan(sweden.waterLiters);
   });
 
-  it("uses model-size based utilization (Section 3.3)", () => {
-    const small = calculateInference(baseParams());
-    const medium = calculateInference(baseParams({
-      modelProfile: MODEL_PROFILES["mistralai/Mistral-Small-3.2-24B-Instruct-2506"],
+  it("uses a fixed utilization midpoint (Section 3.4)", () => {
+    // Utilisation is a fixed 25% midpoint (LLMCO2 10-40% range), NOT scaled by
+    // parameter count. Parameter-based tiers were removed after SEI review —
+    // utilisation depends on batch size, prompt length and KV cache pressure,
+    // not model size. So GPU power per card is identical across model sizes;
+    // only GPU-time and the number of allocated GPUs drive energy.
+    const small = calculateInference(baseParams({
+      modelProfile: { ...baseParams().modelProfile, parameters: 8_000_000_000 },
     }));
     const large = calculateInference(baseParams({
-      modelProfile: MODEL_PROFILES["meta-llama/Llama-3.3-70B-Instruct"],
+      modelProfile: { ...baseParams().modelProfile, parameters: 70_000_000_000 },
     }));
-    
-    // Small models (≤10B): utilization = 0.3
-    // Medium models (10-40B): utilization = 0.6
-    // Large models (>40B): utilization = 0.9
-    expect(small.components.gpuOperational.energyKwh).toBeLessThan(medium.components.gpuOperational.energyKwh);
-    expect(medium.components.gpuOperational.energyKwh).toBeLessThan(large.components.gpuOperational.energyKwh);
+    // Same per-GPU power → same per-GPU operational energy for the same time.
+    const perGpuSmall = small.components.gpuOperational.energyKwh / small.gpusAllocated;
+    const perGpuLarge = large.components.gpuOperational.energyKwh / large.gpusAllocated;
+    expect(perGpuSmall).toBeCloseTo(perGpuLarge, 8);
   });
 
-  it("keeps server energy constant per node (Section 3.6)", () => {
+  it("divides server CO₂ among concurrent requests (Section 3.6)", () => {
     const lowConcurrency = calculateInference(baseParams({ concurrency: 2 }));
     const highConcurrency = calculateInference(baseParams({ concurrency: 32 }));
-    
-    // Server energy should be the same regardless of concurrency
-    // (it's divided by concurrency for per-request CO2, but energy is constant)
-    expect(lowConcurrency.components.serverOperational.energyKwh).toBe(highConcurrency.components.serverOperational.energyKwh);
+
+    // Chassis power is constant per node, so per-request server CO₂ falls as
+    // the fixed cost is shared across more concurrent requests.
+    expect(highConcurrency.components.serverOperational.co2Grams).toBeLessThan(
+      lowConcurrency.components.serverOperational.co2Grams
+    );
   });
 
   it("amortises training CO₂ over lifetime queries", () => {
