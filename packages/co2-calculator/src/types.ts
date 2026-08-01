@@ -36,6 +36,19 @@ export interface ModelProfile {
   defaultOutputTokens: number;
   /** Default response time (seconds) from production */
   defaultResponseTimeSeconds: number;
+  /**
+   * Typical concurrent requests sharing the node, measured via Little's Law
+   * (request rate × mean latency) from production. Optional — falls back to a
+   * generic default when unknown (e.g. closed frontier models we don't serve).
+   */
+  defaultConcurrency?: number;
+  /**
+   * Fraction of prompt tokens served from the KV prefix cache in production
+   * (0-1), measured via vLLM/SGLang. When caching is enabled, this share of
+   * the prompt skips the prefill phase, cutting its GPU time. 0 when prefix
+   * caching is disabled.
+   */
+  cachedPromptFraction?: number;
   /** Hugging Face popularity metrics */
   popularity?: {
     downloadsPerMonth: number;
@@ -129,8 +142,26 @@ export interface InferenceParams {
   measuredResponseTimeSeconds: number;
   inputTokens: number;
   outputTokens: number;
-  /** Concurrent requests sharing the node (for overhead sharing) */
-  concurrency: number;
+  /**
+   * Concurrent requests sharing the node (for overhead sharing). Optional:
+   * when omitted it is derived from the model's measured production
+   * concurrency (defaultConcurrency) scaled by the time-of-day traffic
+   * pattern. Forced to 1 when deployment is "onprem".
+   */
+  concurrency?: number;
+  /**
+   * "shared" (default): the node is shared with other tenants, so fixed
+   * server/embodied costs are split across concurrent requests.
+   * "onprem": you run the model on your own server — concurrency is 1 and the
+   * entire infrastructure + embodied footprint lands on your queries alone.
+   */
+  deployment?: "shared" | "onprem";
+  /**
+   * Whether the KV prefix cache is used. When true (default), the model's
+   * measured cachedPromptFraction of the prompt skips prefill, reducing GPU
+   * time. When false, the full prompt is prefilled every request.
+   */
+  caching?: boolean;
   /** Hour of day (0-23) for time-of-day adjustment */
   hourOfDay: number;
   /** Whether to include amortised training CO₂ */
