@@ -178,8 +178,14 @@ export function GuideMode({
         <p style={prose.p}>
           And when numbers do appear, they're calculated differently every time, so anyone can draw the boundary that
           makes them look best. That isn't just an inconvenience; it's how accountability is avoided. Comparability
-          isn't a nice-to-have — it's the whole game. So here's an open attempt to both simplify and standardise the
-          calculation: CO₂ reported as close to the true cost as physics allows.
+          isn't a nice-to-have — it's the whole game.
+        </p>
+        <p style={prose.p}>
+          Part of the problem is that the footprint is genuinely hard to reason about. A single AI request depends on
+          the model, where the server runs, the carbon mix of that grid, and even the time of day — too many moving
+          parts for anyone to hold an intuition for, let alone compare two providers by hand. That's exactly why we
+          don't just publish a formula: we track the CO₂ of every individual request, so the comparison is done for
+          you, the same way every time. The method below shows how.
         </p>
         <MethodPanel
           assumptions={[
@@ -490,7 +496,12 @@ export function GuideMode({
           <strong>If you provide AI:</strong> report <code>co2_grams</code> in every response — the method and the code
           above are open, so use them, scrutinise them, improve them. <strong>If you procure AI:</strong> require
           emissions data, and the location of the servers, in your contracts. <strong>If you build on AI:</strong> ask
-          your provider for it. Transparency is the prerequisite; accountability is the point.
+          your provider for it.
+        </p>
+        <p style={prose.p}>
+          This only works if the industry moves together — a number you can't compare across providers is just a number.
+          So help us spread the word. And if you find a flaw in our method, tell us: the code is open precisely so it can
+          be checked, challenged and improved. Transparency is the prerequisite; accountability is the point.
         </p>
 
         <div
