@@ -193,7 +193,7 @@ export function GuideMode({
           And when numbers do appear, they're calculated differently every time, so anyone can draw the boundary that
           makes them look best. That isn't just an inconvenience; it's how accountability is avoided. Comparability
           isn't a nice-to-have — it's the whole game. That's why we built this: an open attempt to both simplify and
-          standardize the calculation. Just as every API response already reports tokens, we believe it should report
+          standardise the calculation. Just as every API response already reports tokens, we believe it should report
           CO₂ — as close to the true cost as physics allows. Here's how we do it.
         </p>
         <MethodPanel
@@ -241,7 +241,7 @@ export function GuideMode({
         </p>
         <p style={prose.p}>
           Size sets the floor: a model must fit in GPU memory (weights, plus ~20% for the KV cache), so a trillion-parameter
-          model occupies several GPUs at once while a small quantized one fits on a single card. Context length and cache
+          model occupies several GPUs at once while a small quantised one fits on a single card. Context length and cache
           then stretch or shrink the time: long prompts mean more tokens and a growing KV cache, while a cached prefix
           lets the model skip most of that work. And concurrency decides how many queries split the fixed cost of the
           servers. Try it — here's roughly how long your request occupies the GPU, and how sharing the node changes it.
@@ -309,7 +309,7 @@ export function GuideMode({
             "Idle GPUs are modeled in a low-power state (idle watts), not at peak draw — only the active query time adds incremental power (25% of the idle→peak span).",
             "Model parameters and usage figures are refreshed from public sources (EcoLogits, Hugging Face, OpenRouter).",
           ]}
-          reasoning="Rather than inventing per-model energy figures, we lean on published model cards and independent measurement projects, then scale by the actual time a query occupies the GPU. Two models of the same size can still differ — architecture, quantization and serving efficiency matter — so we treat per-model data as the best available estimate, not ground truth."
+          reasoning="Rather than inventing per-model energy figures, we lean on published model cards and independent measurement projects, then scale by the actual time a query occupies the GPU. Two models of the same size can still differ — architecture, quantisation and serving efficiency matter — so we treat per-model data as the best available estimate, not ground truth."
           sources={[
             { label: "Rincé & Banse (2025) — EcoLogits: Evaluating the Environmental Impacts of Generative AI, JOSS 10(111)", url: "https://doi.org/10.21105/joss.07471" },
             { label: "Fu et al. (2024) — LLMCO2: Advancing Accurate Carbon Footprint Prediction for LLM Inferences, arXiv:2410.02950", url: "https://arxiv.org/abs/2410.02950" },
@@ -366,7 +366,7 @@ export function GuideMode({
           And this is where geography really bites. In a cold Nordic climate you can cool with outside air for most of
           the year — fans and filters, essentially — reaching a PUE around 1.15 with <em>zero water</em>. In a hot or
           humid climate that free lunch disappears: you need energy-intensive mechanical chillers, pushing PUE toward
-          1.80, and the most common approach — evaporative cooling — consumes up to 2 liters of water per kWh. Same
+          1.80, and the most common approach — evaporative cooling — consumes up to 2 litres of water per kWh. Same
           model, same query, but a datacenter in Texas can use ~57% more energy just staying cool, and drain a scarce
           water supply doing it. Cooling isn't a footnote; it's a first-order difference.
         </p>
@@ -401,16 +401,16 @@ export function GuideMode({
           Every GPU carries the cost of its own manufacturing — and that cost is significant. We estimate roughly{" "}
           <strong>1,000 kg of CO₂ per datacenter GPU</strong> (and ~4,000 kg for the surrounding node: CPU, memory,
           storage, networking). The figures come from server-level life-cycle assessments by Dell and HPE, with the
-          non-GPU components subtracted. New hardware amortizes that cost over its lifetime; refurbished hardware
+          non-GPU components subtracted. New hardware amortises that cost over its lifetime; refurbished hardware
           carries zero embodied carbon, because those emissions are already spent.
         </p>
         <p style={prose.p}>
-          Model size decides how many GPUs a query needs. A small, quantized model fits on a single card; a
+          Model size decides how many GPUs a query needs. A small, quantised model fits on a single card; a
           trillion-parameter model has to be spread across several. And here's the part people miss:{" "}
           <strong>a smaller model can often run on older, humbler hardware.</strong> An older inference card like the
           NVIDIA L4 embodies only ~300 kg — a fraction of a flagship H200 — and because that hardware has already been
-          in service for years, much of its manufacturing footprint is already amortized. Choosing a right-sized model
-          on mature hardware can cut emissions dramatically before you've optimized anything else.
+          in service for years, much of its manufacturing footprint is already amortised. Choosing a right-sized model
+          on mature hardware can cut emissions dramatically before you've optimised anything else.
         </p>
         <InteractiveFrame label="configure hardware">
           <HardwarePicker
@@ -422,12 +422,12 @@ export function GuideMode({
         </InteractiveFrame>
         <MethodPanel
           assumptions={[
-            "Embodied carbon is ~1,000 kg CO₂ per datacenter GPU and ~4,000 kg for the rest of the node (CPU, RAM, SSD, chassis, network), amortized over a 5-year lifetime and allocated per query by GPU-seconds.",
+            "Embodied carbon is ~1,000 kg CO₂ per datacenter GPU and ~4,000 kg for the rest of the node (CPU, RAM, SSD, chassis, network), amortised over a 5-year lifetime and allocated per query by GPU-seconds.",
             "GPUs needed per model = model size × bytes/parameter × 1.2 (KV-cache overhead), divided by GPU memory — so larger models span more GPUs.",
             "Refurbished hardware is counted as zero embodied carbon — the manufacturing emissions are already spent.",
             "Per-GPU figures carry ±30–50% uncertainty: NVIDIA/AMD don't publish per-GPU LCAs, so we derive them from server-level reports.",
           ]}
-          reasoning="Manufacturing dominates lifecycle emissions for datacenter hardware, so embodied carbon can't be ignored despite the uncertainty. We estimate it with life-cycle assessment: manufacturer product-carbon-footprint data at the server level, disaggregated per component. And because older hardware has already amortized much of its footprint, right-sizing a model to mature hardware is often the single biggest saving available."
+          reasoning="Manufacturing dominates lifecycle emissions for datacenter hardware, so embodied carbon can't be ignored despite the uncertainty. We estimate it with life-cycle assessment: manufacturer product-carbon-footprint data at the server level, disaggregated per component. And because older hardware has already amortised much of its footprint, right-sizing a model to mature hardware is often the single biggest saving available."
           sources={[
             { label: "NVIDIA (2024) — HGX H100 Product Carbon Footprint Summary", url: "https://images.nvidia.com/aem-dam/Solutions/documents/HGX-H100-PCF-Summary.pdf" },
             { label: "Dell Technologies (2023) — Life Cycle Assessment of PowerEdge servers (R750: 2,181–3,880 kg embodied)" },
@@ -489,7 +489,7 @@ export function GuideMode({
             "Monthly totals are allocated back across individual requests after the fact.",
             "Berget AI owns and operates its own hardware and networking, so true consumption is directly measurable.",
           ]}
-          reasoning="The calculator is a model, and any model can drift. Owning the hardware means we don't have to trust a cloud provider's estimate — we can read the meters. The gap between reported and measured emissions tells us whether our assumptions (PUE, idle draw, utilization) hold, and lets us tighten them over time. Open-sourcing the method is the point: verification shouldn't require owning a datacenter."
+          reasoning="The calculator is a model, and any model can drift. Owning the hardware means we don't have to trust a cloud provider's estimate — we can read the meters. The gap between reported and measured emissions tells us whether our assumptions (PUE, idle draw, utilisation) hold, and lets us tighten them over time. Open-sourcing the method is the point: verification shouldn't require owning a datacenter."
           sources={[
             { label: "Open-source calculator library (@berget/co2-calculator)", url: "https://github.com/berget-ai/co2-emissions-calculator" },
             { label: "Full methodology document (METHODOLOGY.md), reviewed by the Stockholm Environment Institute", url: "https://github.com/berget-ai/co2-calculator/blob/main/METHODOLOGY.md" },
@@ -507,7 +507,7 @@ export function GuideMode({
         </p>
         <p style={prose.p}>
           <strong>If you provide AI:</strong> report <code>co2_grams</code> in every response. The method and the code
-          above are open — use them, scrutinize them, improve them. Publishing your number is how you take
+          above are open — use them, scrutinise them, improve them. Publishing your number is how you take
           responsibility for where your servers sit. <strong>If you procure AI:</strong> require emissions data — and
           the location of the servers — in your contracts. <strong>If you build on AI:</strong> ask your provider for
           it. Transparency is the prerequisite; accountability is the point.
