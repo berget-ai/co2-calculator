@@ -90,11 +90,12 @@ export function GuideMode({
           AI industry: stop hiding your CO₂ emissions.
         </h1>
         <p style={{ ...prose.p, fontSize: "1.125rem" }}>
-          There's real confusion about AI's emissions — and the reason is a lack of transparency. At Berget AI we've
-          committed to being 100% transparent about ours, and to letting our users act on that information: by
-          optimizing their queries and choosing smaller models for simpler tasks, they can cut their emissions. Now
-          we're releasing our methods and code as open source, so the rest of the AI industry can hopefully adapt
-          faster — and start reporting emissions as part of their token usage too.
+          There's real confusion about AI's emissions — and the reason is a lack of transparency. The responsibility
+          for those emissions doesn't sit with the person typing a prompt. It sits with the companies that choose where
+          to run their servers, and with the buyers who procure AI without asking. At Berget AI we've committed to
+          being 100% transparent about ours: every response reports its own CO₂. Now we're releasing our methods and
+          code as open source, so the rest of the industry can do the same — and so that anyone buying or building on
+          AI can finally compare providers on what they emit.
         </p>
 
         {/* The live JSON */}
@@ -131,27 +132,69 @@ export function GuideMode({
           <ApiResponseBlock result={result} model={model} selectedModel={state.selectedModel} highlightKey="co2" />
         </div>
 
+        {/* TL;DR for decision-makers */}
+        <div
+          style={{
+            border: `1px solid ${C.borderMoss}`,
+            borderLeft: `4px solid ${C.moss}`,
+            borderRadius: 10,
+            padding: "1.25rem 1.5rem",
+            marginTop: "1.75rem",
+            background: C.ghost,
+          }}
+        >
+          <div
+            style={{
+              fontSize: "0.7rem",
+              fontWeight: 700,
+              color: C.moss,
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              marginBottom: "0.75rem",
+            }}
+          >
+            In short — if you buy or build on AI
+          </div>
+          <ul style={{ margin: 0, paddingLeft: "1.15rem", color: C.peak, lineHeight: 1.6, fontSize: "0.95rem" }}>
+            <li style={{ marginBottom: "0.5rem" }}>
+              <strong>The problem:</strong> the same AI request can emit 50× more CO₂ depending on where the servers
+              sit — and almost no provider publishes the number.
+            </li>
+            <li style={{ marginBottom: "0.5rem" }}>
+              <strong>The fix:</strong> report CO₂ on every API response, like tokens. Our method and code are open
+              source.
+            </li>
+            <li>
+              <strong>Your move:</strong> if you procure AI, demand emissions data in the contract. If you build on AI,
+              demand it from your provider. Location is a choice — make it an accountable one.
+            </li>
+          </ul>
+        </div>
+
         <p style={{ ...prose.p, marginTop: "1.5rem" }}>
-          Now let's dig into these numbers from first principles — and hopefully give you an intuition for the CO₂
-          emissions of the AI industry.
+          Below is the full method, from first principles. It's written for engineers, but the conclusion is simple:
+          the footprint of AI is decided by where and how the infrastructure is run — and that's a decision someone is
+          accountable for.
         </p>
       </header>
 
       {/* ═══ THE PROBLEM ═══ */}
       <Section id="the-problem">
         <div style={prose.kicker}>The problem</div>
-        <h2 style={prose.h2}>Your users can't choose what they can't compare</h2>
+        <h2 style={prose.h2}>No one can hold AI accountable for numbers nobody publishes</h2>
         <p style={prose.p}>
-          AI's environmental footprint is real, and our industry has a responsibility to measure it. Today, a developer
-          choosing between two models or two providers has no way to compare their climate impact — not because the
-          physics is unknowable, but because almost nobody publishes the numbers. And when numbers do appear, they're
-          calculated differently every time, so anyone can pick the boundary that makes them look best. Comparability
-          isn't a nice-to-have; it's the whole game.
+          AI's environmental footprint is real, and the industry that builds it has a responsibility to measure and
+          report it. That responsibility doesn't belong to the individual user — it belongs to the providers who choose
+          where to run their servers, and to the organisations that buy AI without asking where. Today, neither has the
+          numbers to act on. A buyer comparing two providers, or a team choosing between two models, has no way to
+          compare their climate impact — not because the physics is unknowable, but because almost nobody publishes it.
         </p>
         <p style={prose.p}>
-          That's why we built this: an open attempt to both simplify and standardize the calculation. Just as every API
-          response already reports tokens, we believe it should report CO₂ — as close to the true cost as physics
-          allows. Here's how we do it.
+          And when numbers do appear, they're calculated differently every time, so anyone can draw the boundary that
+          makes them look best. That isn't just an inconvenience; it's how accountability is avoided. Comparability
+          isn't a nice-to-have — it's the whole game. That's why we built this: an open attempt to both simplify and
+          standardize the calculation. Just as every API response already reports tokens, we believe it should report
+          CO₂ — as close to the true cost as physics allows. Here's how we do it.
         </p>
         <MethodPanel
           assumptions={[
@@ -459,9 +502,15 @@ export function GuideMode({
         <div style={prose.kicker}>The standard we propose</div>
         <h2 style={prose.h2}>Adopt this. Demand this.</h2>
         <p style={prose.p}>
-          If you build on AI APIs: ask your provider for <code>co2_grams</code> in every response. If you provide them:
-          the method and the code above are open — use them, scrutinize them, improve them. Your users can only make
-          responsible choices when the numbers are on the table.
+          The emissions from an AI request are decided long before anyone presses enter — by the provider that chose a
+          grid, and by the buyer that didn't ask. So the ask is aimed at them:
+        </p>
+        <p style={prose.p}>
+          <strong>If you provide AI:</strong> report <code>co2_grams</code> in every response. The method and the code
+          above are open — use them, scrutinize them, improve them. Publishing your number is how you take
+          responsibility for where your servers sit. <strong>If you procure AI:</strong> require emissions data — and
+          the location of the servers — in your contracts. <strong>If you build on AI:</strong> ask your provider for
+          it. Transparency is the prerequisite; accountability is the point.
         </p>
 
         <div
