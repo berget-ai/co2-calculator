@@ -60,7 +60,7 @@ describe("calculateInference", () => {
     expect(calculateInference(mistral).gpusAllocated).toBe(1); // 48GB fits in 141GB
   });
 
-  it("allocates 2 GPUs for large models that need more memory", () => {
+  it("allocates 6 GPUs for large models that need more memory", () => {
     // GLM-5.2 (753B) in FP8 (~1 byte/param) needs ~753GB memory
     // H200: 141GB per GPU → needs 6 GPUs
     const glm = baseParams({

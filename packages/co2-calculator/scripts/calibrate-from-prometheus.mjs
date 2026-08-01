@@ -120,12 +120,35 @@ async function fetchConcurrency() {
   }
 }
 
-/** Find the measured seconds for a profile, matching the model_name label. */
+/** Find the measured value for a profile, matching the model_name label. */
 function lookup(measuredByName, match) {
   for (const [name, seconds] of Object.entries(measuredByName)) {
     if (name.includes(match)) return seconds;
   }
   return null;
+}
+
+/**
+ * Prefix-cache hit rate per model over WINDOW — the fraction of prompt
+ * tokens served from the KV cache. vLLM exposes hits/queries counters;
+ * SGLang reports cache_hit_rate directly (0 where prefix caching is off).
+ */
+async function fetchCacheHitRate(engine) {
+  const q =
+    engine === "vllm"
+      ? `sum by (model_name) (rate(vllm:prefix_cache_hits_total[${WINDOW}])) / sum by (model_name) (rate(vllm:prefix_cache_queries_total[${WINDOW}]))`
+      : `avg by (model_name) (sglang_cache_hit_rate)`;
+  try {
+    const result = await promQuery(q);
+    const out = {};
+    for (const r of result) {
+      const v = parseFloat(r.value[1]);
+      if (Number.isFinite(v)) out[r.metric.model_name || ""] = Math.max(0, Math.min(1, v));
+    }
+    return out;
+  } catch {
+    return {};
+  }
 }
 
 // ─── models.ts update ───
@@ -171,11 +194,32 @@ function updateModelsTs(measured) {
       if (r2.found) { src = r2.src; outOld = r2.old; }
     }
 
+    // Concurrency (derived via Little's Law) — round to nearest whole request.
+    if (info.concurrency != null) {
+      const conc = Math.max(1, Math.round(info.concurrency));
+      const r3 = replaceField(
+        src, modelId, "defaultConcurrency", String(conc),
+        `Measured ~${info.concurrency.toFixed(2)} via Little's Law (${WINDOW})`
+      );
+      if (r3.found) src = r3.src;
+    }
+
+    // Cache-hit rate — fraction of prompt served from KV cache.
+    if (info.cacheHitRate != null) {
+      const rate = Math.round(info.cacheHitRate * 100) / 100;
+      const r4 = replaceField(
+        src, modelId, "cachedPromptFraction", String(rate),
+        `Measured: ${Math.round(rate * 100)}% of prompt tokens from KV cache (${WINDOW}, ${info.engine})`
+      );
+      if (r4.found) src = r4.src;
+    }
+
     report.push({
       modelId, status: "updated",
       oldSecs: parseFloat(r1.old), newSecs: roundedSecs,
       oldOut: outOld, newOut: info.outputTokens != null ? Math.round(info.outputTokens) : null,
       concurrency: info.concurrency,
+      cacheHitRate: info.cacheHitRate,
     });
   }
 
@@ -195,11 +239,13 @@ async function main() {
   console.log(`  Window: ${WINDOW}`);
   console.log(`  Mode:   ${DRY_RUN ? "dry-run (no writes)" : "write to models.ts"}\n`);
 
-  const [vllmP50, sglangP50, vllmOut, sglangOut, concurrency] = await Promise.all([
+  const [vllmP50, sglangP50, vllmOut, sglangOut, vllmCache, sglangCache, concurrency] = await Promise.all([
     fetchP50Latency("vllm").catch((e) => { console.warn("  vLLM latency failed:", e.message); return {}; }),
     fetchP50Latency("sglang").catch((e) => { console.warn("  SGLang latency failed:", e.message); return {}; }),
     fetchOutputTokens("vllm"),
     fetchOutputTokens("sglang"),
+    fetchCacheHitRate("vllm"),
+    fetchCacheHitRate("sglang"),
     fetchConcurrency(),
   ]);
 
@@ -207,11 +253,13 @@ async function main() {
   for (const [modelId, src] of Object.entries(MODEL_SOURCES)) {
     const byName = src.engine === "vllm" ? vllmP50 : sglangP50;
     const outByName = src.engine === "vllm" ? vllmOut : sglangOut;
+    const cacheByName = src.engine === "vllm" ? vllmCache : sglangCache;
     measured[modelId] = {
       engine: src.engine,
       seconds: lookup(byName, src.match),
       outputTokens: lookup(outByName, src.match),
       concurrency: lookup(concurrency, src.match),
+      cacheHitRate: lookup(cacheByName, src.match),
     };
   }
 

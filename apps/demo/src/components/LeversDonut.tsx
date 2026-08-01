@@ -75,12 +75,19 @@ function computeLevers(): Lever[] {
   const cleanestName = GRID_REGIONS[cleanestGrid]?.name ?? cleanestGrid;
   const dirtiestName = GRID_REGIONS[dirtiestGrid]?.name ?? dirtiestGrid;
 
+  // Guard each ratio: a failed lookup returns 0, which would give Infinity /
+  // NaN and break the log-scaling and SVG. Fall back to 1 (no span) instead.
+  const safeRatio = (worst: number, best: number) => {
+    const r = best > 0 ? worst / best : 1;
+    return Number.isFinite(r) && r > 0 ? r : 1;
+  };
+
   return [
-    { label: "Model", best: byParams[0]?.displayName ?? "smallest", worst: byParams[byParams.length - 1]?.displayName ?? "largest", ratio: modelWorst / modelBest },
-    { label: "Hardware", best: "refurbished", worst: "new", ratio: hwWorst / hwBest },
-    { label: "Grid", best: cleanestName, worst: dirtiestName, ratio: gridWorst / gridBest },
-    { label: "Sharing", best: "shared", worst: "on-prem", ratio: deployWorst / deployBest },
-    { label: "Caching", best: "on", worst: "off", ratio: cacheWorst / cacheBest },
+    { label: "Model", best: byParams[0]?.displayName ?? "smallest", worst: byParams[byParams.length - 1]?.displayName ?? "largest", ratio: safeRatio(modelWorst, modelBest) },
+    { label: "Hardware", best: "refurbished", worst: "new", ratio: safeRatio(hwWorst, hwBest) },
+    { label: "Grid", best: cleanestName, worst: dirtiestName, ratio: safeRatio(gridWorst, gridBest) },
+    { label: "Sharing", best: "shared", worst: "on-prem", ratio: safeRatio(deployWorst, deployBest) },
+    { label: "Caching", best: "on", worst: "off", ratio: safeRatio(cacheWorst, cacheBest) },
   ];
 }
 
@@ -88,7 +95,8 @@ function computeLevers(): Lever[] {
 // Computed adaptively from the largest lever so the ring never clips.
 function maxLogFor(levers: Lever[]): number {
   const maxRatio = Math.max(...levers.map((l) => l.ratio), 2);
-  return Math.log2(maxRatio * 1.1);
+  const log = Math.log2(maxRatio * 1.1);
+  return Number.isFinite(log) && log > 0 ? log : 1;
 }
 
 export function LeversDonut() {
