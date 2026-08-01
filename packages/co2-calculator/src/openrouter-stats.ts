@@ -21,7 +21,6 @@ const REGIONAL_MULTIPLIERS: Record<string, number> = {
   
   // Western models - OpenRouter captures most usage
   "google/gemma-4-31B-it": 1,
-  "openai/gpt-oss-120b": 1,
   "mistralai/Mistral-Small-3.2-24B-Instruct-2506": 1,
   "mistralai/Mistral-Medium-3.5-128B": 1,
 };
@@ -33,15 +32,6 @@ export const OPENROUTER_STATS: Record<string, OpenRouterStats> = {
     "completionTokensPerDay": 2129282254,
     "openRouterRequestsPerDay": 5356667,
     "estimatedGlobalRequestsPerDay": 53566667,
-    "latestDate": "2026-06-10 00:00:00",
-    "daysOfData": 31
-  },
-  "openai/gpt-oss-120b": {
-    "requestsPerDay": 12267211,
-    "promptTokensPerDay": 45796575179,
-    "completionTokensPerDay": 5977908849,
-    "openRouterRequestsPerDay": 12267211,
-    "estimatedGlobalRequestsPerDay": 122672110,
     "latestDate": "2026-06-10 00:00:00",
     "daysOfData": 31
   },
