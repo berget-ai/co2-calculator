@@ -6,6 +6,7 @@ import { ConcurrencyTimeExplorer } from "./ConcurrencyTimeExplorer";
 import { ConcurrencyChart } from "./ConcurrencyChart";
 import { DailyLoadChart } from "./DailyLoadChart";
 import { CoolingWaterChart } from "./CoolingWaterChart";
+import { LeversDonut } from "./LeversDonut";
 import { ResultsPanel } from "./ResultsPanel";
 import { ApiResponseBlock } from "./ApiResponseBlock";
 import { MethodPanel } from "./MethodPanel";
@@ -164,6 +165,18 @@ export function GuideMode({
             </li>
           </ul>
         </div>
+
+        {/* The levers, at a glance */}
+        <p style={{ ...prose.p, marginTop: "2rem" }}>
+          When you procure AI, a handful of choices decide almost all of the footprint: where the servers run, which
+          model you use, whether you share the hardware or run your own, how well its cache is tuned, and whether the
+          hardware is new or refurbished. The ring below shows the span from the best to the worst option within each
+          choice — computed live from our calculator, so it stays honest as we learn. The model you choose and the
+          grid it runs on dwarf everything else.
+        </p>
+        <InteractiveFrame label="the levers — best to worst within each choice">
+          <LeversDonut />
+        </InteractiveFrame>
       </header>
 
       {/* ═══ THE PROBLEM ═══ */}
@@ -246,13 +259,22 @@ export function GuideMode({
           />
         </InteractiveFrame>
         <p style={prose.p}>
-          This is also the quiet case for <strong>shared infrastructure over a server of your own.</strong> If you ran
-          this model on an on-prem box, it would sit nearly idle most of the day — yet the servers, cooling and
-          networking would draw power around the clock, and their entire manufacturing footprint would land on your
-          queries alone. On a shared node those fixed costs are split across everyone using it, which is why a busy
-          shared GPU usually beats a private one that mostly waits. The catch: each extra concurrent user also queues
-          behind the others, so every query occupies the GPU a little longer — and since the GPU's own manufacturing
-          cost is billed per GPU-second, that part creeps up as sharing grows.
+          This is also the quiet case for <strong>shared infrastructure over a server of your own.</strong> Run this
+          model on an on-prem box and you own the GPU for the whole month — whether it's busy or not. Its servers,
+          cooling and networking draw power around the clock, and its entire manufacturing footprint lands on your
+          queries alone. Spread over a quiet month, that embodied cost per request can dwarf the operational energy by
+          an order of magnitude. On a shared node those fixed costs are split across everyone using it, which is why a
+          busy shared GPU almost always beats a private one that mostly waits.
+        </p>
+        <p style={prose.p}>
+          Caching is the other lever, and it compounds. When a cached prefix lets the model skip most of the prefill,
+          each request occupies the GPU for less time — which means more requests fit on the same hardware, so the
+          fixed cost is shared across more of them. Less GPU time <em>and</em> more sharing: that's why a well-cached
+          shared service is hard to beat. The catch is that this is hard to do well on your own box — it needs the
+          right serving framework, KV-cache management and spare memory — so it tends to be exactly the advantage a
+          dedicated provider can offer and an on-prem setup can't. (And the queue still bites the other way: each extra
+          concurrent user makes every query occupy the GPU a little longer, so that embodied share creeps up as sharing
+          grows.)
         </p>
         <InteractiveFrame label="shared vs solo — the concurrency trade-off">
           <ConcurrencyChart
