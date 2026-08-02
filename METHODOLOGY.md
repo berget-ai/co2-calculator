@@ -32,10 +32,11 @@ Additional adaptations:
 - Multi-modal inference (text, embedding, speech)
 - Hardware procurement conditions (new vs. refurbished)
 - Production-calibrated concurrency and response time models
+- **Measured production values** for Berget's own models (GPU time, output tokens, concurrency, cache-hit rate), pulled from our Prometheus metrics rather than estimated — see Section 3.0
 
-**Key finding**: A single query to Llama 3.1 8B on Berget's infrastructure produces approximately **0.028 g CO₂e** (28 mg) in total lifecycle emissions, compared to ~0.060 g on US average grid — a **2.2× reduction** in total emissions. For operational emissions only (energy consumed during inference), the reduction is **47×** (0.69 mg vs 32.9 mg), demonstrating the massive impact of grid decarbonisation.
+**Key finding**: A single query to Gemma 4 31B on Berget's infrastructure produces approximately **0.018 g CO₂e** (18 mg) in total emissions excluding training, compared to ~0.086 g on US average grid — a **4.8× reduction**. For operational emissions only (energy consumed during inference), the reduction is **62×** (1.1 mg vs 69.6 mg), demonstrating the massive impact of grid decarbonisation. Because the Swedish grid is so clean, the embodied share of hardware manufacturing dominates the remaining total — making the new-vs-refurbished hardware choice one of the largest levers.
 
-**Why the difference between 47× and 2.2×?** Operational emissions (GPU + server + cooling energy) depend on the grid carbon intensity, so Sweden's clean grid gives a 47× advantage. However, embodied emissions (hardware manufacturing) and training emissions are **independent of the inference grid** — they depend on where the hardware was manufactured and where the model was trained, not where inference runs. Since embodied and training emissions are the same regardless of inference location, they dilute the operational advantage when comparing total lifecycle emissions.
+**Why the difference between 62× and 4.8×?** Operational emissions (GPU + server + cooling energy) depend on the grid carbon intensity, so Sweden's clean grid gives a 62× advantage. However, embodied emissions (hardware manufacturing) are **independent of the inference grid** — they depend on where the hardware was manufactured, not where inference runs. Since embodied emissions are the same regardless of inference location, they dilute the operational advantage when comparing total emissions (training excluded from both figures here).
 
 ---
 
@@ -180,6 +181,26 @@ The key methodological insight is that **per-request GPU time** is more accurate
 2. **Response time is directly measurable** via API latency metrics (time-to-first-token + streaming duration)
 3. **Concurrency must be accounted for** — a request taking 5 seconds on a GPU shared by 8 clients only consumes 5/8 = 0.625 seconds of exclusive GPU time
 
+### 3.0 Measured production values (Berget-operated models)
+
+For the models Berget AI operates ourselves, the baseline quantities in this section are **measured**, not estimated. Because we own the hardware and the serving stack, we export per-model metrics to Prometheus (vLLM and SGLang) and read the operating point directly:
+
+| Quantity | Source metric | What we take |
+|---|---|---|
+| Baseline GPU time | `vllm:request_inference_time_seconds` / `sglang_e2e_request_latency_seconds` | **p50**, queue wait **excluded** |
+| Output tokens/request | `vllm:generation_tokens_total` ÷ request count | mean |
+| Concurrency | derived via **Little's Law** (request rate × mean latency) | mean |
+| Cache-hit rate | `vllm:prefix_cache_hits_total` ÷ `vllm:prefix_cache_queries_total` | fraction of prompt served from KV cache |
+
+Two measurement choices are worth stating explicitly:
+
+- **GPU time excludes queueing.** A request's energy is the time the model is *actually computing*, not the time it spends waiting for a free slot. We therefore use `request_inference_time` (pure GPU work) rather than end-to-end latency. Where only end-to-end latency is available (SGLang) the queue time is negligible (~4 ms) so end-to-end ≈ GPU time.
+- **Concurrency is derived, not read.** The raw `num_requests_running` gauge can count idle batch slots as "running" and badly overstates true concurrency (we observed ~98 reported vs ~6.7 implied for our busiest model). We instead derive it via Little's Law: concurrency = request rate × mean latency.
+
+The calibration is automated in `packages/co2-calculator/scripts/calibrate-from-prometheus.mjs`, which re-reads these metrics over a trailing window and rewrites the `defaultResponseTimeSeconds`, `defaultOutputTokens`, `defaultConcurrency` and `cachedPromptFraction` fields in `packages/co2-calculator/src/models.ts`. Running it moved our baseline GPU times substantially (in both directions) relative to the editorial estimates they replaced — which is exactly the point of measuring.
+
+Models we do **not** operate (closed frontier models such as Claude, GPT-5, Gemini) have no Prometheus data; their parameters remain EcoLogits estimates and their concurrency falls back to a generic default, as described in Section 3.2.
+
 ### 3.1 Token-Based Time Adjustment
 
 Response time scales with token count, but sub-linearly. This is because tokens are processed in parallel during the prefill phase (input tokens are batched), and the decode phase has fixed overhead per step regardless of sequence length. We model this with a square root function, which captures diminishing returns: doubling the token count does not double the processing time.
@@ -212,7 +233,33 @@ else:
 - Higher concurrency → more GPU time per request → higher per-request GPU CO₂
 - Higher concurrency → lower infrastructure cost per request → lower per-request server CO₂
 
-**Note on the 0.15 coefficient**: This factor is empirically calibrated against production vLLM deployments. It represents the marginal latency increase per doubling of concurrency beyond the baseline of 8 concurrent requests. The logarithmic form reflects queueing theory: as concurrency increases, additional requests cause progressively smaller marginal delay (Amdahl's law).
+**Note on the 0.15 coefficient**: This factor is empirically calibrated against production vLLM deployments. It represents the marginal latency increase per doubling of concurrency beyond the baseline of 8 concurrent requests. The logarithmic form reflects diminishing marginal delay: as concurrency increases, each additional request adds progressively less queueing/contention overhead. Our production measurements could not constrain this coefficient more tightly (true concurrency is low and bursty for most models, so the curve is under-determined in the data), so we keep it as a documented approximation rather than a fitted value.
+
+**Deriving concurrency instead of passing it.** The `concurrency` parameter is optional. When it is omitted, the calculator derives it from the model's measured production concurrency (Section 3.0) scaled by the time-of-day traffic pattern (Section 3.7): a popular model at peak hour shares the node with more requests than a quiet model at night. For models we do not operate, concurrency falls back to a generic default of 8. This keeps the common case data-driven while still allowing an explicit value for scenario analysis.
+
+### 3.2a Caching (KV prefix cache)
+
+When the KV prefix cache is enabled, a repeated prompt prefix does not need to be re-prefilled: the model skips the parallel (prefill) phase for the cached share of the input and goes straight to decoding. That shortens the request's GPU time, and because each request then occupies the GPU for less time, more requests fit on the same hardware — so the fixed server and embodied costs are shared across more of them. Caching is therefore a *compounding* lever: it reduces per-request GPU energy **and** increases the sharing denominator at the same time.
+
+We model this by scaling the effective input tokens with the model's measured cache-hit rate (Section 3.0):
+
+```
+effectiveInputTokens = inputTokens × (1 − cachedPromptFraction)   // caching enabled
+effectiveInputTokens = inputTokens                                  // caching disabled
+```
+
+`cachedPromptFraction` is the measured fraction of prompt tokens served from the KV cache in production (e.g. ~0.6 for a well-cached chat workload, 0 where prefix caching is disabled). When caching is turned off (`caching: false`) the full prompt is prefilled every request. Reasoning models are the clearest case: they emit many internal "thinking" tokens before the answer, so anything that avoids re-prefilling a long shared system prompt has an outsized effect on their GPU time — which is why cache-hit rate and output-token volume are both measured per model.
+
+We deliberately expose caching as a *scenario* rather than a user default. Configuring KV caching well on your own deployment requires the right serving framework, cache management and spare KV memory, so it is an advantage a dedicated provider can offer that a typical on-prem setup cannot easily replicate.
+
+### 3.2b Deployment: shared vs on-prem
+
+The `deployment` parameter models who owns the infrastructure:
+
+- **`shared` (default)**: the node is shared with other tenants, so the fixed server infrastructure and embodied hardware costs are divided across the concurrent requests (Section 3.6).
+- **`onprem`**: you run the model on your own server. Concurrency is forced to 1, so the node's **entire** infrastructure and embodied footprint lands on your queries alone.
+
+The on-prem case captures a real accounting point: a privately-owned GPU is paid for — in energy and in amortised manufacturing carbon — for the whole month, **whether or not it is used**. Spread over a lightly-loaded month, that fixed cost per request can exceed the operational energy by an order of magnitude. This is the quantitative form of the intuition that a busy shared GPU usually beats a private one that mostly waits; Section 3.6 shows how the fixed costs are otherwise shared.
 
 ### 3.3 GPU Allocation Heuristic (Memory-Aware)
 
@@ -456,7 +503,7 @@ Refurbished GPUs have **zero embodied carbon** attributed to inference because:
 - Manufacturing emissions were already amortised in their first lifecycle
 - Extending hardware life defers new manufacturing
 
-**Impact on total emissions**: The exact reduction depends on the model, grid, and hardware configuration. For a typical configuration (Llama 3.1 8B on H200 in Sweden), embodied GPU emissions account for approximately 25-35% of total lifecycle emissions. Setting embodied to zero (refurbished) therefore reduces total emissions by roughly that amount. The exact percentage varies by grid (cleaner grids show higher embodied share) and model size.
+**Impact on total emissions**: The exact reduction depends on the model, grid, and hardware configuration. For a typical configuration (Gemma 4 31B on H200 in Sweden, training excluded), embodied emissions account for roughly **94%** of the total — because the grid is so clean and the request so short. Setting embodied to zero (refurbished) therefore reduces total emissions by that share. The exact percentage varies by grid (cleaner grids show a much higher embodied share) and model size.
 
 ---
 
@@ -526,34 +573,33 @@ Where:
 
 ### 6.2 Example Calculation
 
-**Query**: Llama 3.1 8B, 800 tokens in / 400 tokens out (defaults), Sweden, 14:00, NVIDIA H200 hardware
+**Query**: Gemma 4 31B, 600 tokens in / 400 tokens out, Sweden, 14:00, NVIDIA H200 hardware, shared deployment, caching enabled. (Training excluded, as in the app.)
 
-**Default token counts**: The default of 800 input / 400 output tokens is based on:
-- OpenRouter API average request statistics (median across all models, 2024-2025)
-- Anecdotal production data from Berget AI deployments
-- Comparable to the 300-token "standard prompt" used by Klimatkollen/2050.se, but slightly higher to reflect typical chat completions (which tend to have longer context)
+**Token counts and baseline time are measured, not assumed.** For Berget-operated models the baseline response time, output-token count, concurrency and cache-hit rate all come from production Prometheus metrics (Section 3.0); only the grid, hardware and climate factors are modelled.
 
-These defaults can be overridden by the user in the calculator UI.
+At 14:00 the effective grid intensity is the base CI scaled by the day factor: `8 × 1.15 ≈ 9.2 g/kWh` (Section 3.7). This is used for both GPU and server energy below.
 
 | Component | Calculation | Result | Source |
 |-----------|-------------|--------|--------|
 | Hardware | NVIDIA H200 ×8 node | — | Section 4.2 |
-| Token ratio | (800+400)/(800+400) | 1.0 | Section 3.1 |
-| Response time | 1.2s × √1.0 | 1.2s | Measured (Berget production) |
-| Concurrency | 14:00 traffic | ~29 | Section 3.2, DEFAULT_TRAFFIC_PATTERN |
-| Adjusted time | 1.2 × (1 + log₂(29/8)×0.15) | 1.53s | Section 3.2 |
-| GPUs used | 8B params, H200 (141GB) | 1 | Section 3.3 |
+| Baseline GPU time | measured p50, queue excluded | 1.0 s | Section 3.0 (Prometheus) |
+| Effective input tokens | 600 × (1 − 0.60 cache) | 240 | Section 3.2a |
+| Token ratio | (240+400)/(600+400) | 0.64 | Section 3.1 |
+| Token-adjusted time | 1.0 × √0.64 | 0.80 s | Section 3.1 |
+| Concurrency | derived ~6 (measured Little's Law × time-of-day) | 6 | Section 3.0, 3.2 |
+| Effective intensity | 8 × 1.15 (day) | 9.2 g/kWh | Section 3.7 |
+| GPUs used | 31B params, H200 (141GB) | 1 | Section 3.3 |
 | GPU power | 100 + (712.5×0.25) | 278W | Section 3.4 (25% utilization) |
-| GPU energy | (278 × 1.53/3600 × 1)/1000 | 0.000118 kWh | Section 3.5 |
-| GPU CO₂ | 0.000118 × 8 × 1.15 | 0.00109 g | Section 3.8 |
-| Server energy | (1200 × 1.53/3600)/1000 | 0.00051 kWh | Section 3.6 |
-| Server CO₂ | (0.00051 × 8 × 1.15)/29 | 0.00016 g | Section 3.6 |
-| Overhead | (0.00109 + 0.00016) × 0.15 | 0.00019 g | Section 3.7 (PUE 1.15) |
-| Embodied GPU | (1000×1000/78,840,000) × 1.53 × 1 | 0.0194 g | Section 4.1 (50% lifetime util) |
-| Training | 1,700,000 / 100,000,000 | 0.0170 g | Section 5.2 |
-| **Total** | | **~0.038 g** | |
+| GPU energy | (278 × 0.80/3600 × 1)/1000 | 0.000062 kWh | Section 3.5 |
+| GPU CO₂ | 0.000062 × 9.2 | 0.00057 g | Section 3.8 |
+| Server energy | (1200 × 0.80/3600)/1000 | 0.000267 kWh | Section 3.6 |
+| Server CO₂ | (0.000267 × 9.2)/6 | 0.00041 g | Section 3.6 |
+| Overhead | (0.00057 + 0.00041) × 0.15 | 0.00015 g | Section 3.7 (PUE 1.15) |
+| Embodied GPU | (1000×1000/78,840,000) × 0.80 × 1 | 0.0101 g | Section 4.1 (50% lifetime util) |
+| Embodied other | node embodied × 0.80 / 6 | 0.0068 g | Section 4.1 |
+| **Total (excl. training)** | | **~0.018 g** | |
 
-**Note**: This is the total lifecycle emissions. For operational emissions only (excluding embodied and training): **~0.0014 g** (1.4 mg).
+**Note**: Operational emissions only (GPU + server + overhead, excluding embodied and training) are **~0.0011 g** (1.1 mg). The embodied share dominates this total because the request is short and the grid is clean — which is exactly why the choice of new vs refurbished hardware is one of the largest levers (see the "your levers" figure in the guide).
 
 ---
 
@@ -585,30 +631,29 @@ flightPermille = (co2Grams / 90,000) × 1,000
 
 ### 8.2 Berget Specific
 
-On Berget's infrastructure (8 g/kWh), Llama 3.1 8B, 800 tokens in / 400 tokens out:
+On Berget's infrastructure (8 g/kWh), Gemma 4 31B, 600 tokens in / 400 tokens out, shared deployment, caching enabled:
 
 | Component | Sweden (8 g/kWh, PUE 1.15) | US Average (380 g/kWh, PUE 1.50) | Ratio |
 |-----------|---------------------------|----------------------------------|-------|
-| **Operational** (GPU + Server + PUE) | 1.04 mg | 49.6 mg | **47.7×** |
-| **Embodied** (hardware manufacturing) | 24.3 mg | 24.3 mg | 1× |
-| **Training** (amortised) | 17.0 mg | 17.0 mg | 1× |
-| **TOTAL** | **42.4 mg** | **90.9 mg** | **2.1×** |
+| **Operational** (GPU + Server + PUE) | 1.12 mg | 69.6 mg | **62×** |
+| **Embodied** (hardware manufacturing) | 16.9 mg | 16.9 mg | 1× |
+| **TOTAL (excl. training)** | **18.0 mg** | **86.5 mg** | **4.8×** |
 
-**Key insight**: The operational emissions (energy consumed during inference) are ~48× lower on the Swedish grid due to the clean energy mix. However, embodied carbon and training amortisation are **independent of the grid** — they depend on hardware manufacturing and training location, not where inference runs.
+**Key insight**: The operational emissions (energy consumed during inference) are ~62× lower on the Swedish grid due to the clean energy mix. However, embodied carbon is **independent of the grid** — it depends on hardware manufacturing, not where inference runs. So while the grid choice dominates *operational* emissions, the hardware choice (new vs refurbished) dominates the *total* once the grid is clean.
 
 For a fair comparison of **operational efficiency only** (excluding fixed costs):
-- Sweden: **1.04 mg** operational CO₂
-- US Average: **49.6 mg** operational CO₂
-- **Reduction: 47.7×**
+- Sweden: **1.12 mg** operational CO₂
+- US Average: **69.6 mg** operational CO₂
+- **Reduction: 62×**
 
-For **total lifecycle emissions** (including fixed costs):
-- Sweden: **42.4 mg** total CO₂e
-- US Average: **90.9 mg** total CO₂e  
-- **Reduction: 2.1×**
+For **total emissions** (including embodied, excluding training):
+- Sweden: **18.0 mg** total CO₂e
+- US Average: **86.5 mg** total CO₂e
+- **Reduction: 4.8×**
 
-The choice of infrastructure provider can reduce **operational emissions by 30-85×** for the same model and query, and **total emissions by 2-4×** when including embodied and training costs. 
+The choice of infrastructure provider can reduce **operational emissions by 30-85×** for the same model and query, and **total emissions by 2-5×** when including embodied costs (training excluded).
 
-**Climate advantage compounds the grid advantage**: Sweden's free-air cooling (PUE 1.15) vs US mechanical cooling (PUE 1.50) means 57% less cooling energy, in addition to the 47× cleaner grid. 
+**Climate advantage compounds the grid advantage**: Sweden's free-air cooling (PUE 1.15) vs US mechanical cooling (PUE 1.50) means 57% less cooling energy, in addition to the 62× cleaner grid.
 
 ---
 
