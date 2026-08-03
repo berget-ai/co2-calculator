@@ -516,15 +516,51 @@ export function GuideMode({
         <h2 style={prose.h2}>Adopt this. Demand this.</h2>
         <p style={prose.p}>
           <strong>If you provide AI:</strong> report <code>co2_grams</code> in every response — the method and the code
-          above are open, so use them, scrutinise them, improve them. <strong>If you procure AI:</strong> require
-          emissions data, and the location of the servers, in your contracts. <strong>If you build on AI:</strong> ask
-          your provider for it.
+          above are open, so use them, scrutinise them, improve them. There are drop-in integrations for Express,
+          FastAPI and Prometheus in the{" "}
+          <a href="https://github.com/berget-ai/co2-calculator/blob/main/ADVANCED_USAGE.md" target="_blank" rel="noopener noreferrer" style={{ color: C.moss }}>
+            integration guide
+          </a>
+          . <strong>If you procure AI:</strong> require emissions data, and the location of the servers, in your
+          contracts. <strong>If you build on AI:</strong> ask your provider for it.
         </p>
         <p style={prose.p}>
           This only works if the industry moves together — a number you can't compare across providers is just a number.
           So help us spread the word. And if you find a flaw in our method, tell us: the code is open precisely so it can
           be checked, challenged and improved. Transparency is the prerequisite; accountability is the point.
         </p>
+
+        {/* Procurement + policy cards */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "1rem", margin: "1.75rem 0" }}>
+          {/* For buyers */}
+          <div style={{ border: `1px solid ${C.borderMoss}`, borderRadius: 12, padding: "1.25rem", background: C.ghost }}>
+            <div style={{ fontSize: "0.7rem", fontWeight: 700, color: C.moss, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.6rem" }}>
+              If you procure AI
+            </div>
+            <p style={{ fontSize: "0.875rem", color: C.cloud, lineHeight: 1.6, margin: "0 0 0.75rem" }}>
+              Choosing a provider on a clean grid is the single largest emissions decision you make — and on Sweden's
+              hydro-and-nuclear grid it's also a vote for domestic, fossil-free infrastructure. Put it in the contract.
+              A clause you can adapt:
+            </p>
+            <div style={{ background: "rgba(0,0,0,0.4)", borderRadius: 8, padding: "0.85rem", fontSize: "0.8rem", color: C.peak, lineHeight: 1.55, fontStyle: "italic", border: `1px solid ${C.border}` }}>
+              "The supplier shall report the CO₂e emissions of each API call, and the physical location(s) of the
+              servers on which the service runs, and shall make these available to the buyer on request."
+            </div>
+          </div>
+
+          {/* For policymakers */}
+          <div style={{ border: `1px solid ${C.borderMoss}`, borderRadius: 12, padding: "1.25rem", background: C.ghost }}>
+            <div style={{ fontSize: "0.7rem", fontWeight: 700, color: C.moss, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.6rem" }}>
+              If you shape policy
+            </div>
+            <p style={{ fontSize: "0.875rem", color: C.cloud, lineHeight: 1.6, margin: 0 }}>
+              Sweden has one of the cleanest electricity mixes in the world — which makes Swedish AI infrastructure a
+              genuine competitive advantage, for both the climate and the industry. But an advantage you can't measure
+              is one you can't claim. Requiring providers to disclose per-request emissions turns Sweden's clean grid
+              from a talking point into a verifiable selling point.
+            </p>
+          </div>
+        </div>
 
         <div
           style={{
