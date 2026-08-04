@@ -237,6 +237,8 @@ export function GuideMode({
             onRefresh={onRefreshModels}
           />
         </InteractiveFrame>
+        {/* Sentinel: when the model chip row scrolls out of view, a sticky clone pins to the top */}
+        <div id="model-row-sentinel" style={{ height: 1 }} aria-hidden="true" />
         <p style={prose.p}>
           Under the hood, though, the model is mostly a means to an end. What the footprint really comes down to is
           simpler: <strong>how many seconds your query occupies the infrastructure, and how many other users share it at
@@ -345,6 +347,8 @@ export function GuideMode({
         <InteractiveFrame label="pick a region">
           <RegionPicker region={state.region} onRegionSelect={actions.setRegion} />
         </InteractiveFrame>
+        {/* Sentinel: when the region chip row scrolls out of view, a sticky clone pins to the top */}
+        <div id="region-row-sentinel" style={{ height: 1 }} aria-hidden="true" />
         <p style={prose.p}>
           One more subtlety: <strong>when</strong> the query runs matters too. A grid's carbon intensity isn't constant
           over the day — demand and the available generation mix shift hour by hour. We handle this with a deliberate

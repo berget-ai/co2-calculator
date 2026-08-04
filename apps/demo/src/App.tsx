@@ -10,6 +10,7 @@ import { useModelData, mergeModelData } from "./hooks/useModelData";
 import { C, COMPONENT_COLORS, formatCO2 } from "./components/shared";
 import { ApiResponseBlock } from "./components/ApiResponseBlock";
 import { GuideMode } from "./components/GuideMode";
+import { StickyBars } from "./components/StickyChipBar";
 import { MessageSquare, Sparkles } from "lucide-react";
 import type { CalculatorActions, CalculatorDerived, CalculatorState, ModelCategories, InferenceResult } from "./components/types";
 
@@ -195,6 +196,27 @@ export function CO2Calculator() {
           onModelSelect={handleModelSelect}
         />
       </main>
+
+      {/* Sticky clones of the §1 model row and the §2 region row — they pin to
+          the top (stacked) once their original has scrolled out of view, so you
+          can keep tweaking the same chips while reading further down. */}
+      <StickyBars
+        modelRow={{
+          selectedKey: state.selectedModel,
+          onSelect: actions.setSelectedModel,
+          chips: (category?.models ?? []).map((m) => ({ key: m.id, label: m.name })),
+        }}
+        regionRow={{
+          selectedKey: state.region,
+          onSelect: actions.setRegion,
+          chips: Object.entries(GRID_REGIONS).map(([key, g]) => ({
+            key,
+            label: g.name,
+            detail: String(g.intensityGPerKwh),
+            dot: g.intensityGPerKwh < 50 ? "#60A580" : g.intensityGPerKwh < 300 ? "#D4A574" : "#D1392E",
+          })),
+        }}
+      />
 
       {/* Live emissions footer */}
       <EmissionsFooter result={result} />
