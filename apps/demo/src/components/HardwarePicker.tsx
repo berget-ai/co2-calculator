@@ -1,19 +1,15 @@
-import { Factory, Sparkles, Recycle } from "lucide-react";
+import { Sparkles, Recycle } from "lucide-react";
 import { HARDWARE_CONFIGS } from "@berget/co2-calculator";
 import { C, Card, formatCO2 } from "./shared";
 
 interface Props {
   gpuCondition: "new" | "refurbished";
-  otherComputeCondition: "new" | "refurbished";
   onGpuConditionChange: (v: "new" | "refurbished") => void;
-  onOtherComputeConditionChange: (v: "new" | "refurbished") => void;
 }
 
 export function HardwarePicker({
   gpuCondition,
-  otherComputeCondition,
   onGpuConditionChange,
-  onOtherComputeConditionChange,
 }: Props) {
   return (
     <div>
@@ -38,36 +34,6 @@ export function HardwarePicker({
               <Recycle size={32} strokeWidth={1.5} />
             </div>
             <div style={{ fontWeight: 600, color: C.peak }}>Refurbished GPU</div>
-            <div style={{ fontSize: "0.75rem", color: C.muted }}>Zero embodied carbon</div>
-            <div style={{ fontSize: "0.875rem", color: C.moss, marginTop: "0.5rem" }}>0 g per query</div>
-          </Card>
-        </div>
-      </div>
-
-      {/* Other Compute Selection */}
-      <div style={{ marginBottom: "1.5rem" }}>
-        <div style={{ fontSize: "0.875rem", fontWeight: 600, color: C.peak, marginBottom: "0.75rem" }}>
-          Other Compute (CPU, RAM, SSD, Network)
-        </div>
-        <div style={{ fontSize: "0.75rem", color: C.muted, marginBottom: "0.75rem" }}>
-          3× 1U servers + 2× firewalls + 2× switches
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
-          <Card selected={otherComputeCondition === "new"} onClick={() => onOtherComputeConditionChange("new")}>
-            <div style={{ fontSize: "2rem", marginBottom: "0.5rem", color: C.peak }}>
-              <Factory size={32} strokeWidth={1.5} />
-            </div>
-            <div style={{ fontWeight: 600, color: C.peak }}>New Infrastructure</div>
-            <div style={{ fontSize: "0.75rem", color: C.muted }}>Full embodied carbon</div>
-            <div style={{ fontSize: "0.875rem", color: C.danger, marginTop: "0.5rem" }}>
-              +{formatCO2((HARDWARE_CONFIGS.h200.otherComputeEmbodiedKg * 1000) / (5 * 365 * 24 * 3600) / 8)} per query
-            </div>
-          </Card>
-          <Card selected={otherComputeCondition === "refurbished"} onClick={() => onOtherComputeConditionChange("refurbished")}>
-            <div style={{ fontSize: "2rem", marginBottom: "0.5rem", color: C.peak }}>
-              <Recycle size={32} strokeWidth={1.5} />
-            </div>
-            <div style={{ fontWeight: 600, color: C.peak }}>Refurbished Infrastructure</div>
             <div style={{ fontSize: "0.75rem", color: C.muted }}>Zero embodied carbon</div>
             <div style={{ fontSize: "0.875rem", color: C.moss, marginTop: "0.5rem" }}>0 g per query</div>
           </Card>

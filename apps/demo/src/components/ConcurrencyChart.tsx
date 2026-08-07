@@ -9,7 +9,6 @@ interface Props {
   grid: GridRegion | undefined;
   concurrency: number;
   gpuCondition: "new" | "refurbished";
-  otherComputeCondition: "new" | "refurbished";
   onConcurrencyChange: (v: number) => void;
 }
 
@@ -43,8 +42,7 @@ function computePoint(
   category: ModelCategoryDef,
   model: ModelProfile | undefined,
   grid: GridRegion | undefined,
-  gpuCondition: "new" | "refurbished",
-  otherComputeCondition: "new" | "refurbished"
+  gpuCondition: "new" | "refurbished"
 ): Curve {
   if (!model || !grid) return { gpuEnergy: 0, shared: 0, embodiedGpu: 0, total: 0 };
 
@@ -60,29 +58,31 @@ function computePoint(
   const factor = weight <= lowThr ? (grid as any).lowPeriodFactor ?? 0.7 : (grid as any).peakPeriodFactor ?? 1.15;
   const intensity = grid.intensityGPerKwh * factor;
 
-  // GPU power & energy
+  // GPU power: incremental compute only (idle handled separately), shared by concurrency
   const utilization = 0.25;
-  const baseGpuPower = hw.nodeIdleWatts / hw.gpuCount;
-  const incr = ((hw.nodePeakWatts - hw.nodeIdleWatts) / hw.gpuCount) * utilization;
-  const powerPerGpu = baseGpuPower + incr;
-  const gpuEnergyKwh = (powerPerGpu * gpuTimeH * gpusUsed) / 1000;
+  const incrPerGpu = ((hw.nodePeakWatts - hw.nodeIdleWatts) / hw.gpuCount) * utilization;
+  const gpuEnergyKwh = (incrPerGpu * gpuTimeH * gpusUsed) / c / 1000;
   const gpuOp = gpuEnergyKwh * intensity;
 
-  // Server (divided by concurrency) + cooling overhead on (gpu+server)
+  // GPU idle baseline (standby draw), shared by concurrency
+  const idlePerGpu = hw.nodeIdleWatts / hw.gpuCount;
+  const idleEnergyKwh = (idlePerGpu * gpuTimeH * gpusUsed) / c / 1000;
+  const idleOp = idleEnergyKwh * intensity;
+
+  // Server (divided by concurrency) + cooling overhead on (gpu+idle+server)
   const serverEnergyKwh = (hw.chassisWatts * gpuTimeH) / 1000;
   const serverOp = (serverEnergyKwh * intensity) / c;
   const pue = (grid as any).typicalPue ?? 1.15;
-  const cooling = (gpuOp + serverOp) * (pue - 1);
+  const cooling = (gpuOp + idleOp + serverOp) * (pue - 1);
 
-  // Embodied (amortised over projected lifetime active seconds, 50% of 5y)
+  // Embodied (amortised over projected lifetime active seconds, 50% of 5y), shared by concurrency
   const GPU_LIFETIME_SECONDS = 5 * 365 * 24 * 3600;
   const projActive = GPU_LIFETIME_SECONDS * 0.5;
   const embodiedGpuKg = gpuCondition === "refurbished" ? 0 : hw.embodiedPerGpuKg;
-  const embodiedGpu = ((embodiedGpuKg * 1000) / projActive) * gpuTimeSec * gpusUsed;
-  const otherKg = otherComputeCondition === "refurbished" ? 0 : hw.otherComputeEmbodiedKg;
-  const embodiedOther = (((otherKg * 1000) / projActive) * gpuTimeSec) / c;
+  const embodiedGpu = (((embodiedGpuKg * 1000) / projActive) * gpuTimeSec * gpusUsed) / c;
+  // otherComputeEmbodiedKg is 0 (whole-node footprint already in embodiedPerGpuKg)
 
-  const shared = serverOp + cooling + embodiedOther;
+  const shared = idleOp + serverOp + cooling;
   const total = gpuOp + shared + embodiedGpu;
   return { gpuEnergy: gpuOp, shared, embodiedGpu, total };
 }
@@ -92,7 +92,7 @@ function computePoint(
  * component, with a "you are here" marker at the current slider value and a
  * night curve to show the time-of-day compensation.
  */
-export function ConcurrencyChart({ category, model, grid, concurrency, gpuCondition, otherComputeCondition, onConcurrencyChange }: Props) {
+export function ConcurrencyChart({ category, model, grid, concurrency, gpuCondition, onConcurrencyChange }: Props) {
   const W = 560;
   const H = 220;
   const padL = 46;
@@ -111,14 +111,14 @@ export function ConcurrencyChart({ category, model, grid, concurrency, gpuCondit
     const night: Curve[] = [];
     let max = 0;
     for (let c = XMIN; c <= XMAX; c++) {
-      const d = computePoint(c, 14, category, model, grid, gpuCondition, otherComputeCondition);
-      const n = computePoint(c, 2, category, model, grid, gpuCondition, otherComputeCondition);
+      const d = computePoint(c, 14, category, model, grid, gpuCondition);
+      const n = computePoint(c, 2, category, model, grid, gpuCondition);
       day.push(d);
       night.push(n);
       max = Math.max(max, d.total);
     }
     return { dayPts: day, nightPts: night, maxY: max * 1.08 || 1 };
-  }, [category, model, grid, gpuCondition, otherComputeCondition]);
+  }, [category, model, grid, gpuCondition]);
 
   if (!model || !grid || maxY <= 0) return null;
 

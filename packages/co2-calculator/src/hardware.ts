@@ -23,6 +23,16 @@
  *   - Dell C4130 (2016, GPU server): 12,700 kg CO2 total embodied
  *
  * All idle numbers are measured at the node level (chassis + GPUs + fans + NIC).
+ *
+ * IMPORTANT - No separate "other compute" embodied term:
+ *   `embodiedPerGpuKg` is derived as the WHOLE node's manufacturing footprint
+ *   divided by its GPU count (see METHODOLOGY §4.2: best-estimate ~7 t server /
+ *   8 GPUs ≈ 1,000 kg per GPU). That per-GPU figure already includes the node's
+ *   CPU, DRAM, SSD, chassis, PSUs and NIC. Adding a further "surrounding node"
+ *   term would therefore double-count those components, so
+ *   `otherComputeEmbodiedKg` is 0 for every configuration. Any genuine
+ *   datacentre-level shared infrastructure (core switches, firewalls spread
+ *   across many nodes) is negligible per node and currently excluded.
  */
 
 import type { HardwareConfig } from "./types.js";
@@ -35,12 +45,7 @@ export const HARDWARE_CONFIGS: Record<string, HardwareConfig> = {
     nodeIdleWatts: 1_000,
     nodePeakWatts: 7_000,
     embodiedPerGpuKg: 1_000,
-    // Supporting infrastructure for an 8-GPU node:
-    // - 3× 1U servers (CPU, RAM, SSD, chassis): 3 × 1,000 kg = 3,000 kg
-    // - 2× firewalls: 2 × 300 kg = 600 kg
-    // - 2× switches: 2 × 200 kg = 400 kg
-    // Total other compute: 4,000 kg CO₂e
-    otherComputeEmbodiedKg: 4_000,
+    otherComputeEmbodiedKg: 0, // whole-node footprint already in embodiedPerGpuKg (no double-count)
     chassisWatts: 1_500,
     formFactor: "8-GPU Accelerator Node (8U)",
   },
@@ -51,7 +56,7 @@ export const HARDWARE_CONFIGS: Record<string, HardwareConfig> = {
     nodeIdleWatts: 800,
     nodePeakWatts: 6_500,
     embodiedPerGpuKg: 1_000,
-    otherComputeEmbodiedKg: 4_000,
+    otherComputeEmbodiedKg: 0, // whole-node footprint already in embodiedPerGpuKg (no double-count)
     chassisWatts: 1_200,
     formFactor: "8-GPU Accelerator Node (8U)",
   },
@@ -62,7 +67,7 @@ export const HARDWARE_CONFIGS: Record<string, HardwareConfig> = {
     nodeIdleWatts: 700,
     nodePeakWatts: 6_500,
     embodiedPerGpuKg: 850,
-    otherComputeEmbodiedKg: 4_000,
+    otherComputeEmbodiedKg: 0, // whole-node footprint already in embodiedPerGpuKg (no double-count)
     chassisWatts: 1_200,
     formFactor: "8-GPU Accelerator Node (8U)",
   },
@@ -73,7 +78,7 @@ export const HARDWARE_CONFIGS: Record<string, HardwareConfig> = {
     nodeIdleWatts: 600,
     nodePeakWatts: 3_200,
     embodiedPerGpuKg: 1_200,
-    otherComputeEmbodiedKg: 4_000,
+    otherComputeEmbodiedKg: 0, // whole-node footprint already in embodiedPerGpuKg (no double-count)
     chassisWatts: 1_000,
     formFactor: "8-GPU Accelerator Node",
   },
@@ -84,8 +89,7 @@ export const HARDWARE_CONFIGS: Record<string, HardwareConfig> = {
     nodeIdleWatts: 200,
     nodePeakWatts: 400,
     embodiedPerGpuKg: 300,
-    // Smaller deployment: 2× 1U servers + 1 firewall + 1 switch
-    otherComputeEmbodiedKg: 2_500,
+    otherComputeEmbodiedKg: 0, // whole-node footprint already in embodiedPerGpuKg (no double-count)
     chassisWatts: 600,
     formFactor: "2U Inference Server",
   },
@@ -96,7 +100,7 @@ export const HARDWARE_CONFIGS: Record<string, HardwareConfig> = {
     nodeIdleWatts: 150,
     nodePeakWatts: 250,
     embodiedPerGpuKg: 300,
-    otherComputeEmbodiedKg: 2_500,
+    otherComputeEmbodiedKg: 0, // whole-node footprint already in embodiedPerGpuKg (no double-count)
     chassisWatts: 400,
     formFactor: "1U Inference Server",
   },

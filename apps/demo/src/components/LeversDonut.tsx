@@ -36,7 +36,7 @@ function run(modelId: string, gridKey: string, hw: any, extra: any = {}): number
 
 function computeLevers(): Lever[] {
   const hwNew = HARDWARE_CONFIGS.h200;
-  const hwRefurb = { ...HARDWARE_CONFIGS.h200, embodiedPerGpuKg: 0, otherComputeEmbodiedKg: 0 };
+  const hwRefurb = { ...HARDWARE_CONFIGS.h200, embodiedPerGpuKg: 0 };
   const REF = "google/gemma-4-31B-it"; // reference model for non-model levers
 
   // Pick the smallest and largest text models dynamically from the catalogue,

@@ -274,9 +274,7 @@ export function GuideMode({
           fixed cost is shared across more of them. Less GPU time <em>and</em> more sharing: that's why a well-cached
           shared service is hard to beat. The catch is that this is hard to do well on your own box — it needs the
           right serving framework, KV-cache management and spare memory — so it tends to be exactly the advantage a
-          dedicated provider can offer and an on-prem setup can't. (And the queue still bites the other way: each extra
-          concurrent user makes every query occupy the GPU a little longer, so that embodied share creeps up as sharing
-          grows.)
+          dedicated provider can offer and an on-prem setup can't.
         </p>
         <InteractiveFrame label="shared vs solo — the concurrency trade-off">
           <ConcurrencyChart
@@ -285,20 +283,17 @@ export function GuideMode({
             grid={grid}
             concurrency={state.concurrency}
             gpuCondition={state.gpuCondition}
-            otherComputeCondition={state.otherComputeCondition}
             onConcurrencyChange={actions.setConcurrency}
           />
         </InteractiveFrame>
         <p style={prose.p}>
-          Watch the white curve as you drag the slider. The sharing benefit is real but <strong>it runs out
-          fast</strong> — the server and infra costs are split across more users, but they've already been divided down
-          to almost nothing by around 8 concurrent users. Past that point there's nothing left to share, so the only
-          thing still moving is the queue: each extra user makes every query occupy the GPU a little longer, and that
-          GPU-time cost (including its embodied share) keeps creeping up. That's why the curve flattens and then rises
-          instead of sinking all the way — the sweet spot is where sharing is maxed out just before the queue starts to
-          bite. How deep that dip is depends on how much of your stack is shareable at all: choose brand-new
-          infrastructure in §3 and the shared (orange) part grows, deepening the sag; with mostly-embodied hardware the
-          curve stays fairly flat.
+          Watch the white curve as you drag the slider. Every fixed cost — the server's standby draw, the chassis, the
+          cooling, and the GPU's own manufacturing footprint — is split across however many requests share the node.
+          More sharing, less each. The benefit is steepest at the start: going from one user to eight divides those
+          fixed costs by eight, while going from eight to thirty-two only divides them by four more. That's why the
+          curve drops sharply and then levels off — the fixed costs are already divided down to almost nothing, so
+          there's progressively less left to share. A private server sits at the far left of this curve, carrying the
+          whole fixed cost alone; a busy shared node sits far to the right.
         </p>
         <p style={prose.p}>
           The second dimension is <strong>time.</strong> A typical day is busy around midday and quiet at night, and
@@ -307,8 +302,10 @@ export function GuideMode({
           full 24-hour cycle the daytime overestimate "pays for" the night-time underestimate and the long-run total
           lands at about +2% (conservative, not optimistic). The upshot for you:{" "}
           <em>moving a call to the night genuinely lowers its CO₂</em> — roughly 30% — because the cleaner off-peak mix
-          is real, not an accounting trick. And underneath it all, the GPUs aren't assumed to run hot around the clock:
-          an idle card sits in a low-power state, drawing only its idle watts until a query actually arrives.
+          is real, not an accounting trick. And underneath it all, the meter never fully stops: even an idle GPU keeps
+          drawing a standby baseline — our own measurements put it at roughly 120 W per card on a flagship node at 0%
+          load, not a deep sleep. That standby cost is part of your query too, shared across whoever is using the
+          node, which is why a busy node wastes so much less than an idle one.
         </p>
         <InteractiveFrame label="a typical day — usage and CO₂ by hour">
           <DailyLoadChart hourOfDay={state.hourOfDay} onHourChange={actions.setHourOfDay} />
@@ -319,9 +316,9 @@ export function GuideMode({
             "A KV cache and activations add ~20% memory overhead on top of the raw model weights.",
             "Cached prompts are modeled as cheaper, because re-processing a cached prefix is mostly skipped.",
             "Request length scales sub-linearly with tokens (√token ratio) and grows slightly with concurrency (logarithmic delay above 8 concurrent users).",
-            "Server, cooling and shared-infra costs are divided by concurrency (sharing wins); GPU energy and GPU embodied carbon scale with the longer GPU-time (queueing loses). The net curve depends on how much of the stack is shareable — nearly flat when embodied hardware dominates, deeper-dipping when infrastructure is new.",
+            "Every fixed cost — GPU compute energy, GPU idle baseline, server, cooling and GPU embodied carbon — is divided by the number of requests genuinely sharing the GPU (the productive batch). Each request bears its own token-adjusted GPU-time share, so short requests bear less and long reasoning requests more; the total across the request mix conserves the node's full fixed cost.",
             "Time-of-day: peak ×1.15 (day) and low ×0.7 (night) are asymmetric on purpose — weighted over 24h they net to ≈+2%, so the daytime overestimate finances the night-time underestimate plus a small conservative margin. Running at night genuinely emits less CO₂ (cleaner off-peak marginal mix), ~30% lower per query.",
-            "Idle GPUs are modeled in a low-power state (idle watts), not at peak draw — only the active query time adds incremental power (25% of the idle→peak span).",
+            "An idle GPU is NOT in a deep sleep: our DCGM measurements show ~122 W per B300 card at 0% load (spec ~125 W). We model that standby baseline explicitly and attribute it to the requests sharing the node, plus the incremental active power (25% of the idle→peak span) while computing.",
             "Model parameters and usage figures are refreshed from public sources (EcoLogits, Hugging Face, OpenRouter).",
           ]}
           reasoning="Rather than inventing per-model energy figures, we lean on published model cards and independent measurement projects, then scale by the actual time a query occupies the GPU. Two models of the same size can still differ — architecture, quantisation and serving efficiency matter — so we treat per-model data as the best available estimate, not ground truth."
@@ -384,8 +381,8 @@ export function GuideMode({
           the year — fans and filters, essentially — reaching a PUE around 1.15 with <em>zero water</em>. In a hot or
           humid climate that free lunch disappears: you need energy-intensive mechanical chillers, pushing PUE toward
           1.80, and the most common approach — evaporative cooling — consumes up to 2 litres of water per kWh. Same
-          model, same query, but a datacenter in Texas can use ~57% more energy just staying cool, and drain a scarce
-          water supply doing it. Cooling isn't a footnote; it's a first-order difference.
+          model, same query, but a datacenter in Texas can spend over five times as much energy on cooling alone, and
+          drain a scarce water supply doing it. Cooling isn't a footnote; it's a first-order difference.
         </p>
         <InteractiveFrame label="the sky the heat has to be rejected into">
           <CoolingWaterChart
@@ -416,10 +413,11 @@ export function GuideMode({
         <h2 style={prose.h2}>Hardware has a history</h2>
         <p style={prose.p}>
           Every GPU carries the cost of its own manufacturing — and that cost is significant. We estimate roughly{" "}
-          <strong>1,000 kg of CO₂ per datacenter GPU</strong> (and ~4,000 kg for the surrounding node: CPU, memory,
-          storage, networking). The figures come from server-level life-cycle assessments by Dell and HPE, with the
-          non-GPU components subtracted. New hardware amortises that cost over its lifetime; refurbished hardware
-          carries zero embodied carbon, because those emissions are already spent.
+          <strong>1,000 kg of CO₂ per datacenter GPU</strong>, a figure that already includes the GPU's share of the
+          whole node it lives in (the CPU, memory, storage, chassis and networking are divided across its eight
+          GPUs). The figures come from server-level life-cycle assessments by Dell and HPE, with the total
+          manufacturing footprint divided per GPU. New hardware amortises that cost over its lifetime; refurbished
+          hardware carries zero embodied carbon, because those emissions are already spent.
         </p>
         <p style={prose.p}>
           Model size decides how many GPUs a query needs. A small, quantised model fits on a single card; a
@@ -432,14 +430,12 @@ export function GuideMode({
         <InteractiveFrame label="configure hardware">
           <HardwarePicker
             gpuCondition={state.gpuCondition}
-            otherComputeCondition={state.otherComputeCondition}
             onGpuConditionChange={actions.setGpuCondition}
-            onOtherComputeConditionChange={actions.setOtherComputeCondition}
           />
         </InteractiveFrame>
         <MethodPanel
           assumptions={[
-            "Embodied carbon is ~1,000 kg CO₂ per datacenter GPU and ~4,000 kg for the rest of the node (CPU, RAM, SSD, chassis, network), amortised over a 5-year lifetime and allocated per query by GPU-seconds.",
+            "Embodied carbon is ~1,000 kg CO₂ per datacenter GPU. That is the whole node's manufacturing footprint (~7–8 t) divided across its 8 GPUs, so it already includes each GPU's share of the CPU, RAM, SSD, chassis and networking — there is no separate 'node' term on top. Amortised over a 5-year lifetime and allocated per query by GPU-seconds.",
             "GPUs needed per model = model size × bytes/parameter × 1.2 (KV-cache overhead), divided by GPU memory — so larger models span more GPUs.",
             "Refurbished hardware is counted as zero embodied carbon — the manufacturing emissions are already spent.",
             "Per-GPU figures carry ±30–50% uncertainty: NVIDIA/AMD don't publish per-GPU LCAs, so we derive them from server-level reports.",

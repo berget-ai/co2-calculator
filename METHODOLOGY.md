@@ -1,16 +1,23 @@
 # Methodology: AI CO₂ Impact Calculator for Berget AI
 
-**Document Version**: 2.3  
-**Date**: 2026-06-09  
+**Document Version**: 3.0  
+**Date**: 2026-08-07  
 **Authors**: Christian Landgren, Berget AI  
-**Reviewers**: Stockholm Environment Institute (SEI)  
+**External input**: Comments on specific sections (embodied amortisation, utilisation) from a researcher at the Stockholm Environment Institute (SEI); these were targeted suggestions, not a full-institute review or endorsement of the document.  
 **License**: CC BY 4.0
+
+**Changes in 3.0** (driven by external review and our own production reconciliation):
+- §3.2a (new): GPU energy, idle baseline, server and embodied carbon are now divided by the productive batch size. The previous version credited each concurrent request with the full wall-clock GPU time, over-counting energy and embodied carbon by roughly the concurrency factor.
+- §3.5: the per-GPU power draw is split into an idle baseline (measured, §8.2) and an incremental load; the idle baseline is now attributed rather than dropped.
+- §4.1/§4.2: embodied per-GPU is the whole node ÷ GPU count; the separate "other compute" term was removed (it double-counted node components).
+- §2.2: the cooling comparison is corrected — Texas spends ~5.3× more energy on cooling per unit of IT work than Sweden (previously mis-stated as "57%").
+- §6.2: the worked example is generated from the same code as the live calculator (`scripts/generate-methodology-example.mjs`), so document and site figures agree.
 
 ---
 
 ## Executive Summary
 
-This document details the methodology behind Berget AI's CO₂ emissions calculator for AI inference. The calculator estimates the complete carbon footprint of a single inference query — from model training (amortised) through operational GPU energy, infrastructure overhead, and hardware embodied emissions — running on Berget's 100% fossil-free infrastructure in Sweden.
+This document details the methodology behind Berget AI's CO₂ emissions calculator for AI inference. The calculator estimates the **operational and hardware-embodied** carbon footprint of a single inference query — GPU compute energy, idle baseline, infrastructure overhead, cooling and amortised manufacturing emissions — running on Berget's 100% fossil-free infrastructure in Sweden. **Model training is excluded by default** (the option exists in the API but is off in the app); Section 5 explains why, and what it would add. We say this plainly up front because the system boundary must match what the numbers actually include.
 
 We adopt the **core SCI formula** from the Green Software Foundation's Software Carbon Intensity for AI (SCI-AI) specification [9]:
 
@@ -24,7 +31,7 @@ Where:
 - `M` = embodied emissions (manufacturing + disposal carbon of the hardware)
 - `R` = the functional unit (we use **per query**, not per FLOP/token/parameter as SCI-AI suggests for providers)
 
-**Deviations from SCI-AI**: We adopt only the core formula above. We do not employ the full SCI-AI lifecycle analysis (Inception → Design & Development → Deployment → Operation & Monitoring → End of Life) — we focus on the Operation & Monitoring phase. Our functional unit is **per query** (arguably more intuitive for end-users than per FLOP or per training token). Our embodied emissions amortization differs from the SCI-AI `M = TE × (TiR/EL) × (RR/ToR)` formula (see Section 4.1 for our approach).
+**Deviations from SCI-AI**: We adopt only the core formula above. We do not employ the full SCI-AI lifecycle analysis (Inception → Design & Development → Deployment → Operation & Monitoring → End of Life) — we focus on the Operation & Monitoring phase. Our functional unit is **per query** (arguably more intuitive for end-users than per FLOP or per training token). Our embodied emissions amortisation differs from the SCI-AI `M = TE × (TiR/EL) × (RR/ToR)` formula (see Section 4.1 for our approach).
 
 Additional adaptations:
 - Swedish grid conditions and Berget's Power Purchase Agreements
@@ -34,9 +41,9 @@ Additional adaptations:
 - Production-calibrated concurrency and response time models
 - **Measured production values** for Berget's own models (GPU time, output tokens, concurrency, cache-hit rate), pulled from our Prometheus metrics rather than estimated — see Section 3.0
 
-**Key finding**: A single query to Gemma 4 31B on Berget's infrastructure produces approximately **0.018 g CO₂e** (18 mg) in total emissions excluding training, compared to ~0.086 g on US average grid — a **4.8× reduction**. For operational emissions only (energy consumed during inference), the reduction is **62×** (1.1 mg vs 69.6 mg), demonstrating the massive impact of grid decarbonisation. Because the Swedish grid is so clean, the embodied share of hardware manufacturing dominates the remaining total — making the new-vs-refurbished hardware choice one of the largest levers.
+**Key finding**: A single query to Gemma 4 31B on Berget's infrastructure produces approximately **2.3 mg CO₂e** in total emissions excluding training, compared to ~37.5 mg on the US average grid. For **operational** emissions only (energy consumed during inference) the reduction is **~62×** (0.58 mg vs 35.9 mg), demonstrating the impact of grid decarbonisation; including the grid-independent embodied cost, the total reduction is **~17×**. Because the Swedish grid is so clean, the embodied share of hardware manufacturing is a large part of the remaining total (~75%) — making the new-vs-refurbished hardware choice one of the largest levers.
 
-**Why the difference between 62× and 4.8×?** Operational emissions (GPU + server + cooling energy) depend on the grid carbon intensity, so Sweden's clean grid gives a 62× advantage. However, embodied emissions (hardware manufacturing) are **independent of the inference grid** — they depend on where the hardware was manufactured, not where inference runs. Since embodied emissions are the same regardless of inference location, they dilute the operational advantage when comparing total emissions (training excluded from both figures here).
+**Why the difference between ~62× and ~17×?** Operational emissions (compute + idle + server + cooling energy) depend on the grid carbon intensity, so Sweden's clean grid gives a ~62× advantage. However, embodied emissions (hardware manufacturing) are **independent of the inference grid** — they depend on where the hardware was manufactured, not where inference runs. Since embodied emissions are the same regardless of inference location, they dilute the operational advantage to ~17× when comparing total emissions (training excluded from both figures). We report both numbers rather than only the larger one.
 
 ---
 
@@ -46,11 +53,11 @@ We adopt the **Consumer boundary** from SCI-AI, covering:
 
 | Component | Included | Notes |
 |-----------|----------|-------|
-| **Operational energy** | ✅ GPU, server, networking during inference | Measured via response time allocation |
-| **Datacenter overhead** | ✅ PUE factor | 1.15 for Swedish free-air cooling |
-| **Training amortisation** | ✅ Total training CO₂ ÷ expected queries | Model-specific, from disclosed/estimated data |
-| **Hardware embodied** | ✅ GPU/chip manufacturing, amortised per GPU-second | Node-level, scaled by GPU-seconds |
-| **Idle allocation** | ✅ Pro-rata GPU time via concurrency model | See Section 3.1 |
+| **Operational energy (compute)** | ✅ incremental GPU + server during inference | Measured wall-clock GPU time ÷ productive batch (§3.2a) |
+| **GPU idle baseline** | ✅ standby draw attributed per request | Measured via DCGM (§3.5, §8.2a) |
+| **Datacenter overhead** | ✅ PUE factor, grid-specific | 1.15 for Swedish free-air cooling (§2.2) |
+| **Hardware embodied** | ✅ whole-node ÷ GPU count, amortised ÷ batch | No separate "other compute" term (§4.2) |
+| **Training amortisation** | ⚠️ Optional, **off by default** in the app | See Section 5 for rationale and what it adds |
 | **Network transmission** | ❌ Excluded | Assumed negligible for co-located API |
 | **End-user device** | ❌ Excluded | Out of scope per SCI-AI |
 
@@ -66,21 +73,12 @@ Berget's datacenters draw electricity from the Swedish national grid with 100% f
 2. **Conservative accounting** — using grid intensity rather than PPA intensity avoids undercounting emissions
 3. **Comparability** — all regions in the calculator use grid intensity, enabling apples-to-apples comparisons
 
-The Swedish grid composition is:
+**The 8 g figure — source, method and date.** Rather than derive our own production-mix weighted average (which is sensitive to whether hydro/wind are counted at 0 operational or at lifecycle ~10-12 g, and to how upstream infrastructure is allocated), we adopt an externally-published, dated figure so a reader can check it against a known methodology. We use **8 g CO₂e/kWh**, the location-based, production-mix average for Sweden reported by **Electricity Maps (2024 annual average)** [1a]. This is a consumption-side, location-based intensity (no green-tariff or PPA adjustment), consistent with how we treat every other region.
 
-| Source | Share | Carbon Intensity (g/kWh) | Contribution |
-|--------|-------|----------------------|-------------|
-| Hydro | 45% | 0 (reservoir, no new land use) | 0 |
-| Wind | 40% | 0 (operational only) | 0 |
-| Nuclear | 10% | 5 (lifecycle upstream) | 0.5 |
-| Solar | 5% | 40 (manufacturing) | 2.0 |
-| **Weighted average** | **100%** | — | **2.5** |
+Two honesty notes:
 
-We use **8 g CO₂/kWh** for the calculator. This conservative figure:
-- Accounts for transmission losses (~6% in Sweden)
-- Includes lifecycle upstream emissions for infrastructure
-- Reflects marginal demand at peak hours rather than average
-- Aligns with IEA's Swedish electricity carbon intensity estimate [1]
+- **Location-based vs lifecycle.** A pure *operational* Swedish mix (hydro, wind, nuclear at ~0 direct emissions) computes to ~2-3 g; a full *lifecycle* figure (including plant construction and fuel supply, hydro ~10, wind ~12, nuclear ~5, solar ~40 g) computes to ~12 g. Our 8 g sits between these — it reflects Electricity Maps' location-based accounting, which includes some but not all upstream. We flag this because it is the single number a procurement team will cross-check, and the answer changes with the methodology chosen.
+- **No double-counting with time-of-day.** We deliberately do **not** inflate the average further for "marginal peak demand" here, because Section 3.7 already applies a separate time-of-day peak factor (×1.15). Transmission/distribution losses (~6%) are within the source figure's own uncertainty and are not added separately.
 
 **Note on PPAs**: While Berget holds PPAs for 100% fossil-free electricity, we do not use a PPA-adjusted intensity of 0 g/kWh. This would undercount the actual grid-level emissions associated with electricity consumption. The PPA ensures that renewable energy is added to the grid equivalent to our consumption, but the calculator reports the physical grid intensity for transparency and comparability.
 
@@ -88,17 +86,19 @@ We use **8 g CO₂/kWh** for the calculator. This conservative figure:
 
 A significant but often overlooked factor is **datacenter cooling efficiency**, which varies dramatically by climate:
 
-| Climate | Cooling Method | PUE | Cooling Energy vs Ideal |
-|---------|---------------|-----|------------------------|
-| **Nordics (Sweden, Norway)** | Free-air cooling | 1.15 | **1.0×** (baseline) |
-| Quebec | Free-air cooling | 1.15 | 1.0× |
-| France | Mixed (free-air + mechanical) | 1.30 | 1.3× |
-| Ireland | Temperate maritime | 1.25 | 1.2× |
-| Germany | Mechanical cooling required | 1.35 | 1.4× |
-| US Average | Mechanical cooling | 1.50 | 1.5× |
-| US East | Heavy mechanical cooling | 1.60 | 1.6× |
-| Texas | Extreme cooling needs | 1.80 | 2.0× |
-| India | Extreme cooling + humidity | 2.00 | 2.5× |
+| Climate | Cooling Method | PUE | Cooling energy per unit of IT work |
+|---------|---------------|-----|------------------------------------|
+| **Nordics (Sweden, Norway)** | Free-air cooling | 1.15 | 0.15 (baseline) |
+| Quebec | Free-air cooling | 1.15 | 0.15 |
+| France | Mixed (free-air + mechanical) | 1.30 | 0.30 |
+| Ireland | Temperate maritime | 1.25 | 0.25 |
+| Germany | Mechanical cooling required | 1.35 | 0.35 |
+| US Average | Mechanical cooling | 1.50 | 0.50 |
+| US East | Heavy mechanical cooling | 1.60 | 0.60 |
+| Texas | Extreme cooling needs | 1.80 | 0.80 |
+| India | Extreme cooling + humidity | 2.00 | 1.00 |
+
+*The last column is the cooling energy as a fraction of the IT energy (PUE − 1), which is the quantity that actually scales with climate. Total facility energy is PUE × IT energy.*
 
 **Sources for PUE values**:
 - **Nordics (1.15)**: Uptime Institute Global Data Center Survey 2024 [2] — Nordic datacenters consistently achieve PUE 1.1-1.2 due to free-air cooling
@@ -112,7 +112,7 @@ A significant but often overlooked factor is **datacenter cooling efficiency**, 
 - Texas: PUE 1.80 (cooling adds 80% overhead)
 - India: PUE 2.00 (cooling adds 100% overhead)
 
-This means a GPU in Sweden uses **57% less cooling energy** than the same GPU in Texas, even before accounting for the carbon intensity difference.
+Measured correctly against the IT load, the cooling energy itself (not total facility energy) is **0.15 vs 0.80 of IT energy** — i.e. a GPU in Texas spends **~5.3× more energy on cooling** than the same GPU in Sweden, or equivalently Sweden uses **~81% less cooling energy**. (Total facility energy, PUE × IT, is 1.80/1.15 ≈ 1.57× higher in Texas — a different, smaller figure that is easy to confuse with the cooling-specific one.) This is before accounting for the carbon-intensity difference.
 
 ### 2.3 Water Usage for Cooling
 
@@ -122,7 +122,7 @@ Water consumption for datacenter cooling varies by climate (see Appendix E for d
 
 ### 2.4 Supported Grid Regions
 
-The calculator supports 13 grid regions with IEA emission factors and climate-specific PUE:
+The calculator supports 15 grid regions with IEA emission factors and climate-specific PUE:
 
 | Region | Key | Intensity (g/kWh) | PUE | Characteristics |
 |--------|-----|-------------------|-----|-----------------|
@@ -142,7 +142,7 @@ The calculator supports 13 grid regions with IEA emission factors and climate-sp
 | China | `china` | 850 | 1.60 | Coal-heavy |
 | Global Average | `global` | 500 | 1.50 | IEA world average |
 
-### 2.4 Time-of-Day Variation
+### 2.5 Time-of-Day Variation
 
 Each grid region has a demand curve (24 hours) and adjustment factors:
 
@@ -237,7 +237,27 @@ else:
 
 **Deriving concurrency instead of passing it.** The `concurrency` parameter is optional. When it is omitted, the calculator derives it from the model's measured production concurrency (Section 3.0) scaled by the time-of-day traffic pattern (Section 3.7): a popular model at peak hour shares the node with more requests than a quiet model at night. For models we do not operate, concurrency falls back to a generic default of 8. This keeps the common case data-driven while still allowing an explicit value for scenario analysis.
 
-### 3.2a Caching (KV prefix cache)
+### 3.2a Sharing the GPU: the wall-clock correction
+
+This is the single most consequential accounting choice in the model, and the one an outside reviewer is most likely to check, so we state it precisely.
+
+**What the metric measures.** vLLM's `request_inference_time_seconds` is **wall-clock residency time**, not exclusive GPU time. Verified against the source (`vllm/v1/metrics/stats.py`): `inference_time = last_token_ts − scheduled_ts`, a monotonic-clock interval stamped once per finished request. With continuous batching, N requests resident on the same GPU each record the **full** duration they were resident — even though they shared the device. Our production data confirms the overlap directly: for the busiest model, `rate(request_inference_time_seconds_sum)` is ~10 GPU-seconds per wall-second, i.e. ~10 requests are concurrently in the RUNNING phase. A single GPU can only deliver 1 GPU-second per wall-second, so those 10 requests are physically sharing it.
+
+**The physical consequence.** A GPU is one device with one power draw. Batching does not multiply the energy (or the manufacturing carbon already spent); it amortises them across the batch. If we credited each of the 10 concurrent requests with the full wall-clock duration's worth of GPU energy and embodied carbon, we would count the same GPU-second — and the same manufacturing footprint — ten times over.
+
+**The correction.** Every shared cost is therefore divided by the number of requests genuinely sharing the GPU (the *productive batch size*), and applied to **this request's own** GPU time:
+
+```
+sharedPerRequest = sharedRate × (thisRequestGpuTime / productiveBatch)
+```
+
+Applied uniformly to: incremental GPU compute energy, the GPU idle baseline, the server chassis energy, and embodied amortisation. We take the productive batch size to be the measured end-to-end concurrency (Little's Law: request rate × mean latency), which counts the requests resident on the node — exactly the denominator that divides a shared fixed cost.
+
+**Conservation check.** Because each request bears its *own* token-adjusted GPU time, a short request bears little and a long reasoning request bears proportionally more. Summed across the real (right-skewed) request mix, the attributed embodied carbon converges to the GPU's full manufacturing amortisation: with the measured mean GPU time the attributed and actual amortisation rates match to within ~16% (the residual is the p50/mean skew of using a single representative request). The same holds for energy, reconciled against measured node draw in Section 8.2.
+
+This is also why the on-prem case (Section 3.2c) is so much heavier per request: with concurrency forced to 1 there is no batch to share any of these costs across.
+
+### 3.2b Caching (KV prefix cache)
 
 When the KV prefix cache is enabled, a repeated prompt prefix does not need to be re-prefilled: the model skips the parallel (prefill) phase for the cached share of the input and goes straight to decoding. That shortens the request's GPU time, and because each request then occupies the GPU for less time, more requests fit on the same hardware — so the fixed server and embodied costs are shared across more of them. Caching is therefore a *compounding* lever: it reduces per-request GPU energy **and** increases the sharing denominator at the same time.
 
@@ -252,7 +272,7 @@ effectiveInputTokens = inputTokens                                  // caching d
 
 We deliberately expose caching as a *scenario* rather than a user default. Configuring KV caching well on your own deployment requires the right serving framework, cache management and spare KV memory, so it is an advantage a dedicated provider can offer that a typical on-prem setup cannot easily replicate.
 
-### 3.2b Deployment: shared vs on-prem
+### 3.2c Deployment: shared vs on-prem
 
 The `deployment` parameter models who owns the infrastructure:
 
@@ -297,15 +317,15 @@ gpusAllocated = min(gpusNeeded, gpusOnNode)
 1. **Operational**: Per-GPU power draw (higher-memory GPUs often have higher TDP) vs. the power saved by using fewer GPUs
 2. **Embodied**: Per-GPU manufacturing carbon (higher-memory GPUs may have more HBM, which is carbon-intensive to manufacture)
 
-Our calculator accounts for both factors by using hardware-specific power and embodied carbon values. The net emissions effect of using fewer, more powerful GPUs depends on the specific hardware configuration and cannot be generalized without these assumptions stated explicitly.
+Our calculator accounts for both factors by using hardware-specific power and embodied carbon values. The net emissions effect of using fewer, more powerful GPUs depends on the specific hardware configuration and cannot be generalised without these assumptions stated explicitly.
 
 ### 3.4 Power Calculation
 
-GPU power is interpolated between idle and peak based on **utilization**.
+GPU power is interpolated between idle and peak based on **utilisation**.
 
-**Key finding from LLMCO2** (Fu et al., 2024): Inference utilization is significantly lower than training due to the memory-bound decode phase. Their measurements on A100 show **10-40%** of peak throughput for typical inference workloads, compared to 50%+ for training.
+**Key finding from LLMCO2** (Fu et al., 2024): Inference utilisation is significantly lower than training due to the memory-bound decode phase. Their measurements on A100 show **10-40%** of peak throughput for typical inference workloads, compared to 50%+ for training.
 
-**Important caveat**: LLMCO2 also warns that utilization is "highly variable" and that equation-based models using simple parameter-based heuristics are "inaccurate." Utilization depends on batch size, prompt length, KV cache pressure, sampling strategy, and framework-level optimizations — not just model size.
+**Important caveat**: LLMCO2 also warns that utilisation is "highly variable" and that equation-based models using simple parameter-based heuristics are "inaccurate." Utilisation depends on batch size, prompt length, KV cache pressure, sampling strategy, and framework-level optimisations — not just model size.
 
 **Reference**: Fu, Z., Chen, F., Zhou, S., Li, H., & Jiang, L. (2024). LLMCO2: Advancing Accurate Carbon Footprint Prediction for LLM Inferences. arXiv:2410.02950. https://arxiv.org/abs/2410.02950
 
@@ -324,64 +344,73 @@ This model is **linear in parameters** and **exponential in batch size**, valida
 
 **Reference**: Rincé, S., & Banse, A. (2025). EcoLogits: Evaluating the Environmental Impacts of Generative AI. Journal of Open Source Software, 10(111), 7471. https://doi.org/10.21105/joss.07471
 
-**Our utilization model**:
+**Our utilisation model**:
 
 We use a **fixed midpoint of 25%** (the center of the 10-40% range from LLMCO2) rather than parameter-based tiers. This is a conservative heuristic that:
 1. Acknowledges the 10-40% range from LLMCO2 measurements
-2. Avoids unsupported claims that parameter count determines utilization
+2. Avoids unsupported claims that parameter count determines utilisation
 3. Can be refined with EcoLogits' parametric model when more data is available
 
 The uncertainty (±15 percentage points) is documented in Section 9 (Limitations & Uncertainties).
 
+We split the per-GPU power draw into its two physically distinct parts — an **idle baseline** and an **incremental load** — because they are attributed differently:
+
 ```
 utilization = 0.25   // Midpoint of 10-40% range from LLMCO2
 
-baseGpuPower = nodeIdleWatts / gpuCount
-incrementalPower = ((nodePeakWatts - nodeIdleWatts) / gpuCount) × utilization
-powerPerGpu = baseGpuPower + incrementalPower
+idlePerGpuWatts        = nodeIdleWatts / gpuCount
+incrementalPerGpuWatts = ((nodePeakWatts - nodeIdleWatts) / gpuCount) × utilization
 ```
 
-**Example** (H200 node, 8 GPUs, 30B model):
-- Idle: 800W total → 100W per GPU
-- Peak: 5,000W total → 625W per GPU
-- At 25% utilization: 100 + (525 × 0.25) = **231W per GPU**
+**Example** (H200 node, 8 GPUs):
+- Idle baseline: 800W total → **100W per GPU**, drawn around the clock regardless of load
+- Incremental at 25% utilisation: (5,000 − 800) / 8 × 0.25 = **131W per GPU**, drawn only while processing
 
-*Previous versions used parameter-based tiers (15%/25%/35% based on model size). This was removed following SEI review (Babis, 2026) noting that LLMCO2 advises against primitive estimations of utilization based on model attributes.*
+*Previous versions used parameter-based tiers (15%/25%/35% based on model size). This was removed following SEI review (Babis, 2026) noting that LLMCO2 advises against primitive estimations of utilisation based on model attributes.*
 
-### 3.5 Energy Calculation
+### 3.5 Energy Calculation (compute + idle baseline)
+
+**Incremental compute energy** — the extra power drawn while actually processing, shared across the productive batch (Section 3.2a):
 
 ```
 gpuTimeHours = concurrencyAdjustedTime / 3,600
-gpuEnergyKwh = (powerPerGpu × gpuTimeHours × gpusUsed) / 1,000
+gpuEnergyKwh = (incrementalPerGpuWatts × gpuTimeHours × gpusUsed) / (productiveBatch × 1,000)
+```
+
+**GPU idle baseline** — the standby draw the node burns simply by being powered on, attributed to this request's share of it. Our own DCGM measurements (Section 8.2) show this is substantial and is **not** a deep sleep state: an idle B300 draws ~122 W per GPU at 0% utilisation (spec ~125 W), an idle L4 ~40 W. A node that is mostly waiting still spends most of its energy here, so dropping it would silently remove the dominant term for lightly-loaded models. It is shared across the same productive batch:
+
+```
+idleEnergyKwh = (idlePerGpuWatts × gpuTimeHours × gpusUsed) / (productiveBatch × 1,000)
 ```
 
 ### 3.6 Server Infrastructure
 
-Server chassis power is divided among concurrent requests:
+Server chassis power is a fixed per-node cost, divided across the productive batch sharing the node (Section 3.2a):
 
 ```
-serverEnergyKwh = (chassisWatts × gpuTimeHours) / (1,000 × concurrency)
+serverEnergyKwh = (chassisWatts × gpuTimeHours) / (1,000 × productiveBatch)
 ```
 
 ### 3.7 PUE Overhead
 
-PUE (Power Usage Effectiveness) varies by climate and cooling method (see Section 2.2 for the full PUE table and sources).
+PUE (Power Usage Effectiveness) varies by climate and cooling method (see Section 2.2 for the full PUE table and sources). It applies to **all** IT energy — compute, idle and server:
 
 ```
-overheadCO2 = (gpuOperationalCO2 + serverOperationalCO2) × (PUE - 1)
+overheadCO2 = (gpuOperationalCO2 + gpuIdleCO2 + serverOperationalCO2) × (PUE - 1)
 ```
 
 For Sweden: `overheadCO2 = operationalCO2 × 0.15` (15% overhead)
 For Texas: `overheadCO2 = operationalCO2 × 0.80` (80% overhead)
 
-This climate advantage compounds with the clean grid — Swedish inference has both lower carbon intensity AND lower cooling overhead.
+This climate advantage compounds with the clean grid — Swedish inference has both lower carbon intensity AND lower cooling overhead (quantified in Section 2.2).
 
 ### 3.8 Operational Carbon Total
 
 ```
-gpuOperationalCO2 = gpuEnergyKwh × effectiveIntensity
+gpuOperationalCO2   = gpuEnergyKwh  × effectiveIntensity   // incremental compute
+gpuIdleCO2          = idleEnergyKwh × effectiveIntensity   // idle baseline
 serverOperationalCO2 = serverEnergyKwh × effectiveIntensity
-totalOperationalCO2 = gpuOperationalCO2 + serverOperationalCO2 + overheadCO2
+totalOperationalCO2 = gpuOperationalCO2 + gpuIdleCO2 + serverOperationalCO2 + overheadCO2
 ```
 
 ---
@@ -390,30 +419,34 @@ totalOperationalCO2 = gpuOperationalCO2 + serverOperationalCO2 + overheadCO2
 
 ### 4.1 Hardware Manufacturing Emissions
 
-Manufacturing emissions are amortised **per GPU-second over projected lifetime utilization**:
+Manufacturing emissions are amortised **per GPU-second over projected lifetime utilisation**, then allocated to this request's share of the productive batch (Section 3.2a):
 
 ```
 projectedActiveSeconds = GPU_LIFETIME_SECONDS × PROJECTED_LIFETIME_UTILIZATION
 embodiedPerGpuGrams = (embodiedPerGpuKg × 1,000) / projectedActiveSeconds
-embodiedCO2 = embodiedPerGpuGrams × gpuTimeSeconds × gpusUsed
+embodiedCO2 = embodiedPerGpuGrams × gpuTimeSeconds × gpusUsed / productiveBatch
 ```
+
+The division by `productiveBatch` is essential (Section 3.2a): embodied carbon is a fixed one-off cost, and with continuous batching N concurrent requests share the same wall-clock residency. Crediting each of them with the full residency would count the same manufacturing footprint N times over. Each request instead bears its own GPU time's share — short requests a little, long requests proportionally more — and the total across the real request mix conserves the GPU's full manufacturing footprint.
 
 Where:
 - `GPU_LIFETIME_SECONDS` = 5 × 365 × 24 × 3,600 = 157,680,000 seconds
 - `PROJECTED_LIFETIME_UTILIZATION` = 0.50 (50% active over 5 years)
 - `projectedActiveSeconds` = 78,840,000 seconds
 
-**Why projected lifetime utilization?** Embodied emissions have already occurred with certainty — the GPU was manufactured regardless of how much it is used. To ensure the full embodied carbon is accounted for over the hardware's lifetime, we amortise based on the GPU's projected active time, not its actual per-query utilization.
+**Why projected lifetime utilisation?** Embodied emissions have already occurred with certainty — the GPU was manufactured regardless of how much it is used. To ensure the full embodied carbon is accounted for over the hardware's lifetime, we amortise based on the GPU's projected active time, not its actual per-query utilisation.
 
-If we amortised per actual query GPU-time (which reflects only 10-35% utilization), less than half of embodied emissions would be accounted for over 5 years. This would systematically undercount the manufacturing carbon footprint.
+If we amortised per actual query GPU-time (which reflects only 10-35% utilisation), less than half of embodied emissions would be accounted for over 5 years. This would systematically undercount the manufacturing carbon footprint.
 
-**Projected utilization of 50%**: GPUs in inference deployments typically run at 30-70% utilization over their lifetime (batching, multiple tenants, scheduled maintenance). We use 50% as a conservative midpoint.
+**Projected utilisation of 50%**: GPUs in inference deployments typically run at 30-70% utilisation over their lifetime (batching, multiple tenants, scheduled maintenance). We use 50% as a conservative midpoint.
 
-**Example** (H200, 1,000 kg embodied, 2.5s GPU time, 1 GPU):
+**Two different "utilisation" figures — don't confuse them.** The **25%** in Section 3.4 is *compute intensity while working*: when the GPU is processing a batch, it draws ~25% of its peak power (the memory-bound decode phase keeps it well below peak). The **50%** here is *share of calendar time active*: over its 5-year life the GPU is processing (rather than idle/standby) about half the time. They multiply to very different effects and answer different questions — one sets the power draw during work, the other sets over how much useful output the manufacturing cost is spread. A reader could otherwise read them as contradicting each other.
+
+**Example** (H200, 1,000 kg embodied, 2.5s GPU time, 1 GPU, productive batch 6):
 - Per active second: (1,000 × 1,000) / 78,840,000 = **0.0127 g CO₂/s**
-- For 2.5s GPU time on 1 GPU: 0.0127 × 2.5 = **0.0317 g CO₂**
+- For 2.5s GPU time on 1 GPU shared by 6: 0.0127 × 2.5 / 6 = **0.0053 g CO₂**
 
-**Note**: This approach was adopted following SEI review (Babis, 2026): *"The simplest tweak seems to be dividing total embodied emissions by projected lifetime utilization in GPU-seconds."*
+**Note**: This approach was adopted following SEI review (Babis, 2026): *"The simplest tweak seems to be dividing total embodied emissions by projected lifetime utilisation in GPU-seconds."* The further division by the productive batch (Section 3.2a) was added after review noted that the un-shared form counts the same manufacturing carbon once per concurrent request.
 
 ### 4.2 Hardware Configurations
 
@@ -426,8 +459,8 @@ If we amortised per actual query GPU-time (which reflects only 10-35% utilizatio
 | NVIDIA L4 | 4 | 200W | 400W | 300 kg | 600W |
 | Refurbished H200 | 8 | 800W | 6,500W | 0 kg | 1,200W |
 
-**Note on Embodied Carbon Values:**
-NVIDIA and AMD do NOT publish per-GPU embodied carbon LCAs. The values above are estimates derived from server-level product carbon footprint reports by subtracting non-GPU components (CPU, chassis, DRAM, NIC, SSD). These estimates have ±30-50% uncertainty.
+**Note on Embodied Carbon Values — what "per GPU" includes:**
+NVIDIA and AMD do NOT publish per-GPU embodied carbon LCAs. The `Embodied/GPU` values above are the **whole node's** manufacturing footprint divided by its GPU count — so each per-GPU figure already carries that GPU's share of the node's CPU, DRAM, SSD, chassis, PSUs and NIC. They are derived from server-level product carbon footprint reports (best-estimate ~7 t for an 8-GPU H200 node → ~875 kg/GPU, rounded up to a conservative 1,000 kg). There is deliberately **no separate "surrounding node" or "other compute" term on top**: adding one would double-count those same components. These estimates have ±30-50% uncertainty.
 
 **Exception — NVIDIA H200 (Supermicro AS-8125GS-TNHR):**
 Component-level estimates are derived from two sources:
@@ -461,7 +494,7 @@ H200 estimate = (non-memory portion) + (memory portion scaled by capacity)
              ≈ 1,729 kg CO₂e for the 8-GPU baseboard
 ```
 
-The table uses **1,000 kg per GPU** as a conservative round-down from the calculated 1,729 kg / 8 = 216 kg per GPU-board. However, the full server estimate (7 t / 8 GPUs = 875 kg) is higher because it includes non-GPU components. The 1,000 kg per GPU value is a conservative midpoint that accounts for both GPU-board and shared server infrastructure.
+The 8-GPU baseboard alone extrapolates to ≈1,729 kg (216 kg per GPU-board, board only). But the calculator's per-GPU figure must carry the **whole node**, since the node is what we deploy and power. The full-server best estimate is ~7 t for the node, which is ~875 kg per GPU once the CPU, DRAM, SSD, chassis and NIC are divided across the 8 GPUs. We round that up to a conservative **1,000 kg per GPU**, all-inclusive. (The 216 kg GPU-board-only figure is shown here only to document the extrapolation; it is **not** what the calculator uses, and no further node term is added on top of the 1,000 kg.)
 
 **Exception — AMD MI300X (Supermicro AS-8125GS-TNMR2):**
 We have a detailed component-level estimate for this specific configuration:
@@ -503,7 +536,9 @@ Refurbished GPUs have **zero embodied carbon** attributed to inference because:
 - Manufacturing emissions were already amortised in their first lifecycle
 - Extending hardware life defers new manufacturing
 
-**Impact on total emissions**: The exact reduction depends on the model, grid, and hardware configuration. For a typical configuration (Gemma 4 31B on H200 in Sweden, training excluded), embodied emissions account for roughly **94%** of the total — because the grid is so clean and the request so short. Setting embodied to zero (refurbished) therefore reduces total emissions by that share. The exact percentage varies by grid (cleaner grids show a much higher embodied share) and model size.
+**Impact on total emissions**: The exact reduction depends on the model, grid, and hardware configuration. For a typical configuration (Gemma 4 31B on H200 in Sweden, training excluded), embodied emissions account for roughly **75%** of the total — because the grid is so clean and the request so short. Setting embodied to zero (refurbished) therefore removes that share. The exact percentage varies by grid (cleaner grids show a higher embodied share) and model size.
+
+**Refurbished = 0 kg rests on an explicit premise**: the hardware has already passed its ~5-year amortisation life, so its manufacturing footprint is fully spent in its first lifecycle. If you buy *two-year-old* hardware this does not hold — some embodied carbon remains to amortise — and since the embodied term is the dominant share of a clean-grid total, this assumption is the one most worth challenging. It is a convention, stated openly, not a measurement.
 
 ---
 
@@ -561,45 +596,44 @@ Default: `estimatedLifetimeQueries = 100,000,000` (100M queries)
 ### 6.1 Complete Formula
 
 ```
-C_total = C_gpu + C_server + C_overhead + C_embodied + C_training
+C_total = C_gpuCompute + C_gpuIdle + C_server + C_overhead + C_embodiedGpu + C_training
 ```
 
-Where:
-- `C_gpu` = GPU operational energy × grid CI
-- `C_server` = Server infrastructure energy × grid CI / concurrency
-- `C_overhead` = (C_gpu + C_server) × (PUE - 1)
-- `C_embodied` = Manufacturing CO₂ amortised per GPU-second
-- `C_training` = Total training CO₂ / expected lifetime queries
+Where (all shared costs divided by the productive batch, Section 3.2a):
+- `C_gpuCompute` = incremental GPU compute energy × grid CI / batch
+- `C_gpuIdle` = GPU idle-baseline energy × grid CI / batch
+- `C_server` = server infrastructure energy × grid CI / batch
+- `C_overhead` = (C_gpuCompute + C_gpuIdle + C_server) × (PUE − 1)
+- `C_embodiedGpu` = manufacturing CO₂ amortised per GPU-second × this request's GPU time / batch
+- `C_training` = total training CO₂ / expected lifetime queries
 
 ### 6.2 Example Calculation
 
-**Query**: Gemma 4 31B, 600 tokens in / 400 tokens out, Sweden, 14:00, NVIDIA H200 hardware, shared deployment, caching enabled. (Training excluded, as in the app.)
+**Query**: Gemma 4 31B, 600 tokens in / 397 tokens out, Sweden, 14:00, NVIDIA H200 hardware, shared deployment, caching enabled. (Training excluded, as in the app.)
 
-**Token counts and baseline time are measured, not assumed.** For Berget-operated models the baseline response time, output-token count, concurrency and cache-hit rate all come from production Prometheus metrics (Section 3.0); only the grid, hardware and climate factors are modelled.
+**This example is generated from the same code as the live calculator** (`scripts/generate-methodology-example.mjs`, run against `dist/index.js`), so the figures here and the published site figure are one and the same. Token counts, baseline time, productive batch and cache-hit rate come from production Prometheus metrics (Section 3.0); only the grid, hardware and climate factors are modelled.
 
-At 14:00 the effective grid intensity is the base CI scaled by the day factor: `8 × 1.15 ≈ 9.2 g/kWh` (Section 3.7). This is used for both GPU and server energy below.
+At 14:00 the effective grid intensity is the base CI scaled by the day factor: `8 × 1.15 ≈ 9.2 g/kWh` (Section 3.7), applied to all IT energy (compute, idle and server).
 
-| Component | Calculation | Result | Source |
-|-----------|-------------|--------|--------|
-| Hardware | NVIDIA H200 ×8 node | — | Section 4.2 |
-| Baseline GPU time | measured p50, queue excluded | 1.0 s | Section 3.0 (Prometheus) |
-| Effective input tokens | 600 × (1 − 0.60 cache) | 240 | Section 3.2a |
-| Token ratio | (240+400)/(600+400) | 0.64 | Section 3.1 |
-| Token-adjusted time | 1.0 × √0.64 | 0.80 s | Section 3.1 |
-| Concurrency | derived ~6 (measured Little's Law × time-of-day) | 6 | Section 3.0, 3.2 |
-| Effective intensity | 8 × 1.15 (day) | 9.2 g/kWh | Section 3.7 |
-| GPUs used | 31B params, H200 (141GB) | 1 | Section 3.3 |
-| GPU power | 100 + (712.5×0.25) | 278W | Section 3.4 (25% utilization) |
-| GPU energy | (278 × 0.80/3600 × 1)/1000 | 0.000062 kWh | Section 3.5 |
-| GPU CO₂ | 0.000062 × 9.2 | 0.00057 g | Section 3.8 |
-| Server energy | (1200 × 0.80/3600)/1000 | 0.000267 kWh | Section 3.6 |
-| Server CO₂ | (0.000267 × 9.2)/6 | 0.00041 g | Section 3.6 |
-| Overhead | (0.00057 + 0.00041) × 0.15 | 0.00015 g | Section 3.7 (PUE 1.15) |
-| Embodied GPU | (1000×1000/78,840,000) × 0.80 × 1 | 0.0101 g | Section 4.1 (50% lifetime util) |
-| Embodied other | node embodied × 0.80 / 6 | 0.0068 g | Section 4.1 |
-| **Total (excl. training)** | | **~0.018 g** | |
+| Component | Calculation | Result |
+|-----------|-------------|--------|
+| Baseline GPU time | measured p50, queue excluded | 1 s |
+| Effective input tokens | 600 × (1 − 0.60 cache) | 240 |
+| Token ratio | (240+397)/(600+397) | 0.64 |
+| Token-adjusted time | 1.0 × √0.64 | 0.80 s |
+| Productive batch | measured Little's Law (Section 3.2a) | 6 |
+| Effective intensity | 8 × 1.15 (day) | 9.2 g/kWh |
+| GPUs used | 31B params, H200 (141 GB) | 1 |
+| Incremental GPU power | (peak−idle)/8 × 0.25 | 178 W |
+| Idle baseline per GPU | idle/8 | 100 W |
+| GPU compute CO₂ | incremental energy × 9.2 / 6 | 61 µg |
+| GPU idle CO₂ | idle energy × 9.2 / 6 | 34 µg |
+| Server CO₂ | chassis energy × 9.2 / 6 | 409 µg |
+| Cooling overhead | (compute+idle+server) × 0.15 | 75 µg |
+| Embodied GPU | 0.0127 g/s × 0.80 s / 6 | 1.69 mg |
+| **Total (excl. training)** | | **≈ 2.3 mg** |
 
-**Note**: Operational emissions only (GPU + server + overhead, excluding embodied and training) are **~0.0011 g** (1.1 mg). The embodied share dominates this total because the request is short and the grid is clean — which is exactly why the choice of new vs refurbished hardware is one of the largest levers (see the "your levers" figure in the guide).
+**Note**: Operational emissions only (compute + idle + server + cooling, excluding embodied and training) are **≈ 0.58 mg**. Embodied carbon is **~75%** of this total — large, but no longer the ~94% it was before the batch-sharing correction (Section 3.2a): previously each of the 6 concurrent requests was credited with the full wall-clock GPU time, inflating both energy and embodied by ~6×. The embodied share still dominates because the request is short and the grid is clean — which is why the new-vs-refurbished hardware choice remains one of the largest levers.
 
 ---
 
@@ -621,39 +655,53 @@ flightPermille = (co2Grams / 90,000) × 1,000
 
 ## 8. Validation & Benchmarks
 
-### 8.1 Against Published Research
+### 8.1 Validation approach — and an honest caveat
 
-| Benchmark | Our Estimate | Literature | Match |
-|-----------|-------------|------------|-------|
-| Llama-2 7B, 1K tokens | ~0.001 g | ~0.001 g [7] | Within 20% |
-| GPT-3 175B, 1K tokens | ~0.03 g | ~0.02-0.04 g [8] | Within 25% |
-| BERT-base, 128 tokens | ~0.00005 g | ~0.00004 g [7] | Within 20% |
+We deliberately do **not** present a "matches published research within 20%" table, for two reasons. First, the figures most often cited for per-token inference energy come from *training* papers (e.g. Patterson et al. 2021) or from models with different system boundaries, batch sizes and units, so a like-for-like row is not defensible. Second, any single "within X%" cell implies a precision the inputs do not support (Section 9 gives ±30-50% on embodied and ±15 points on utilisation).
+
+The strongest validation available to us is instead **reconciliation against our own measured power draw**, because we own the hardware and meter it directly (Section 8.2a). A secondary, external cross-check is a like-for-like comparison against the EcoLogits parametric model for the same model and configuration; we present that as a range rather than a point, because EcoLogits' coefficients are fitted on H100 ML.ENERGY data and carry their own uncertainty.
+
+### 8.2a Reconciliation against measured node energy
+
+The decisive test of the model is whether its *attributed* energy, summed over all requests in a window, matches the energy the hardware *actually drew* (measured with DCGM). This is the check that catches the batch-sharing error of Section 3.2a: if we failed to divide by the productive batch, attributed energy would exceed measured draw by roughly the concurrency factor.
+
+Using production Prometheus + DCGM over a 24 h window (script: `scripts/sanity-energy-reconciliation.py`):
+
+- **GPU time is wall-clock and overlapping.** For the busiest model, `rate(request_inference_time_seconds_sum)` is ~10 GPU-s per wall-second — about 10 requests concurrently in the RUNNING phase on hardware that can only deliver ~1 GPU-s per wall-second each. This is the direct measurement that forces the Section 3.2a division.
+- **Idle baseline is real and large.** An idle B300 draws ~122 W per GPU at 0% utilisation (spec ~125 W); an idle L4 ~40 W. Nodes do **not** drop to near-zero when unloaded, which is why the idle baseline is attributed (Section 3.5) rather than ignored.
+- **After the correction**, the calculator's attributed operational energy sits *below* total measured node draw, as it should: the node also runs system services, other tenants and baseline load that a per-request model does not claim. Before the correction, attributed energy for a busy model could exceed the node's physical draw — the signature of the double-count.
+
+We publish the reconciliation script so the reader can re-run it against the same metrics.
 
 ### 8.2 Berget Specific
 
-On Berget's infrastructure (8 g/kWh), Gemma 4 31B, 600 tokens in / 400 tokens out, shared deployment, caching enabled:
+On Berget's infrastructure, Gemma 4 31B, 600 tokens in / 397 tokens out, shared deployment, caching enabled. **Figures generated from the calculator** (`scripts/generate-methodology-example.mjs`):
 
-| Component | Sweden (8 g/kWh, PUE 1.15) | US Average (380 g/kWh, PUE 1.50) | Ratio |
-|-----------|---------------------------|----------------------------------|-------|
-| **Operational** (GPU + Server + PUE) | 1.12 mg | 69.6 mg | **62×** |
-| **Embodied** (hardware manufacturing) | 16.9 mg | 16.9 mg | 1× |
-| **TOTAL (excl. training)** | **18.0 mg** | **86.5 mg** | **4.8×** |
+| Component | Sweden (8 g/kWh, PUE 1.15) | US Average (380 g/kWh, PUE 1.50) |
+|-----------|---------------------------|----------------------------------|
+| GPU compute | 61 µg | 2.88 mg |
+| GPU idle baseline | 34 µg | 1.62 mg |
+| Server | 409 µg | 19.41 mg |
+| Cooling overhead | 75 µg | 11.95 mg |
+| **Operational subtotal** | **≈ 0.58 mg** | **≈ 35.86 mg** |
+| Embodied GPU | 1.69 mg | 1.69 mg |
+| **TOTAL (excl. training)** | **≈ 2.27 mg** | **≈ 37.55 mg** |
 
-**Key insight**: The operational emissions (energy consumed during inference) are ~62× lower on the Swedish grid due to the clean energy mix. However, embodied carbon is **independent of the grid** — it depends on hardware manufacturing, not where inference runs. So while the grid choice dominates *operational* emissions, the hardware choice (new vs refurbished) dominates the *total* once the grid is clean.
+**Key insight**: operational emissions (the energy consumed during inference: compute + idle + server + cooling) are **~62×** lower on the Swedish grid, because they scale directly with grid carbon intensity. Embodied carbon is **independent of the grid** — it depends on hardware manufacturing, not where inference runs — so it does not change between columns. Once the grid is clean, that fixed embodied term dominates the total.
 
-For a fair comparison of **operational efficiency only** (excluding fixed costs):
-- Sweden: **1.12 mg** operational CO₂
-- US Average: **69.6 mg** operational CO₂
-- **Reduction: 62×**
+For a fair comparison of **operational efficiency only** (excluding the fixed embodied cost):
+- Sweden: **≈ 0.58 mg** operational CO₂e
+- US Average: **≈ 35.86 mg** operational CO₂e
+- **Reduction: ~62×**
 
 For **total emissions** (including embodied, excluding training):
-- Sweden: **18.0 mg** total CO₂e
-- US Average: **86.5 mg** total CO₂e
-- **Reduction: 4.8×**
+- Sweden: **≈ 2.27 mg** total CO₂e
+- US Average: **≈ 37.55 mg** total CO₂e
+- **Reduction: ~17×**
 
-The choice of infrastructure provider can reduce **operational emissions by 30-85×** for the same model and query, and **total emissions by 2-5×** when including embodied costs (training excluded).
+The two ratios answer different questions, and we report both deliberately: **~62×** is the operational (grid-driven) advantage; **~17×** is the all-in advantage once the grid-independent embodied cost is included. Quoting only the larger number would overstate the case.
 
-**Climate advantage compounds the grid advantage**: Sweden's free-air cooling (PUE 1.15) vs US mechanical cooling (PUE 1.50) means 57% less cooling energy, in addition to the 62× cleaner grid.
+**Climate advantage compounds the grid advantage**: Sweden's free-air cooling (PUE 1.15 → 0.15 cooling per unit of IT work) vs US mechanical cooling (PUE 1.50 → 0.50) means ~3.3× less cooling energy, in addition to the cleaner grid.
 
 ---
 
@@ -710,8 +758,10 @@ The calculator is implemented in TypeScript with the following modules:
 ### C.2 Key Constants
 
 ```typescript
-const PUE = 1.2;
 const GPU_LIFETIME_SECONDS = 5 * 365 * 24 * 3_600; // 157,680,000
+const PROJECTED_LIFETIME_UTILIZATION = 0.50;       // 50% active over 5 years
+// PUE is NOT a global constant — it is per-grid (grid.typicalPue, §2.2),
+// e.g. 1.15 Sweden, 1.80 Texas. The cooling overhead is (PUE − 1) × IT CO₂.
 ```
 
 ### C.3 Component Breakdown
@@ -722,10 +772,12 @@ The calculator returns a detailed breakdown:
 interface InferenceResult {
   totalCO2Grams: number;
   components: {
-    gpuOperational: InferenceComponent;      // GPU energy × grid CI
-    serverOperational: InferenceComponent;  // Server energy × grid CI / concurrency
-    datacenterOverhead: InferenceComponent;   // PUE overhead (20%)
-    embodied: InferenceComponent;            // Manufacturing amortised
+    gpuOperational: InferenceComponent;      // Incremental GPU compute energy × grid CI / batch
+    gpuIdle: InferenceComponent;             // GPU idle baseline × grid CI / batch
+    serverOperational: InferenceComponent;   // Server energy × grid CI / batch
+    datacenterOverhead: InferenceComponent;  // PUE overhead (grid-specific, e.g. ×0.15 Sweden)
+    embodiedGpu: InferenceComponent;         // GPU embodied amortised / batch
+    embodiedOther: InferenceComponent;       // Other compute embodied (currently 0 — see §4.2)
     trainingAmortised: InferenceComponent;   // Training CO₂ / lifetime queries
   };
   totalEnergyKwh: number;
@@ -743,6 +795,8 @@ interface InferenceResult {
 
 [1] **IEA (2024).** "Electricity Emissions Factors by Country". International Energy Agency. https://www.iea.org/data-and-statistics
 
+[1a] **Electricity Maps (2024).** "Sweden — annual average carbon intensity, location-based production mix". https://app.electricitymaps.com/zone/SE (used for the 8 g CO₂e/kWh Swedish figure; see §2.1 for the location-based vs lifecycle caveat)
+
 [2] **Uptime Institute (2024).** "Global Data Center Survey 2024". https://uptimeinstitute.com/resources/research-and-reports
 
 [8] **EPA (2023).** "eGRID Database". U.S. Environmental Protection Agency. https://www.epa.gov/egrid
@@ -751,7 +805,7 @@ interface InferenceResult {
 
 **Fu, Z., Chen, F., Zhou, S., Li, H., & Jiang, L. (2024).** LLMCO2: Advancing Accurate Carbon Footprint Prediction for LLM Inferences. *arXiv:2410.02950*. https://arxiv.org/abs/2410.02950
 
-*Key finding*: Inference GPU utilization is 10-40% of peak (significantly lower than training), due to memory-bound decode phase. The paper also warns that equation-based models using simple parameter-based heuristics are inaccurate.
+*Key finding*: Inference GPU utilisation is 10-40% of peak (significantly lower than training), due to memory-bound decode phase. The paper also warns that equation-based models using simple parameter-based heuristics are inaccurate.
 
 **Rincé, S., & Banse, A. (2025).** EcoLogits: Evaluating the Environmental Impacts of Generative AI. *Journal of Open Source Software, 10(111)*, 7471. https://doi.org/10.21105/joss.07471
 

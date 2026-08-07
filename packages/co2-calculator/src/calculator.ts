@@ -192,6 +192,25 @@ export function calculateInference(params: InferenceParams): InferenceResult {
   const gpuTimeSec = concurrencyAdjustedTime;
   const gpuTimeH = gpuTimeSec / SECONDS_IN_HOUR;
 
+  // --- Productive batch size (shared-cost denominator) ---
+  // vLLM's `request_inference_time` is WALL-CLOCK residency time: with
+  // continuous batching, N requests each record the full duration they were
+  // resident even though they shared the GPU. The GPU is one device with one
+  // power draw; batching amortises energy and embodied carbon across the
+  // batch, it does not multiply them. So every shared cost (incremental
+  // compute energy, idle standby, embodied amortisation, server chassis) is
+  // divided by the number of requests genuinely sharing the GPU — the
+  // productive batch size.
+  //
+  // `defaultConcurrency` is measured via Little's Law on end-to-end latency
+  // (rate × mean latency), which IS the productive batch size for a shared
+  // deployment: it counts the requests resident on the node, which is exactly
+  // what divides the shared cost. Each request then bears its own
+  // (token-adjusted) GPU time's worth of the shared rate — short requests a
+  // little, long requests more — and the total across the real request mix
+  // conserves the node's full fixed cost.
+  const productiveBatch = safeConcurrency;
+
   const { effectiveIntensity, isLowPeriod, factor } = applyTimeOfDay(
     deploymentGrid,
     hourOfDay,
@@ -219,27 +238,68 @@ export function calculateInference(params: InferenceParams): InferenceResult {
   // Alternative: EcoLogits (Rincé & Banse, 2025) — α × e^(β×B) × P_active + γ
   const utilization = 0.25; // Midpoint of 10-40% range from LLMCO2
 
-  // Base idle power that every GPU draws regardless of load
-  const baseGpuPower = hardware.nodeIdleWatts / hardware.gpuCount;
-  // Additional power when under load
-  const incrementalPower =
-    ((hardware.nodePeakWatts - hardware.nodeIdleWatts) / hardware.gpuCount) *
-    utilization;
-  const powerPerGpu = baseGpuPower + incrementalPower;
+  // --- Power: split into IDLE baseline and INCREMENTAL load (Section 3.4) ---
+  //
+  // A node's power draw has two physically distinct parts:
+  //
+  //  1. IDLE baseline — the node draws nodeIdleWatts around the clock simply
+  //     by being powered on, regardless of load. Our DCGM measurements confirm
+  //     this is substantial and is NOT a deep sleep state: an idle B300 draws
+  //     ~122 W per GPU at 0% utilisation (spec value ~125 W), an idle L4 ~40 W.
+  //     This standby cost must be attributed to the requests the node serves,
+  //     or it is silently dropped from the accounting.
+  //
+  //  2. INCREMENTAL load — the additional power drawn while actually
+  //     processing, interpolated between idle and peak by utilisation.
+  //
+  // We therefore separate them. The incremental part is what varies with the
+  // work done; the idle part is a fixed overhead shared across requests.
+  const idlePerGpuWatts = hardware.nodeIdleWatts / hardware.gpuCount;
+  const incrementalPerGpuWatts =
+    ((hardware.nodePeakWatts - hardware.nodeIdleWatts) / hardware.gpuCount) * utilization;
 
-  // --- GPU operational energy (all allocated GPUs) ---
-  const gpuEnergyKwh = (powerPerGpu * gpuTimeH * gpusUsed) / 1_000;
+  // --- Concurrency division (Section 3.2, corrected) ---
+  //
+  // vLLM's `request_inference_time` is WALL-CLOCK residency time: with
+  // continuous batching, N concurrent requests each record the full duration
+  // they were resident, even though they SHARED the GPU. (Verified against
+  // vllm/v1/metrics/stats.py: inference_time = last_token_ts − scheduled_ts.)
+  // Our production data shows ~10 requests concurrently in the inference phase
+  // for the busiest model — summing their wall-clock yields ~10 GPU-seconds
+  // per wall-second, far more than the single GPU-sec a GPU can physically
+  // deliver. The GPU is ONE device with ONE power draw; batching amortises
+  // energy across the batch, it does not multiply it.
+  //
+  // Per-request GPU energy, idle share and embodied share must therefore be
+  // DIVIDED by concurrency, otherwise the same GPU-second (and the same
+  // manufacturing carbon) is counted once per concurrent request.
+
+  // --- GPU operational energy (incremental load only, shared across batch) ---
+  // Shared across the productive batch (requests genuinely sharing the GPU).
+  const gpuEnergyKwh = (incrementalPerGpuWatts * gpuTimeH * gpusUsed) / productiveBatch / 1_000;
   const gpuOperationalCO2 = gpuEnergyKwh * effectiveIntensity;
 
+  // --- GPU idle baseline (standby draw, shared across batch) ---
+  // The node's idle draw over this request's GPU residency, split among the
+  // requests genuinely sharing the GPU (productive batch — see embodied note
+  // below). Uses this request's own GPU time, so short requests bear little
+  // standby cost and long requests more; the productive-batch denominator
+  // keeps the total conserved across the skewed request mix.
+  const idleEnergyKwh = (idlePerGpuWatts * gpuTimeH * gpusUsed) / productiveBatch / 1_000;
+  const idleOperationalCO2 = idleEnergyKwh * effectiveIntensity;
+
   // --- Server Infrastructure (Section 3.6) ---
-  // Server chassis power is constant per node, NOT divided by concurrency
-  // The CO₂ is divided among concurrent requests for per-request accounting
-  const serverEnergyKwh = (hardware.chassisWatts * gpuTimeH) / 1_000;
-  const serverOperationalCO2 = (serverEnergyKwh * effectiveIntensity) / safeConcurrency;
+  // Server chassis power is a fixed per-node cost shared across the productive
+  // batch of requests genuinely sharing the node.
+  // Energy is per-request (divided by productiveBatch), and the CO₂ follows
+  // directly from that per-request energy — keeping energyKwh, totalEnergyKwh
+  // and waterLiters consistent with the CO₂ components.
+  const serverEnergyKwh = (hardware.chassisWatts * gpuTimeH) / productiveBatch / 1_000;
+  const serverOperationalCO2 = serverEnergyKwh * effectiveIntensity;
 
   // --- PUE overhead (grid-specific) ---
   const pue = deploymentGrid.typicalPue;
-  const overheadCO2 = (gpuOperationalCO2 + serverOperationalCO2) * (pue - 1);
+  const overheadCO2 = (gpuOperationalCO2 + idleOperationalCO2 + serverOperationalCO2) * (pue - 1);
 
   // --- Embodied GPU (amortised over projected lifetime utilization) ---
   // Embodied emissions have already occurred with certainty. To ensure the
@@ -262,14 +322,26 @@ export function calculateInference(params: InferenceParams): InferenceResult {
   const PROJECTED_LIFETIME_UTILIZATION = 0.50; // 50% active over 5 years
   const projectedActiveSeconds = GPU_LIFETIME_SECONDS * PROJECTED_LIFETIME_UTILIZATION;
   const embodiedPerGpuGrams = (hardware.embodiedPerGpuKg * 1_000) / projectedActiveSeconds;
-  // Per-query allocation: this query's GPU time as a fraction of projected
-  // lifetime active time, multiplied by total embodied carbon
-  const embodiedGpuCO2 = embodiedPerGpuGrams * gpuTimeSec * gpusUsed;
+  // Per-query allocation: this query's share of projected lifetime active
+  // time, DIVIDED by concurrency. With continuous batching, N concurrent
+  // requests each claim the same wall-clock residency, but the GPU's embodied
+  // carbon is a fixed one-off cost — counting it once per concurrent request
+  // would multiply the total manufacturing footprint by the batch size. The
+  // request's fair share is the wall-clock residency split across the batch.
+  // Per-request embodied uses THIS request's own (token-adjusted) GPU time,
+  // divided by the productive batch size (defined above). A short request
+  // occupies the GPU briefly and fairly bears little embodied carbon; a long
+  // reasoning request bears proportionally more. Summed across the real
+  // (right-skewed) mix of requests, this conserves the GPU's full
+  // manufacturing amortisation.
+  const embodiedGpuCO2 = (embodiedPerGpuGrams * gpuTimeSec * gpusUsed) / productiveBatch;
 
   // --- Embodied Other Compute (shared infrastructure: CPU, RAM, SSD, firewalls, switches)
-  // Same lifetime utilization approach, divided among concurrent requests
+  // Same lifetime utilization approach, divided among concurrent requests.
+  // otherComputeEmbodiedKg is 0 for all configs (whole-node footprint is
+  // already inside embodiedPerGpuKg), so this term is currently always zero.
   const otherComputePerSecond = (hardware.otherComputeEmbodiedKg * 1_000) / projectedActiveSeconds;
-  const embodiedOtherCO2 = (otherComputePerSecond * gpuTimeSec) / safeConcurrency;
+  const embodiedOtherCO2 = (otherComputePerSecond * gpuTimeSec) / productiveBatch;
 
   // --- Training (amortised) ---
   const trainingCO2 = includeTraining
@@ -277,9 +349,9 @@ export function calculateInference(params: InferenceParams): InferenceResult {
     : 0;
 
   const totalCO2 =
-    gpuOperationalCO2 + serverOperationalCO2 + overheadCO2 + embodiedGpuCO2 + embodiedOtherCO2 + trainingCO2;
+    gpuOperationalCO2 + idleOperationalCO2 + serverOperationalCO2 + overheadCO2 + embodiedGpuCO2 + embodiedOtherCO2 + trainingCO2;
 
-  const totalEnergyKwh = gpuEnergyKwh + serverEnergyKwh;
+  const totalEnergyKwh = gpuEnergyKwh + idleEnergyKwh + serverEnergyKwh;
 
   // --- Water usage (grid-specific cooling method) ---
   // Water is used for evaporative cooling in hot climates
@@ -296,7 +368,8 @@ export function calculateInference(params: InferenceParams): InferenceResult {
   return {
     totalCO2Grams: Number(totalCO2.toFixed(6)),
     components: {
-      gpuOperational: mkComp(gpuOperationalCO2, gpuEnergyKwh, "GPU energy"),
+      gpuOperational: mkComp(gpuOperationalCO2, gpuEnergyKwh, "GPU energy (compute)"),
+      gpuIdle: mkComp(idleOperationalCO2, idleEnergyKwh, "GPU idle baseline (standby)"),
       serverOperational: mkComp(serverOperationalCO2, serverEnergyKwh, "Server infrastructure"),
       datacenterOverhead: mkComp(overheadCO2, 0, `Cooling & overhead (PUE ${pue.toFixed(2)})`),
       embodiedGpu: mkComp(embodiedGpuCO2, 0, "GPU embodied (amortised)"),
