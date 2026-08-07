@@ -80,10 +80,12 @@ function computePoint(
   const projActive = GPU_LIFETIME_SECONDS * 0.5;
   const embodiedGpuKg = gpuCondition === "refurbished" ? 0 : hw.embodiedPerGpuKg;
   const embodiedGpu = (((embodiedGpuKg * 1000) / projActive) * gpuTimeSec * gpusUsed) / c;
-  // otherComputeEmbodiedKg is 0 (whole-node footprint already in embodiedPerGpuKg)
+  // Separate supporting infrastructure (databases, logging/storage, network),
+  // amortised the same way and shared across the node's concurrent requests.
+  const embodiedOther = (((hw.otherComputeEmbodiedKg * 1000) / projActive) * gpuTimeSec) / c;
 
   const shared = idleOp + serverOp + cooling;
-  const total = gpuOp + shared + embodiedGpu;
+  const total = gpuOp + shared + embodiedGpu + embodiedOther;
   return { gpuEnergy: gpuOp, shared, embodiedGpu, total };
 }
 

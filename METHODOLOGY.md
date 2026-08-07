@@ -9,7 +9,8 @@
 **Changes in 3.0** (driven by external review and our own production reconciliation):
 - §3.2a (new): GPU energy, idle baseline, server and embodied carbon are now divided by the productive batch size. The previous version credited each concurrent request with the full wall-clock GPU time, over-counting energy and embodied carbon by roughly the concurrency factor.
 - §3.5: the per-GPU power draw is split into an idle baseline (measured, §8.2) and an incremental load; the idle baseline is now attributed rather than dropped.
-- §4.1/§4.2: embodied per-GPU is the whole node ÷ GPU count; the separate "other compute" term was removed (it double-counted node components).
+- §4.1/§4.2: embodied per-GPU is the whole node ÷ GPU count (no "surrounding node" term on top of that, which would double-count the node's own components).
+- §4.2b (new): a separate **supporting infrastructure** embodied term (databases, logging/storage, network gear) is included — it is genuinely distinct hardware, not part of the GPU node's chassis or measured power draw, and is needed to reconcile against real-world consumption. Region-independent.
 - §2.2: the cooling comparison is corrected — Texas spends ~5.3× more energy on cooling per unit of IT work than Sweden (previously mis-stated as "57%").
 - §6.2: the worked example is generated from the same code as the live calculator (`scripts/generate-methodology-example.mjs`), so document and site figures agree.
 
@@ -41,7 +42,7 @@ Additional adaptations:
 - Production-calibrated concurrency and response time models
 - **Measured production values** for Berget's own models (GPU time, output tokens, concurrency, cache-hit rate), pulled from our Prometheus metrics rather than estimated — see Section 3.0
 
-**Key finding**: A single query to Gemma 4 31B on Berget's infrastructure produces approximately **2.3 mg CO₂e** in total emissions excluding training, compared to ~37.5 mg on the US average grid. For **operational** emissions only (energy consumed during inference) the reduction is **~62×** (0.58 mg vs 35.9 mg), demonstrating the impact of grid decarbonisation; including the grid-independent embodied cost, the total reduction is **~17×**. Because the Swedish grid is so clean, the embodied share of hardware manufacturing is a large part of the remaining total (~75%) — making the new-vs-refurbished hardware choice one of the largest levers.
+**Key finding**: A single query to Gemma 4 31B on Berget's infrastructure produces approximately **9.0 mg CO₂e** in total emissions excluding training, compared to ~44.3 mg on the US average grid. For **operational** emissions only (energy consumed during inference) the reduction is **~62×** (0.58 mg vs 35.9 mg), demonstrating the impact of grid decarbonisation; including the grid-independent embodied cost, the total reduction is **~4.9×**. Because the Swedish grid is so clean, the embodied share of hardware manufacturing and supporting infrastructure is the dominant part of the remaining total (~94%).
 
 **Why the difference between ~62× and ~17×?** Operational emissions (compute + idle + server + cooling energy) depend on the grid carbon intensity, so Sweden's clean grid gives a ~62× advantage. However, embodied emissions (hardware manufacturing) are **independent of the inference grid** — they depend on where the hardware was manufactured, not where inference runs. Since embodied emissions are the same regardless of inference location, they dilute the operational advantage to ~17× when comparing total emissions (training excluded from both figures). We report both numbers rather than only the larger one.
 
@@ -56,7 +57,8 @@ We adopt the **Consumer boundary** from SCI-AI, covering:
 | **Operational energy (compute)** | ✅ incremental GPU + server during inference | Measured wall-clock GPU time ÷ productive batch (§3.2a) |
 | **GPU idle baseline** | ✅ standby draw attributed per request | Measured via DCGM (§3.5, §8.2a) |
 | **Datacenter overhead** | ✅ PUE factor, grid-specific | 1.15 for Swedish free-air cooling (§2.2) |
-| **Hardware embodied** | ✅ whole-node ÷ GPU count, amortised ÷ batch | No separate "other compute" term (§4.2) |
+| **Hardware embodied (GPU node)** | ✅ whole-node ÷ GPU count, amortised ÷ batch | §4.2 |
+| **Supporting infra embodied** | ✅ DB/logging/network, amortised ÷ batch | Separate from node chassis; region-independent (§4.2b) |
 | **Training amortisation** | ⚠️ Optional, **off by default** in the app | See Section 5 for rationale and what it adds |
 | **Network transmission** | ❌ Excluded | Assumed negligible for co-located API |
 | **End-user device** | ❌ Excluded | Out of scope per SCI-AI |
@@ -460,7 +462,13 @@ If we amortised per actual query GPU-time (which reflects only 10-35% utilisatio
 | Refurbished H200 | 8 | 800W | 6,500W | 0 kg | 1,200W |
 
 **Note on Embodied Carbon Values — what "per GPU" includes:**
-NVIDIA and AMD do NOT publish per-GPU embodied carbon LCAs. The `Embodied/GPU` values above are the **whole node's** manufacturing footprint divided by its GPU count — so each per-GPU figure already carries that GPU's share of the node's CPU, DRAM, SSD, chassis, PSUs and NIC. They are derived from server-level product carbon footprint reports (best-estimate ~7 t for an 8-GPU H200 node → ~875 kg/GPU, rounded up to a conservative 1,000 kg). There is deliberately **no separate "surrounding node" or "other compute" term on top**: adding one would double-count those same components. These estimates have ±30-50% uncertainty.
+NVIDIA and AMD do NOT publish per-GPU embodied carbon LCAs. The `Embodied/GPU` values above are the **whole node's** manufacturing footprint divided by its GPU count — so each per-GPU figure already carries that GPU's share of the node's CPU, DRAM, SSD, chassis, PSUs and NIC. They are derived from server-level product carbon footprint reports (best-estimate ~7 t for an 8-GPU H200 node → ~875 kg/GPU, rounded up to a conservative 1,000 kg). These estimates have ±30-50% uncertainty.
+
+### 4.2b Supporting infrastructure (databases, logging, network)
+
+Separate from the GPU node's own chassis (already inside `Embodied/GPU`) is the **supporting infrastructure** that serves a node but is not part of its measured power draw: database servers, logging/object-storage servers and network gear (top-of-rack switches, firewalls). This is genuinely distinct hardware — not a double-count of node components — and must be included for the totals to reconcile against real-world consumption. It is roughly equivalent across regions, so it does not change the *relative* Sweden-vs-rest comparison, only the absolute level.
+
+We allocate **4,000 kg CO₂e per 8-GPU node** (≈ 3× 1U servers at 1,000 kg, 2× firewalls at 300 kg, 2× switches at 200 kg) and **2,500 kg per small (L4) node**, amortised over projected lifetime active time and divided across the node's concurrent requests — the same method as the GPU embodied term. This is a coarse allocation and a stated candidate for refinement against inventory data.
 
 **Exception — NVIDIA H200 (Supermicro AS-8125GS-TNHR):**
 Component-level estimates are derived from two sources:
@@ -536,7 +544,7 @@ Refurbished GPUs have **zero embodied carbon** attributed to inference because:
 - Manufacturing emissions were already amortised in their first lifecycle
 - Extending hardware life defers new manufacturing
 
-**Impact on total emissions**: The exact reduction depends on the model, grid, and hardware configuration. For a typical configuration (Gemma 4 31B on H200 in Sweden, training excluded), embodied emissions account for roughly **75%** of the total — because the grid is so clean and the request so short. Setting embodied to zero (refurbished) therefore removes that share. The exact percentage varies by grid (cleaner grids show a higher embodied share) and model size.
+**Impact on total emissions**: The exact reduction depends on the model, grid, and hardware configuration. For a typical configuration (Gemma 4 31B on H200 in Sweden, training excluded), embodied emissions account for roughly **94%** of the total — because the grid is so clean and the request so short. Note that the refurbished choice zeroes only the GPU node's own manufacturing share (§4.2); the supporting-infrastructure share (§4.2b) is assumed to be a running service cost and remains. Setting embodied to zero (refurbished) therefore removes that share. The exact percentage varies by grid (cleaner grids show a higher embodied share) and model size.
 
 **Refurbished = 0 kg rests on an explicit premise**: the hardware has already passed its ~5-year amortisation life, so its manufacturing footprint is fully spent in its first lifecycle. If you buy *two-year-old* hardware this does not hold — some embodied carbon remains to amortise — and since the embodied term is the dominant share of a clean-grid total, this assumption is the one most worth challenging. It is a convention, stated openly, not a measurement.
 
@@ -631,9 +639,10 @@ At 14:00 the effective grid intensity is the base CI scaled by the day factor: `
 | Server CO₂ | chassis energy × 9.2 / 6 | 409 µg |
 | Cooling overhead | (compute+idle+server) × 0.15 | 75 µg |
 | Embodied GPU | 0.0127 g/s × 0.80 s / 6 | 1.69 mg |
-| **Total (excl. training)** | | **≈ 2.3 mg** |
+| Embodied supporting infra | 0.0507 g/s × 0.80 s / 6 | 6.76 mg |
+| **Total (excl. training)** | | **≈ 9.0 mg** |
 
-**Note**: Operational emissions only (compute + idle + server + cooling, excluding embodied and training) are **≈ 0.58 mg**. Embodied carbon is **~75%** of this total — large, but no longer the ~94% it was before the batch-sharing correction (Section 3.2a): previously each of the 6 concurrent requests was credited with the full wall-clock GPU time, inflating both energy and embodied by ~6×. The embodied share still dominates because the request is short and the grid is clean — which is why the new-vs-refurbished hardware choice remains one of the largest levers.
+**Note**: Operational emissions only (compute + idle + server + cooling, excluding embodied and training) are **≈ 0.58 mg**. Embodied carbon is **~94%** of this total, dominated by the *supporting infrastructure* term (databases, logging/object-storage and network gear, Section 4.2b) — the GPU node's own manufacturing (1.69 mg) is the smaller embodied share. This supporting infrastructure is genuinely separate from the GPU node's chassis and measured power draw, is needed for the totals to reconcile against real-world consumption, and is roughly equivalent across regions, so it does not change the *relative* Sweden-vs-rest comparison.
 
 ---
 
@@ -685,9 +694,10 @@ On Berget's infrastructure, Gemma 4 31B, 600 tokens in / 397 tokens out, shared 
 | Cooling overhead | 75 µg | 11.95 mg |
 | **Operational subtotal** | **≈ 0.58 mg** | **≈ 35.86 mg** |
 | Embodied GPU | 1.69 mg | 1.69 mg |
-| **TOTAL (excl. training)** | **≈ 2.27 mg** | **≈ 37.55 mg** |
+| Embodied supporting infra | 6.76 mg | 6.76 mg |
+| **TOTAL (excl. training)** | **≈ 9.03 mg** | **≈ 44.30 mg** |
 
-**Key insight**: operational emissions (the energy consumed during inference: compute + idle + server + cooling) are **~62×** lower on the Swedish grid, because they scale directly with grid carbon intensity. Embodied carbon is **independent of the grid** — it depends on hardware manufacturing, not where inference runs — so it does not change between columns. Once the grid is clean, that fixed embodied term dominates the total.
+**Key insight**: operational emissions (the energy consumed during inference: compute + idle + server + cooling) are **~62×** lower on the Swedish grid, because they scale directly with grid carbon intensity. Embodied carbon is **independent of the grid** — it depends on hardware manufacturing, not where inference runs — so it does not change between columns. That holds for both embodied terms: the GPU node's own manufacturing (1.69 mg) and the supporting infrastructure (6.76 mg — databases, logging/storage and network gear, Section 4.2b), which is roughly equivalent wherever the service runs.
 
 For a fair comparison of **operational efficiency only** (excluding the fixed embodied cost):
 - Sweden: **≈ 0.58 mg** operational CO₂e
@@ -695,11 +705,11 @@ For a fair comparison of **operational efficiency only** (excluding the fixed em
 - **Reduction: ~62×**
 
 For **total emissions** (including embodied, excluding training):
-- Sweden: **≈ 2.27 mg** total CO₂e
-- US Average: **≈ 37.55 mg** total CO₂e
-- **Reduction: ~17×**
+- Sweden: **≈ 9.03 mg** total CO₂e
+- US Average: **≈ 44.30 mg** total CO₂e
+- **Reduction: ~4.9×**
 
-The two ratios answer different questions, and we report both deliberately: **~62×** is the operational (grid-driven) advantage; **~17×** is the all-in advantage once the grid-independent embodied cost is included. Quoting only the larger number would overstate the case.
+The two ratios answer different questions, and we report both deliberately: **~62×** is the operational (grid-driven) advantage; **~4.9×** is the all-in advantage once the grid-independent embodied cost (GPU node + supporting infrastructure) is included. Quoting only the larger number would overstate the case.
 
 **Climate advantage compounds the grid advantage**: Sweden's free-air cooling (PUE 1.15 → 0.15 cooling per unit of IT work) vs US mechanical cooling (PUE 1.50 → 0.50) means ~3.3× less cooling energy, in addition to the cleaner grid.
 

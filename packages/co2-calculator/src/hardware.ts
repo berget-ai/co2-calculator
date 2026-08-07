@@ -24,15 +24,19 @@
  *
  * All idle numbers are measured at the node level (chassis + GPUs + fans + NIC).
  *
- * IMPORTANT - No separate "other compute" embodied term:
- *   `embodiedPerGpuKg` is derived as the WHOLE node's manufacturing footprint
- *   divided by its GPU count (see METHODOLOGY §4.2: best-estimate ~7 t server /
- *   8 GPUs ≈ 1,000 kg per GPU). That per-GPU figure already includes the node's
- *   CPU, DRAM, SSD, chassis, PSUs and NIC. Adding a further "surrounding node"
- *   term would therefore double-count those components, so
- *   `otherComputeEmbodiedKg` is 0 for every configuration. Any genuine
- *   datacentre-level shared infrastructure (core switches, firewalls spread
- *   across many nodes) is negligible per node and currently excluded.
+ * IMPORTANT - Two distinct embodied terms:
+ *   1. `embodiedPerGpuKg` is the WHOLE GPU node's manufacturing footprint
+ *      divided by its GPU count (see METHODOLOGY §4.2: best-estimate ~7 t
+ *      server / 8 GPUs ≈ 1,000 kg per GPU). That per-GPU figure already
+ *      includes the node's own CPU, DRAM, SSD, chassis, PSUs and NIC, so we do
+ *      NOT add a separate "surrounding node" term for it.
+ *   2. `otherComputeEmbodiedKg` is the SEPARATE supporting infrastructure that
+ *      serves a node but is not part of its chassis or its measured power
+ *      draw: databases, logging/object-storage servers and network gear
+ *      (top-of-rack switches, firewalls). These are real, must be counted to
+ *      reconcile against actual consumption, and are roughly equivalent across
+ *      regions. Values below are an allocation of that shared infrastructure
+ *      to one node.
  */
 
 import type { HardwareConfig } from "./types.js";
@@ -45,7 +49,11 @@ export const HARDWARE_CONFIGS: Record<string, HardwareConfig> = {
     nodeIdleWatts: 1_000,
     nodePeakWatts: 7_000,
     embodiedPerGpuKg: 1_000,
-    otherComputeEmbodiedKg: 0, // whole-node footprint already in embodiedPerGpuKg (no double-count)
+    // Separate supporting infrastructure allocated to this node (NOT its own
+    // chassis — that is in embodiedPerGpuKg): databases, logging/storage
+    // servers and network gear. ~3× 1U servers (3,000 kg) + 2× firewalls
+    // (600 kg) + 2× switches (400 kg) ≈ 4,000 kg CO₂e.
+    otherComputeEmbodiedKg: 4_000,
     chassisWatts: 1_500,
     formFactor: "8-GPU Accelerator Node (8U)",
   },
@@ -56,7 +64,7 @@ export const HARDWARE_CONFIGS: Record<string, HardwareConfig> = {
     nodeIdleWatts: 800,
     nodePeakWatts: 6_500,
     embodiedPerGpuKg: 1_000,
-    otherComputeEmbodiedKg: 0, // whole-node footprint already in embodiedPerGpuKg (no double-count)
+    otherComputeEmbodiedKg: 4_000, // supporting infra (DB/logging/network), see mi300x note
     chassisWatts: 1_200,
     formFactor: "8-GPU Accelerator Node (8U)",
   },
@@ -67,7 +75,7 @@ export const HARDWARE_CONFIGS: Record<string, HardwareConfig> = {
     nodeIdleWatts: 700,
     nodePeakWatts: 6_500,
     embodiedPerGpuKg: 850,
-    otherComputeEmbodiedKg: 0, // whole-node footprint already in embodiedPerGpuKg (no double-count)
+    otherComputeEmbodiedKg: 4_000, // supporting infra (DB/logging/network), see mi300x note
     chassisWatts: 1_200,
     formFactor: "8-GPU Accelerator Node (8U)",
   },
@@ -78,7 +86,7 @@ export const HARDWARE_CONFIGS: Record<string, HardwareConfig> = {
     nodeIdleWatts: 600,
     nodePeakWatts: 3_200,
     embodiedPerGpuKg: 1_200,
-    otherComputeEmbodiedKg: 0, // whole-node footprint already in embodiedPerGpuKg (no double-count)
+    otherComputeEmbodiedKg: 4_000, // supporting infra (DB/logging/network), see mi300x note
     chassisWatts: 1_000,
     formFactor: "8-GPU Accelerator Node",
   },
@@ -89,7 +97,7 @@ export const HARDWARE_CONFIGS: Record<string, HardwareConfig> = {
     nodeIdleWatts: 200,
     nodePeakWatts: 400,
     embodiedPerGpuKg: 300,
-    otherComputeEmbodiedKg: 0, // whole-node footprint already in embodiedPerGpuKg (no double-count)
+    otherComputeEmbodiedKg: 2_500, // supporting infra (DB/logging/network), smaller share than 8-GPU nodes
     chassisWatts: 600,
     formFactor: "2U Inference Server",
   },
@@ -100,7 +108,7 @@ export const HARDWARE_CONFIGS: Record<string, HardwareConfig> = {
     nodeIdleWatts: 150,
     nodePeakWatts: 250,
     embodiedPerGpuKg: 300,
-    otherComputeEmbodiedKg: 0, // whole-node footprint already in embodiedPerGpuKg (no double-count)
+    otherComputeEmbodiedKg: 2_500, // supporting infra (DB/logging/network), smaller share than 8-GPU nodes
     chassisWatts: 400,
     formFactor: "1U Inference Server",
   },
