@@ -3,7 +3,7 @@
 **Document Version**: 3.0  
 **Date**: 2026-08-07  
 **Authors**: Christian Landgren, Berget AI  
-**External input**: Comments on specific sections (embodied amortisation, utilization) from a researcher at the Stockholm Environment Institute (SEI); these were targeted suggestions, not a full-institute review or endorsement of the document.  
+**External input**: Comments on specific sections (embodied amortisation, utilisation) from a researcher at the Stockholm Environment Institute (SEI); these were targeted suggestions, not a full-institute review or endorsement of the document.  
 **License**: CC BY 4.0
 
 **Changes in 3.0** (driven by external review and our own production reconciliation):
@@ -31,7 +31,7 @@ Where:
 - `M` = embodied emissions (manufacturing + disposal carbon of the hardware)
 - `R` = the functional unit (we use **per query**, not per FLOP/token/parameter as SCI-AI suggests for providers)
 
-**Deviations from SCI-AI**: We adopt only the core formula above. We do not employ the full SCI-AI lifecycle analysis (Inception → Design & Development → Deployment → Operation & Monitoring → End of Life) — we focus on the Operation & Monitoring phase. Our functional unit is **per query** (arguably more intuitive for end-users than per FLOP or per training token). Our embodied emissions amortization differs from the SCI-AI `M = TE × (TiR/EL) × (RR/ToR)` formula (see Section 4.1 for our approach).
+**Deviations from SCI-AI**: We adopt only the core formula above. We do not employ the full SCI-AI lifecycle analysis (Inception → Design & Development → Deployment → Operation & Monitoring → End of Life) — we focus on the Operation & Monitoring phase. Our functional unit is **per query** (arguably more intuitive for end-users than per FLOP or per training token). Our embodied emissions amortisation differs from the SCI-AI `M = TE × (TiR/EL) × (RR/ToR)` formula (see Section 4.1 for our approach).
 
 Additional adaptations:
 - Swedish grid conditions and Berget's Power Purchase Agreements
@@ -317,15 +317,15 @@ gpusAllocated = min(gpusNeeded, gpusOnNode)
 1. **Operational**: Per-GPU power draw (higher-memory GPUs often have higher TDP) vs. the power saved by using fewer GPUs
 2. **Embodied**: Per-GPU manufacturing carbon (higher-memory GPUs may have more HBM, which is carbon-intensive to manufacture)
 
-Our calculator accounts for both factors by using hardware-specific power and embodied carbon values. The net emissions effect of using fewer, more powerful GPUs depends on the specific hardware configuration and cannot be generalized without these assumptions stated explicitly.
+Our calculator accounts for both factors by using hardware-specific power and embodied carbon values. The net emissions effect of using fewer, more powerful GPUs depends on the specific hardware configuration and cannot be generalised without these assumptions stated explicitly.
 
 ### 3.4 Power Calculation
 
-GPU power is interpolated between idle and peak based on **utilization**.
+GPU power is interpolated between idle and peak based on **utilisation**.
 
-**Key finding from LLMCO2** (Fu et al., 2024): Inference utilization is significantly lower than training due to the memory-bound decode phase. Their measurements on A100 show **10-40%** of peak throughput for typical inference workloads, compared to 50%+ for training.
+**Key finding from LLMCO2** (Fu et al., 2024): Inference utilisation is significantly lower than training due to the memory-bound decode phase. Their measurements on A100 show **10-40%** of peak throughput for typical inference workloads, compared to 50%+ for training.
 
-**Important caveat**: LLMCO2 also warns that utilization is "highly variable" and that equation-based models using simple parameter-based heuristics are "inaccurate." Utilization depends on batch size, prompt length, KV cache pressure, sampling strategy, and framework-level optimizations — not just model size.
+**Important caveat**: LLMCO2 also warns that utilisation is "highly variable" and that equation-based models using simple parameter-based heuristics are "inaccurate." Utilisation depends on batch size, prompt length, KV cache pressure, sampling strategy, and framework-level optimisations — not just model size.
 
 **Reference**: Fu, Z., Chen, F., Zhou, S., Li, H., & Jiang, L. (2024). LLMCO2: Advancing Accurate Carbon Footprint Prediction for LLM Inferences. arXiv:2410.02950. https://arxiv.org/abs/2410.02950
 
@@ -344,11 +344,11 @@ This model is **linear in parameters** and **exponential in batch size**, valida
 
 **Reference**: Rincé, S., & Banse, A. (2025). EcoLogits: Evaluating the Environmental Impacts of Generative AI. Journal of Open Source Software, 10(111), 7471. https://doi.org/10.21105/joss.07471
 
-**Our utilization model**:
+**Our utilisation model**:
 
 We use a **fixed midpoint of 25%** (the center of the 10-40% range from LLMCO2) rather than parameter-based tiers. This is a conservative heuristic that:
 1. Acknowledges the 10-40% range from LLMCO2 measurements
-2. Avoids unsupported claims that parameter count determines utilization
+2. Avoids unsupported claims that parameter count determines utilisation
 3. Can be refined with EcoLogits' parametric model when more data is available
 
 The uncertainty (±15 percentage points) is documented in Section 9 (Limitations & Uncertainties).
@@ -364,9 +364,9 @@ incrementalPerGpuWatts = ((nodePeakWatts - nodeIdleWatts) / gpuCount) × utiliza
 
 **Example** (H200 node, 8 GPUs):
 - Idle baseline: 800W total → **100W per GPU**, drawn around the clock regardless of load
-- Incremental at 25% utilization: (5,000 − 800) / 8 × 0.25 = **131W per GPU**, drawn only while processing
+- Incremental at 25% utilisation: (5,000 − 800) / 8 × 0.25 = **131W per GPU**, drawn only while processing
 
-*Previous versions used parameter-based tiers (15%/25%/35% based on model size). This was removed following SEI review (Babis, 2026) noting that LLMCO2 advises against primitive estimations of utilization based on model attributes.*
+*Previous versions used parameter-based tiers (15%/25%/35% based on model size). This was removed following SEI review (Babis, 2026) noting that LLMCO2 advises against primitive estimations of utilisation based on model attributes.*
 
 ### 3.5 Energy Calculation (compute + idle baseline)
 
@@ -419,7 +419,7 @@ totalOperationalCO2 = gpuOperationalCO2 + gpuIdleCO2 + serverOperationalCO2 + ov
 
 ### 4.1 Hardware Manufacturing Emissions
 
-Manufacturing emissions are amortised **per GPU-second over projected lifetime utilization**, then allocated to this request's share of the productive batch (Section 3.2a):
+Manufacturing emissions are amortised **per GPU-second over projected lifetime utilisation**, then allocated to this request's share of the productive batch (Section 3.2a):
 
 ```
 projectedActiveSeconds = GPU_LIFETIME_SECONDS × PROJECTED_LIFETIME_UTILIZATION
@@ -434,19 +434,19 @@ Where:
 - `PROJECTED_LIFETIME_UTILIZATION` = 0.50 (50% active over 5 years)
 - `projectedActiveSeconds` = 78,840,000 seconds
 
-**Why projected lifetime utilization?** Embodied emissions have already occurred with certainty — the GPU was manufactured regardless of how much it is used. To ensure the full embodied carbon is accounted for over the hardware's lifetime, we amortise based on the GPU's projected active time, not its actual per-query utilization.
+**Why projected lifetime utilisation?** Embodied emissions have already occurred with certainty — the GPU was manufactured regardless of how much it is used. To ensure the full embodied carbon is accounted for over the hardware's lifetime, we amortise based on the GPU's projected active time, not its actual per-query utilisation.
 
-If we amortised per actual query GPU-time (which reflects only 10-35% utilization), less than half of embodied emissions would be accounted for over 5 years. This would systematically undercount the manufacturing carbon footprint.
+If we amortised per actual query GPU-time (which reflects only 10-35% utilisation), less than half of embodied emissions would be accounted for over 5 years. This would systematically undercount the manufacturing carbon footprint.
 
-**Projected utilization of 50%**: GPUs in inference deployments typically run at 30-70% utilization over their lifetime (batching, multiple tenants, scheduled maintenance). We use 50% as a conservative midpoint.
+**Projected utilisation of 50%**: GPUs in inference deployments typically run at 30-70% utilisation over their lifetime (batching, multiple tenants, scheduled maintenance). We use 50% as a conservative midpoint.
 
-**Two different "utilization" figures — don't confuse them.** The **25%** in Section 3.4 is *compute intensity while working*: when the GPU is processing a batch, it draws ~25% of its peak power (the memory-bound decode phase keeps it well below peak). The **50%** here is *share of calendar time active*: over its 5-year life the GPU is processing (rather than idle/standby) about half the time. They multiply to very different effects and answer different questions — one sets the power draw during work, the other sets over how much useful output the manufacturing cost is spread. A reader could otherwise read them as contradicting each other.
+**Two different "utilisation" figures — don't confuse them.** The **25%** in Section 3.4 is *compute intensity while working*: when the GPU is processing a batch, it draws ~25% of its peak power (the memory-bound decode phase keeps it well below peak). The **50%** here is *share of calendar time active*: over its 5-year life the GPU is processing (rather than idle/standby) about half the time. They multiply to very different effects and answer different questions — one sets the power draw during work, the other sets over how much useful output the manufacturing cost is spread. A reader could otherwise read them as contradicting each other.
 
 **Example** (H200, 1,000 kg embodied, 2.5s GPU time, 1 GPU, productive batch 6):
 - Per active second: (1,000 × 1,000) / 78,840,000 = **0.0127 g CO₂/s**
 - For 2.5s GPU time on 1 GPU shared by 6: 0.0127 × 2.5 / 6 = **0.0053 g CO₂**
 
-**Note**: This approach was adopted following SEI review (Babis, 2026): *"The simplest tweak seems to be dividing total embodied emissions by projected lifetime utilization in GPU-seconds."* The further division by the productive batch (Section 3.2a) was added after review noted that the un-shared form counts the same manufacturing carbon once per concurrent request.
+**Note**: This approach was adopted following SEI review (Babis, 2026): *"The simplest tweak seems to be dividing total embodied emissions by projected lifetime utilisation in GPU-seconds."* The further division by the productive batch (Section 3.2a) was added after review noted that the un-shared form counts the same manufacturing carbon once per concurrent request.
 
 ### 4.2 Hardware Configurations
 
@@ -805,7 +805,7 @@ interface InferenceResult {
 
 **Fu, Z., Chen, F., Zhou, S., Li, H., & Jiang, L. (2024).** LLMCO2: Advancing Accurate Carbon Footprint Prediction for LLM Inferences. *arXiv:2410.02950*. https://arxiv.org/abs/2410.02950
 
-*Key finding*: Inference GPU utilization is 10-40% of peak (significantly lower than training), due to memory-bound decode phase. The paper also warns that equation-based models using simple parameter-based heuristics are inaccurate.
+*Key finding*: Inference GPU utilisation is 10-40% of peak (significantly lower than training), due to memory-bound decode phase. The paper also warns that equation-based models using simple parameter-based heuristics are inaccurate.
 
 **Rincé, S., & Banse, A. (2025).** EcoLogits: Evaluating the Environmental Impacts of Generative AI. *Journal of Open Source Software, 10(111)*, 7471. https://doi.org/10.21105/joss.07471
 

@@ -291,8 +291,11 @@ export function calculateInference(params: InferenceParams): InferenceResult {
   // --- Server Infrastructure (Section 3.6) ---
   // Server chassis power is a fixed per-node cost shared across the productive
   // batch of requests genuinely sharing the node.
-  const serverEnergyKwh = (hardware.chassisWatts * gpuTimeH) / 1_000;
-  const serverOperationalCO2 = (serverEnergyKwh * effectiveIntensity) / productiveBatch;
+  // Energy is per-request (divided by productiveBatch), and the CO₂ follows
+  // directly from that per-request energy — keeping energyKwh, totalEnergyKwh
+  // and waterLiters consistent with the CO₂ components.
+  const serverEnergyKwh = (hardware.chassisWatts * gpuTimeH) / productiveBatch / 1_000;
+  const serverOperationalCO2 = serverEnergyKwh * effectiveIntensity;
 
   // --- PUE overhead (grid-specific) ---
   const pue = deploymentGrid.typicalPue;

@@ -193,7 +193,7 @@ export interface InferenceResult {
     /** GPU idle/standby baseline, attributed to this request's share of the node */
     gpuIdle: InferenceComponent;
     serverOperational: InferenceComponent;
-    datacenterOverhead: InferenceComponent; // PUE 1.2
+    datacenterOverhead: InferenceComponent; // grid-specific PUE factor (grid.typicalPue)
     embodiedGpu: InferenceComponent;
     embodiedOther: InferenceComponent;
     trainingAmortised: InferenceComponent;

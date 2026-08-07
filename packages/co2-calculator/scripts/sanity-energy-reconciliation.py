@@ -56,7 +56,9 @@ print(f"Prometheus: {PROM}   Window: {WINDOW}\n")
 #    and multiply by window seconds -> joules -> kWh. Simpler: avg power (W)
 #    over window × window hours = Wh per GPU.
 # ---------------------------------------------------------------------------
-print("=== 1. REAL measured node energy (DCGM) ===")
+print("=== 1. REAL measured GPU energy (DCGM, per-GPU draw only) ===")
+print("    (DCGM_FI_DEV_POWER_USAGE is GPU board power; it excludes chassis/CPU/NIC,")
+print("     so this is a LOWER bound on true whole-node draw.)")
 avg_power = by_label(q(f'avg by (Hostname) (avg_over_time(DCGM_FI_DEV_POWER_USAGE[{WINDOW}]))'), "Hostname")
 gpu_count = by_label(q('count by (Hostname) (DCGM_FI_DEV_POWER_USAGE)'), "Hostname")
 window_h = {"1h":1,"6h":6,"24h":24,"7d":168,"30d":720}.get(WINDOW, 24)
@@ -69,13 +71,13 @@ for host, w in avg_power.items():
     print(f"  {host:28} {n:.0f} GPUs  avg {w:6.1f} W/GPU  -> {kwh:7.3f} kWh over {WINDOW}")
 
 # ---------------------------------------------------------------------------
-# 2. What the calculator ATTRIBUTES, per model:
-#    attributed_per_request = powerPerGpu(W) × gpuTimeHours × gpusUsed
-#    total attributed = attributed_per_request × num_requests_in_window
-#    We pull per-model request count and p50 GPU time, and use the same
-#    powerPerGpu heuristic the calculator uses (idle + (peak-idle)/gpuCount*0.25).
+# 2. What the calculator ATTRIBUTES, per model (POST-FIX):
+#    per-request energy = (idle + incremental) × gpuTime × gpusUsed / productiveBatch
+#    total attributed   = per-request energy × num_requests_in_window
+#    We mirror the fixed calculator: idle baseline + incremental load, both
+#    divided by the productive batch (Little's-Law concurrency, clamped >= 1).
 # ---------------------------------------------------------------------------
-print("\n=== 2. Calculator-attributed energy per model (current code, NO /concurrency) ===")
+print("\n=== 2. Calculator-attributed energy per model (post-fix: idle+incremental / productiveBatch) ===")
 
 # Per-model request rate and counts (e2e latency histogram count)
 req_rate = by_label(
@@ -100,44 +102,53 @@ HARDWARE = {
     "berget-gpu-004":       {"gpuCount": 4, "idle": 200, "peak": 400},   # L4
 }
 
-# Which node serves which model? Read the pod->node for vllm deployments.
-# Fall back: report per model with the H200 heuristic (most vllm models live there).
-def power_per_gpu(host):
+# Per-GPU idle baseline and incremental load, mirroring the fixed calculator.
+def idle_per_gpu(host):
     h = HARDWARE.get(host)
-    if not h: return None
-    return h["idle"]/h["gpuCount"] + ((h["peak"]-h["idle"])/h["gpuCount"])*0.25
+    return (h["idle"]/h["gpuCount"]) if h else None
 
-print("\n  model                                  req/s    p50(s)  conc    req/win  attr(kWh)  gpusUsed=1")
+def incr_per_gpu(host):
+    h = HARDWARE.get(host)
+    return ((h["peak"]-h["idle"])/h["gpuCount"])*0.25 if h else None
+
+print("\n  model                                  req/s    p50(s)  batch   req/win  attr(kWh)")
 total_attr = 0.0
 model_rows = []
 for name, rate in sorted(req_rate.items()):
     if rate <= 0: continue
     t = p50.get(name)
     if not t: continue
-    conc = concurrency.get(name, 1.0)
+    # Productive batch size: Little's-Law concurrency, clamped to >= 1.
+    batch = max(1.0, concurrency.get(name, 1.0))
     n_req = rate * window_h * 3600
     # Assume H200 node for vllm models (adjust per known mapping below)
     host = "berget-airon-gpu-001"
     if "GLM" in name or "Kimi" in name:
         host = "berget-gpu-6gai-001"
-    ppg = power_per_gpu(host)
-    # Current calculator: gpuEnergy = ppg × gpuTimeH × gpusUsed (NO /conc)
-    attr_kwh = (ppg * (t/3600.0) * 1) / 1000.0 * n_req
+    idle_w = idle_per_gpu(host)
+    incr_w = incr_per_gpu(host)
+    # Post-fix per-request energy: (idle + incremental) × gpuTime × gpusUsed / batch
+    per_req_kwh = ((idle_w + incr_w) * (t/3600.0) * 1) / batch / 1000.0
+    attr_kwh = per_req_kwh * n_req
     total_attr += attr_kwh
-    model_rows.append((name, rate, t, conc, n_req, attr_kwh, host))
-    print(f"  {name[:38]:38} {rate:7.4f}  {t:6.2f}  {conc:5.2f}  {n_req:8.0f}  {attr_kwh:9.4f}  ({host})")
+    model_rows.append((name, rate, t, batch, n_req, attr_kwh, host))
+    print(f"  {name[:38]:38} {rate:7.4f}  {t:6.2f}  {batch:5.2f}  {n_req:8.0f}  {attr_kwh:9.4f}  ({host})")
 
 # ---------------------------------------------------------------------------
 # 3. The reconciliation
 # ---------------------------------------------------------------------------
 print("\n=== 3. RECONCILIATION ===")
 # Which nodes host these models? Compare attributed vs measured on those nodes.
+# NOTE: 'measured' here is GPU-board draw only (DCGM), a LOWER bound on the
+# whole-node figure. Attributed should sit BELOW it once the chassis/CPU share
+# and other tenants are accounted for — if it EXCEEDS measured GPU draw, the
+# per-request model is over-attributing (the batch-sharing error).
 for host, kwh in real_node_kwh.items():
-    print(f"  measured {host:28} {kwh:8.3f} kWh")
-print(f"  attributed (vllm models, no /conc)      {total_attr:8.3f} kWh")
+    print(f"  measured GPU draw {host:18} {kwh:8.3f} kWh")
+print(f"  attributed (vllm models, post-fix)   {total_attr:8.3f} kWh")
 print()
-print("  If attributed >> measured on the model-hosting node, the calculator")
-print("  over-attributes by roughly the concurrency factor (Claude point 1).")
+print("  Expectation after the fix: attributed <= measured GPU draw.")
+print("  If attributed >> measured, per-request energy is still over-attributed.")
 
 # ---------------------------------------------------------------------------
 # 4. Idle-vs-load power curve (Colin's point): power vs concurrency over time.
