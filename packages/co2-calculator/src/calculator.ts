@@ -336,10 +336,13 @@ export function calculateInference(params: InferenceParams): InferenceResult {
   // manufacturing amortisation.
   const embodiedGpuCO2 = (embodiedPerGpuGrams * gpuTimeSec * gpusUsed) / productiveBatch;
 
-  // --- Embodied Other Compute (shared infrastructure: CPU, RAM, SSD, firewalls, switches)
-  // Same lifetime utilization approach, divided among concurrent requests.
-  // otherComputeEmbodiedKg is 0 for all configs (whole-node footprint is
-  // already inside embodiedPerGpuKg), so this term is currently always zero.
+  // --- Embodied Other Compute (separate supporting infrastructure) ---
+  // Databases, logging/object-storage servers and network gear that serve the
+  // node but are NOT part of its chassis (that is already in embodiedPerGpuKg)
+  // and NOT in its measured power draw. Same lifetime-utilisation amortisation
+  // as the GPU, divided among the requests sharing the node. This term is
+  // region-independent (the same supporting stack exists everywhere) and is
+  // needed for the totals to reconcile against real-world consumption.
   const otherComputePerSecond = (hardware.otherComputeEmbodiedKg * 1_000) / projectedActiveSeconds;
   const embodiedOtherCO2 = (otherComputePerSecond * gpuTimeSec) / productiveBatch;
 

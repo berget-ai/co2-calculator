@@ -53,6 +53,7 @@ const gpusUsed = 1;
 const idlePerGpu = hw.nodeIdleWatts / hw.gpuCount;
 const incrPerGpu = ((hw.nodePeakWatts - hw.nodeIdleWatts) / hw.gpuCount) * 0.25;
 const embodiedPerSec = (hw.embodiedPerGpuKg * 1000) / (GPU_LIFETIME_SECONDS * 0.5);
+const otherEmbodiedPerSec = (hw.otherComputeEmbodiedKg * 1000) / (GPU_LIFETIME_SECONDS * 0.5);
 const intensity = grid.intensityGPerKwh * grid.peakPeriodFactor;
 
 console.log("### §6.2 worked example (generated from dist/index.js)");
@@ -78,12 +79,13 @@ console.log(`| GPU idle CO₂ | idle energy × ${intensity.toFixed(1)} / ${conc}
 console.log(`| Server CO₂ | chassis energy × ${intensity.toFixed(1)} / ${conc} | ${fmt(c.serverOperational.co2Grams)} |`);
 console.log(`| Cooling overhead | (compute+idle+server) × 0.15 | ${fmt(c.datacenterOverhead.co2Grams)} |`);
 console.log(`| Embodied GPU | ${embodiedPerSec.toFixed(4)} g/s × ${gpuTimeSec.toFixed(2)} s / ${conc} | ${fmt(c.embodiedGpu.co2Grams)} |`);
+console.log(`| Embodied other (DB/logging/network) | ${otherEmbodiedPerSec.toFixed(4)} g/s × ${gpuTimeSec.toFixed(2)} s / ${conc} | ${fmt(c.embodiedOther.co2Grams)} |`);
 console.log(`| **Total (excl. training)** | | **${fmt(r.totalCO2Grams)}** |`);
 
 const operational = c.gpuOperational.co2Grams + c.gpuIdle.co2Grams + c.serverOperational.co2Grams + c.datacenterOverhead.co2Grams;
 console.log("");
 console.log(`Operational subtotal (compute+idle+server+cooling, excl. embodied & training): **${fmt(operational)}**.`);
-console.log(`Embodied share of total: ${((c.embodiedGpu.co2Grams / r.totalCO2Grams) * 100).toFixed(0)}%.`);
+console.log(`Embodied share of total: ${(((c.embodiedGpu.co2Grams + c.embodiedOther.co2Grams) / r.totalCO2Grams) * 100).toFixed(0)}%.`);
 
 console.log("\n### §8.2 Sweden vs US (generated)");
 console.log("");
@@ -97,6 +99,7 @@ const rows = [
   ["Server", c.serverOperational, uc.serverOperational],
   ["Cooling overhead", c.datacenterOverhead, uc.datacenterOverhead],
   ["Embodied GPU", c.embodiedGpu, uc.embodiedGpu],
+  ["Embodied other (infra)", c.embodiedOther, uc.embodiedOther],
 ];
 for (const [label, se, us2] of rows) {
   console.log(`| ${label} | ${fmt(se.co2Grams)} | ${fmt(us2.co2Grams)} |`);

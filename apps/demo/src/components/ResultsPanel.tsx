@@ -177,6 +177,7 @@ export function ResultsPanel({ result, model, grid }: Props) {
           { key: "serverOperational", label: "Server & DC", color: COMPONENT_COLORS.server.bg },
           { key: "datacenterOverhead", label: "Cooling", color: COMPONENT_COLORS.overhead.bg },
           { key: "embodiedGpu", label: "GPU Hardware", color: COMPONENT_COLORS.embodied.bg },
+          { key: "embodiedOther", label: "Supporting Infra (DB/logging/network)", color: COMPONENT_COLORS.embodied.bg },
         ].map((item) => {
           const value = result.components[item.key as keyof typeof result.components].co2Grams;
           const pct = (value / result.totalCO2Grams) * 100;
