@@ -172,11 +172,11 @@ export function ResultsPanel({ result, model, grid }: Props) {
       {/* Breakdown */}
       <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1.5rem" }}>
         {[
-          { key: "gpuOperational", label: "GPU Energy", color: COMPONENT_COLORS.gpu.bg },
+          { key: "gpuOperational", label: "GPU Compute", color: COMPONENT_COLORS.gpu.bg },
+          { key: "gpuIdle", label: "GPU Idle Baseline", color: COMPONENT_COLORS.server.bg },
           { key: "serverOperational", label: "Server & DC", color: COMPONENT_COLORS.server.bg },
           { key: "datacenterOverhead", label: "Cooling", color: COMPONENT_COLORS.overhead.bg },
           { key: "embodiedGpu", label: "GPU Hardware", color: COMPONENT_COLORS.embodied.bg },
-          { key: "embodiedOther", label: "Other Compute", color: COMPONENT_COLORS.embodied.bg },
         ].map((item) => {
           const value = result.components[item.key as keyof typeof result.components].co2Grams;
           const pct = (value / result.totalCO2Grams) * 100;

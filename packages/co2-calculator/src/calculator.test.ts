@@ -84,19 +84,21 @@ describe("calculateInference", () => {
     const result = calculateInference(baseParams());
     const overhead = result.components.datacenterOverhead.co2Grams;
     const gpu = result.components.gpuOperational.co2Grams;
+    const idle = result.components.gpuIdle.co2Grams;
     const server = result.components.serverOperational.co2Grams;
-    // Sweden has PUE 1.15 (free-air cooling), so overhead = 15%
-    expect(overhead).toBeCloseTo((gpu + server) * 0.15, 6);
+    // Sweden has PUE 1.15 (free-air cooling), so overhead = 15% of (compute + idle + server)
+    expect(overhead).toBeCloseTo((gpu + idle + server) * 0.15, 6);
   });
 
   it("uses higher PUE for hot climates", () => {
     const texas = baseParams({ deploymentGrid: GRID_REGIONS.texas });
     const result = calculateInference(texas);
-    // Texas has PUE 1.80, so overhead = 80%
+    // Texas has PUE 1.80, so overhead = 80% of (compute + idle + server)
     const overhead = result.components.datacenterOverhead.co2Grams;
     const gpu = result.components.gpuOperational.co2Grams;
+    const idle = result.components.gpuIdle.co2Grams;
     const server = result.components.serverOperational.co2Grams;
-    expect(overhead).toBeCloseTo((gpu + server) * 0.80, 5);
+    expect(overhead).toBeCloseTo((gpu + idle + server) * 0.80, 5);
   });
 
   it("calculates water usage based on climate", () => {

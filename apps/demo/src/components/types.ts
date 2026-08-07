@@ -36,6 +36,7 @@ export type GridRegion = {
 
 export type InferenceComponents = {
   gpuOperational: { co2Grams: number; energyKwh: number };
+  gpuIdle: { co2Grams: number; energyKwh: number };
   serverOperational: { co2Grams: number };
   datacenterOverhead: { co2Grams: number };
   embodiedGpu: { co2Grams: number };
@@ -53,7 +54,6 @@ export interface CalculatorState {
   selectedModel: string;
   region: string;
   gpuCondition: "new" | "refurbished";
-  otherComputeCondition: "new" | "refurbished";
   concurrency: number;
   hourOfDay: number;
 }
@@ -63,7 +63,6 @@ export interface CalculatorActions {
   setSelectedModel: (v: string) => void;
   setRegion: (v: string) => void;
   setGpuCondition: (v: "new" | "refurbished") => void;
-  setOtherComputeCondition: (v: "new" | "refurbished") => void;
   setConcurrency: (v: number) => void;
   setHourOfDay: (v: number) => void;
 }

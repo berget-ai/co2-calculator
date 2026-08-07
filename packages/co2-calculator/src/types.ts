@@ -34,7 +34,7 @@ export interface ModelProfile {
   /** Default calibrated from vLLM production p50 histograms */
   defaultInputTokens: number;
   defaultOutputTokens: number;
-  /** Default response time (seconds) from production */
+  /** Default response time (seconds) from production — p50, the "typical" request */
   defaultResponseTimeSeconds: number;
   /**
    * Typical concurrent requests sharing the node, measured via Little's Law
@@ -188,7 +188,10 @@ export interface InferenceResult {
   totalCO2Grams: number;
   /** Per component */
   components: {
+    /** Incremental GPU compute energy (shared across the concurrent batch) */
     gpuOperational: InferenceComponent;
+    /** GPU idle/standby baseline, attributed to this request's share of the node */
+    gpuIdle: InferenceComponent;
     serverOperational: InferenceComponent;
     datacenterOverhead: InferenceComponent; // PUE 1.2
     embodiedGpu: InferenceComponent;

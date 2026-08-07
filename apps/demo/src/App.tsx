@@ -72,7 +72,6 @@ export function CO2Calculator() {
   const [selectedModel, setSelectedModel] = useState("google/gemma-4-31B-it");
   const [region, setRegion] = useState("sweden");
   const [gpuCondition, setGpuCondition] = useState<"new" | "refurbished">("new");
-  const [otherComputeCondition, setOtherComputeCondition] = useState<"new" | "refurbished">("refurbished");
   const [concurrency, setConcurrency] = useState(8);
   const [hourOfDay, setHourOfDay] = useState(14);
 
@@ -94,7 +93,6 @@ export function CO2Calculator() {
     const hw = {
       ...HARDWARE_CONFIGS.h200,
       embodiedPerGpuKg: gpuCondition === "refurbished" ? 0 : HARDWARE_CONFIGS.h200.embodiedPerGpuKg,
-      otherComputeEmbodiedKg: otherComputeCondition === "refurbished" ? 0 : HARDWARE_CONFIGS.h200.otherComputeEmbodiedKg,
     };
 
     return calculateInference({
@@ -109,7 +107,7 @@ export function CO2Calculator() {
       includeTraining: INCLUDE_TRAINING,
       lifetimeQueries: LIFETIME_QUERIES,
     }) as InferenceResult;
-  }, [model, grid, gpuCondition, otherComputeCondition, category, concurrency, hourOfDay]);
+  }, [model, grid, gpuCondition, category, concurrency, hourOfDay]);
 
   const handleCategoryChange = (key: string) => {
     setModelCategory(key);
@@ -124,7 +122,7 @@ export function CO2Calculator() {
   // Shared state/actions/derived bundles
   const state: CalculatorState = {
     modelCategory, selectedModel, region,
-    gpuCondition, otherComputeCondition, concurrency, hourOfDay,
+    gpuCondition, concurrency, hourOfDay,
   };
 
   const actions: CalculatorActions = {
@@ -132,7 +130,6 @@ export function CO2Calculator() {
     setSelectedModel: handleModelSelect,
     setRegion,
     setGpuCondition,
-    setOtherComputeCondition,
     setConcurrency,
     setHourOfDay,
   };
