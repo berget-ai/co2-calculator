@@ -95,9 +95,13 @@ export function ResultsPanel({ result, model, grid }: Props) {
         </div>
 
         {(() => {
-          // A microwaved cup: 800W for 2 min (120s) = 0.03 kWh
-          // Sweden: 0.03 kWh × 8 g/kWh = 0.24g CO₂
-          const coffeeCO2PerSecond = 0.24 / 120; // grams CO2 per second of microwaving in Sweden
+          // Comparison helpers use a FIXED reference intensity (§7: EU average
+          // ≈ 300 g/kWh) so a cleaner grid does not paradoxically show a LONGER
+          // microwave time for the same CO₂. An 800W microwave draws
+          // 0.8 kW → 0.8/3600 kWh per second → at 300 g/kWh that is
+          // (0.8/3600) × 300 = 0.0667 g CO₂ per second of microwaving.
+          const REFERENCE_INTENSITY = 300; // g/kWh, fixed (METHODOLOGY §7)
+          const coffeeCO2PerSecond = (0.8 / 3600) * REFERENCE_INTENSITY;
           const seconds = result.totalCO2Grams / coffeeCO2PerSecond;
 
           // The grid-intensity multiplier applies only to the operational
@@ -108,10 +112,18 @@ export function ResultsPanel({ result, model, grid }: Props) {
             result.components.gpuOperational.co2Grams +
             result.components.serverOperational.co2Grams +
             result.components.datacenterOverhead.co2Grams;
-          const germanyRatio = 380 / 8;
-          const operationalOnGermany = operational * germanyRatio;
-          const germanySeconds = operationalOnGermany / coffeeCO2PerSecond;
-          const germanyMultiple = operational > 0 ? (operationalOnGermany / operational).toFixed(0) : "—";
+
+          // Contrast against a fossil-heavier reference grid (Germany, 280
+          // g/kWh — see grids.ts). This is only meaningful when the selected
+          // region is actually cleaner; if the user is already on a dirtier
+          // grid we say so instead of claiming a reduction.
+          const GERMANY_INTENSITY = 280;
+          const currentIntensity = grid?.intensityGPerKwh ?? 8;
+          const contrastRatio = GERMANY_INTENSITY / currentIntensity;
+          const isCleanerThanContrast = contrastRatio > 1;
+          const operationalOnGermany = operational * contrastRatio;
+          const contrastMultiple =
+            operational > 0 ? (operationalOnGermany / operational).toFixed(1).replace(/\.0$/, "") : "—";
 
           return (
             <div>
@@ -146,7 +158,8 @@ export function ResultsPanel({ result, model, grid }: Props) {
 
               <p style={{ fontSize: "0.875rem", color: C.muted, margin: 0 }}>
                 One AI request = {seconds < 1 ? "less than a second" : `${Math.round(seconds)} seconds`} of running an
-                800W microwave in Sweden. A full cup takes ~2 minutes.
+                800W microwave (compared at a fixed EU-average intensity, so the number is honest whichever grid you
+                pick). A full cup takes ~2 minutes — so this is a small sip, not the whole cup.
               </p>
 
               <div
@@ -159,10 +172,20 @@ export function ResultsPanel({ result, model, grid }: Props) {
                   color: C.muted,
                 }}
               >
-                <strong style={{ color: C.peak }}>Context:</strong> Sweden's grid is 8 g/kWh (hydro + nuclear); Germany's
-                is 380. The <em>energy</em> part of this request would emit ~{germanyMultiple}× more on the German grid
-                {operational > 0 ? ` (≈${Math.round(germanySeconds)}s of microwaving)` : ""} — the hardware part is the
-                same anywhere.
+                {isCleanerThanContrast ? (
+                  <>
+                    <strong style={{ color: C.peak }}>Context:</strong> this grid ({grid?.name ?? "selected region"},{" "}
+                    {currentIntensity} g/kWh) is cleaner than Germany's ({GERMANY_INTENSITY} g/kWh). The{" "}
+                    <em>energy</em> part of this request would emit ~{contrastMultiple}× more on the German grid — the
+                    hardware part is the same anywhere.
+                  </>
+                ) : (
+                  <>
+                    <strong style={{ color: C.peak }}>Context:</strong> this grid ({grid?.name ?? "selected region"},{" "}
+                    {currentIntensity} g/kWh) is already fossil-heavier than Germany's ({GERMANY_INTENSITY} g/kWh), so
+                    moving it to a cleaner grid is the available saving here. The hardware part is the same anywhere.
+                  </>
+                )}
               </div>
             </div>
           );
