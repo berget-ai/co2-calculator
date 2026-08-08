@@ -7,11 +7,11 @@ license: "MIT"
 url: "https://github.com/berget-ai/co2-calculator"
 repository-code: "https://github.com/berget-ai/co2-calculator"
 abstract: >
-  A vendor-neutral, scientifically-grounded CO₂ emissions calculator for AI inference
+  An open, scientifically-grounded CO₂ emissions calculator for AI inference
   workloads. Covers GPU operational energy, server infrastructure, datacenter cooling
   (PUE), hardware embodied carbon, and training amortisation. Based on the Green
-  Software Foundation's SCI-AI specification. Methodology reviewed by Stockholm
-  Environment Institute (SEI).
+  Software Foundation's SCI-AI specification. Methodology incorporates targeted
+  suggestions from a researcher at the Stockholm Environment Institute (SEI).
 authors:
   - family-names: "Landgren"
     given-names: "Christian"
