@@ -1,0 +1,48 @@
+{
+  "description": "Measured calibration data for Berget-hosted models, aggregated from production Prometheus metrics. Used to set the model profiles in src/models.ts. Aggregates only — no raw request data, no prompts, no user data.",
+  "window": "7d",
+  "exportedAt": "2026-08-08T22:02:23.079Z",
+  "metrics": {
+    "p50GpuTimeSeconds": "Median GPU compute time per request, queue wait excluded (vLLM request_inference_time; SGLang e2e latency, whose queue time is negligible).",
+    "meanOutputTokens": "Mean generated (output) tokens per request, including reasoning models' internal thinking tokens.",
+    "concurrencyLittleLaw": "Mean concurrent requests, derived via Little's Law (request rate x mean latency). vLLM models only.",
+    "kvCacheHitRate": "Fraction of prompt tokens served from the KV cache (0 where prefix caching is disabled)."
+  },
+  "models": {
+    "google/gemma-4-31B-it": {
+      "engine": "vllm",
+      "p50GpuTimeSeconds": 1.99,
+      "meanOutputTokens": 486,
+      "concurrencyLittleLaw": 11.11,
+      "kvCacheHitRate": 0.33
+    },
+    "mistralai/Mistral-Small-3.2-24B-Instruct-2506": {
+      "engine": "vllm",
+      "p50GpuTimeSeconds": 0.24,
+      "meanOutputTokens": 134,
+      "concurrencyLittleLaw": 0.09,
+      "kvCacheHitRate": 0.67
+    },
+    "mistralai/Mistral-Medium-3.5-128B": {
+      "engine": "vllm",
+      "p50GpuTimeSeconds": 0.23,
+      "meanOutputTokens": 54,
+      "concurrencyLittleLaw": 0.05,
+      "kvCacheHitRate": null
+    },
+    "zai-org/GLM-5.2": {
+      "engine": "sglang",
+      "p50GpuTimeSeconds": 6.43,
+      "meanOutputTokens": 397,
+      "concurrencyLittleLaw": null,
+      "kvCacheHitRate": 0
+    },
+    "moonshotai/Kimi-K3": {
+      "engine": "sglang",
+      "p50GpuTimeSeconds": 6.79,
+      "meanOutputTokens": 398,
+      "concurrencyLittleLaw": null,
+      "kvCacheHitRate": 0
+    }
+  }
+}

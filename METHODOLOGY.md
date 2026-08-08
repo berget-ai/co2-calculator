@@ -201,6 +201,8 @@ Two measurement choices are worth stating explicitly:
 
 The calibration is automated in `packages/co2-calculator/scripts/calibrate-from-prometheus.mjs`, which re-reads these metrics over a trailing window and rewrites the `defaultResponseTimeSeconds`, `defaultOutputTokens`, `defaultConcurrency` and `cachedPromptFraction` fields in `packages/co2-calculator/src/models.ts`. Running it moved our baseline GPU times substantially (in both directions) relative to the editorial estimates they replaced — which is exactly the point of measuring.
 
+The measured aggregates themselves are published in `packages/co2-calculator/data/calibration.json` (exported by `scripts/export-calibration-data.mjs`) so the numbers behind the model profiles can be inspected directly. The file contains only per-model aggregates — p50 GPU time, mean output tokens, concurrency and cache-hit rate — never raw request data, prompts or user data.
+
 Models we do **not** operate (closed frontier models such as Claude, GPT-5, Gemini) have no Prometheus data; their parameters remain EcoLogits estimates and their concurrency falls back to a generic default, as described in Section 3.2.
 
 ### 3.1 Token-Based Time Adjustment
