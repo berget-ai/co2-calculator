@@ -95,13 +95,17 @@ export function ResultsPanel({ result, model, grid }: Props) {
         </div>
 
         {(() => {
-          // Comparison helpers use a FIXED reference intensity (§7: EU average
-          // ≈ 300 g/kWh) so a cleaner grid does not paradoxically show a LONGER
-          // microwave time for the same CO₂. An 800W microwave draws
-          // 0.8 kW → 0.8/3600 kWh per second → at 300 g/kWh that is
-          // (0.8/3600) × 300 = 0.0667 g CO₂ per second of microwaving.
-          const REFERENCE_INTENSITY = 300; // g/kWh, fixed (METHODOLOGY §7)
-          const coffeeCO2PerSecond = (0.8 / 3600) * REFERENCE_INTENSITY;
+          // We anchor the comparison to microwaving ON SWEDEN'S GRID (8 g/kWh),
+          // the cleanest we offer. That is the honest baseline: it prices every
+          // activity — the AI request and the coffee alike — at the lowest
+          // available CO₂ cost, instead of normalising to a dirtier grid where
+          // the same request would look smaller. The consequence: because the
+          // baseline itself is so clean, even a tiny CO₂ amount maps to many
+          // seconds of microwaving. That is the point — on a clean grid a
+          // second of anything costs almost nothing, so a small CO₂ figure is
+          // still "many clean seconds", not a large footprint.
+          const SWEDEN_INTENSITY = 8; // g/kWh, the clean-baseline anchor
+          const coffeeCO2PerSecond = (0.8 / 3600) * SWEDEN_INTENSITY;
           const seconds = result.totalCO2Grams / coffeeCO2PerSecond;
 
           // The grid-intensity multiplier applies only to the operational
@@ -132,7 +136,7 @@ export function ResultsPanel({ result, model, grid }: Props) {
                   {seconds < 1 ? "< 1" : seconds < 60 ? Math.round(seconds) : (seconds / 60).toFixed(1)}
                 </span>
                 <span style={{ fontSize: "1rem", color: C.cloud }}>
-                  {seconds < 60 ? "seconds" : "minutes"} of microwaving coffee
+                  {seconds < 60 ? "seconds" : "minutes"} of microwaving coffee on Sweden's clean grid
                 </span>
               </div>
 
@@ -158,8 +162,9 @@ export function ResultsPanel({ result, model, grid }: Props) {
 
               <p style={{ fontSize: "0.875rem", color: C.muted, margin: 0 }}>
                 One AI request = {seconds < 1 ? "less than a second" : `${Math.round(seconds)} seconds`} of running an
-                800W microwave (compared at a fixed EU-average intensity, so the number is honest whichever grid you
-                pick). A full cup takes ~2 minutes — so this is a small sip, not the whole cup.
+                800W microwave, both priced on Sweden's grid. The number of seconds looks large precisely{" "}
+                <em>because</em> the baseline is so clean — a second of anything here costs almost no CO₂, so a small
+                footprint still buys many clean seconds. A full cup takes ~2 minutes.
               </p>
 
               <div
