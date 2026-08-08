@@ -216,7 +216,7 @@ export function GuideMode({
           reasoning="We follow the Green Software Foundation's SCI-AI specification and adopt its 'consumer' boundary. We deliberately exclude model training: the underlying figures are self-reported, vary by ±50%, and would dominate the per-query number while being the least verifiable part. We prefer a smaller number we can defend over a bigger one we can't."
           sources={[
             { label: "Green Software Foundation — Software Carbon Intensity for AI (SCI-AI) Specification v2.0", url: "https://sci.greensoftware.foundation/" },
-            { label: "Full methodology document (METHODOLOGY.md), reviewed by the Stockholm Environment Institute", url: "https://github.com/berget-ai/co2-calculator/blob/main/METHODOLOGY.md" },
+            { label: "Full methodology document (METHODOLOGY.md), with targeted comments from a researcher at the Stockholm Environment Institute", url: "https://github.com/berget-ai/co2-calculator/blob/main/METHODOLOGY.md" },
           ]}
         />
       </Section>
@@ -493,7 +493,7 @@ export function GuideMode({
           ]}
           reasoning="We'd rather show a number you can interrogate than one you have to trust. Every component is visible in the breakdown, every assumption is listed in these panels, and the full derivation is in the open methodology document. If a figure looks wrong, you can trace exactly where it came from."
           sources={[
-            { label: "Full methodology document (METHODOLOGY.md), reviewed by the Stockholm Environment Institute", url: "https://github.com/berget-ai/co2-calculator/blob/main/METHODOLOGY.md" },
+            { label: "Full methodology document (METHODOLOGY.md), with targeted comments from a researcher at the Stockholm Environment Institute", url: "https://github.com/berget-ai/co2-calculator/blob/main/METHODOLOGY.md" },
             { label: "Open-source calculator library (@berget/co2-calculator)", url: "https://github.com/berget-ai/co2-emissions-calculator" },
           ]}
         />
@@ -525,7 +525,7 @@ export function GuideMode({
           reasoning="The calculator is a model, and any model can drift. Owning the hardware means we don't have to trust a cloud provider's estimate — we can read the meters. The gap between reported and measured emissions tells us whether our assumptions (PUE, idle draw, utilisation) hold, and lets us tighten them over time. Open-sourcing the method is the point: verification shouldn't require owning a datacenter."
           sources={[
             { label: "Open-source calculator library (@berget/co2-calculator)", url: "https://github.com/berget-ai/co2-emissions-calculator" },
-            { label: "Full methodology document (METHODOLOGY.md), reviewed by the Stockholm Environment Institute", url: "https://github.com/berget-ai/co2-calculator/blob/main/METHODOLOGY.md" },
+            { label: "Full methodology document (METHODOLOGY.md), with targeted comments from a researcher at the Stockholm Environment Institute", url: "https://github.com/berget-ai/co2-calculator/blob/main/METHODOLOGY.md" },
           ]}
         />
       </Section>
