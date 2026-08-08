@@ -54,6 +54,7 @@ export interface CalculatorState {
   selectedModel: string;
   region: string;
   gpuCondition: "new" | "refurbished";
+  infraCondition: "new" | "refurbished";
   concurrency: number;
   hourOfDay: number;
 }
@@ -63,6 +64,7 @@ export interface CalculatorActions {
   setSelectedModel: (v: string) => void;
   setRegion: (v: string) => void;
   setGpuCondition: (v: "new" | "refurbished") => void;
+  setInfraCondition: (v: "new" | "refurbished") => void;
   setConcurrency: (v: number) => void;
   setHourOfDay: (v: number) => void;
 }
