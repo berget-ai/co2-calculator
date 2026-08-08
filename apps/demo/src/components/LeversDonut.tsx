@@ -203,6 +203,10 @@ export function LeversDonut() {
           </span>
         ))}
       </div>
+      <div style={{ marginTop: "0.5rem", fontSize: "0.65rem", color: C.muted, textAlign: "center", maxWidth: 480, fontStyle: "italic" }}>
+        The model span ends at a closed frontier model; closed-model figures are EcoLogits estimates, not measured on
+        our own hardware, so that end of the span carries more uncertainty than the others.
+      </div>
     </div>
   );
 }

@@ -648,17 +648,24 @@ At 14:00 the effective grid intensity is the base CI scaled by the day factor: `
 
 ## 7. Comparison Helpers
 
-The calculator converts CO₂ to relatable equivalents using a **fixed reference intensity** (EU average ≈ 300 g/kWh) so comparisons are consistent regardless of which grid the user selects:
+The calculator converts CO₂ to relatable equivalents using a **fixed reference intensity** (EU average ≈ 300 g/kWh) for the *everyday-equivalence* helpers, so they read consistently regardless of which grid the user selects:
 
 ```
-microwaveSeconds = (co2Grams / 300) / 0.8 kW × 3,600
 ledBulbSeconds = (co2Grams / 300) / 0.01 kW × 3,600
 carKm = co2Grams / 120
 phoneChargePercent = (co2Grams / 15) × 100
 flightPermille = (co2Grams / 90,000) × 1,000
 ```
 
-**Why fixed reference?** Using the selected grid's intensity would give counter-intuitive results — a cleaner grid would show *longer* microwave times for the same CO₂ amount. The fixed reference answers: *"What does this CO₂ amount to in everyday terms?"*
+**Why a fixed reference for these?** Using the selected grid's intensity would give counter-intuitive results for an everyday equivalence — a cleaner grid would show *longer* bulb times for the same CO₂ amount. The fixed reference answers: *"What does this CO₂ amount to in everyday terms?"*
+
+**The microwave comparison is deliberately different.** It is not an everyday-equivalence helper but a **clean-baseline contrast**: we price both the AI request and the microwave on **Sweden's grid (8 g/kWh)** — the cleanest we offer:
+
+```
+microwaveSeconds = co2Grams / ((0.8 kW / 3,600) × 8 g/kWh)
+```
+
+This anchors every activity at the *lowest available* CO₂ cost rather than normalising to a dirtier grid where the same request would look smaller. The deliberate consequence is that a tiny CO₂ amount maps to *many* seconds of microwaving — because on a clean grid a second of anything costs almost nothing. Read it as "this many clean seconds", not "a large footprint". The surrounding copy states this explicitly so the larger second-count is not misread as a larger footprint.
 
 ---
 
