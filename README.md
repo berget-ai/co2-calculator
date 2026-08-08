@@ -1,9 +1,7 @@
 # CO₂ Impact Calculator for AI Inference
 
-> A vendor-neutral, scientifically-grounded CO₂ emissions calculator for AI inference workloads. Based on the [Green Software Foundation's SCI-AI specification](https://github.com/Green-Software-Foundation/sci-ai).
+> An open, scientifically-grounded CO₂ emissions calculator for AI inference workloads, published so the numbers can be checked. Based on the [Green Software Foundation's SCI-AI specification](https://github.com/Green-Software-Foundation/sci-ai). Built by Berget AI — the methods are vendor-neutral, the defaults are our own infrastructure, which is exactly what you can scrutinise.
 
-[![Test](https://github.com/berget-ai/co2-emissions-calculator/actions/workflows/test.yml/badge.svg)](https://github.com/berget-ai/co2-emissions-calculator/actions)
-[![Coverage](https://img.shields.io/codecov/c/github/berget-ai/co2-emissions-calculator)](https://codecov.io/gh/berget-ai/co2-emissions-calculator)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 **🌍 [Live Calculator](https://co2.berget.ai)** — See it in action with Berget AI's infrastructure.
@@ -29,13 +27,13 @@ Most AI providers don't show customers the carbon cost of inference. This librar
 ### Install
 
 ```bash
-npm install @berget/co2-emissions-calculator
+npm install @berget/co2-calculator
 ```
 
 ### Basic Usage
 
 ```typescript
-import { calculateInference, MODEL_PROFILES, HARDWARE_CONFIGS, GRID_REGIONS } from "@berget/co2-emissions-calculator";
+import { calculateInference, MODEL_PROFILES, HARDWARE_CONFIGS, GRID_REGIONS } from "@berget/co2-calculator";
 
 const result = calculateInference({
   modelProfile: MODEL_PROFILES["meta-llama/Llama-3.1-8B-Instruct"],
@@ -78,7 +76,7 @@ Every provider has different hardware, locations, and models. See **[ADVANCED_US
 ### Example: Custom Provider Setup
 
 ```typescript
-import { calculateInference, type HardwareConfig, type GridRegion } from "@berget/co2-emissions-calculator";
+import { calculateInference, type HardwareConfig, type GridRegion } from "@berget/co2-calculator";
 
 // Your infrastructure
 const myHardware: HardwareConfig = {
@@ -135,15 +133,17 @@ The calculator follows the **SCI-AI specification** with these components:
 - Water usage tracking (0 L for free-air cooling)
 - Time-of-day grid intensity variation
 
-**Key finding** (Llama 3.1 8B, 800 in / 400 out tokens):
+**Key finding** (Gemma 4 31B, 600 in / 397 out tokens, H200, training excluded — as in the live calculator):
 
-| Location | Operational | Embodied | Training¹ | **Total** |
-|----------|-------------|----------|-----------|-----------|
-| Sweden (8 g/kWh, PUE 1.15) | 1.0 mg | 24 mg | 4,200 mg | **~4,225 mg** |
-| US Average (380 g/kWh, PUE 1.50) | 50 mg | 24 mg | 4,200 mg | **~4,274 mg** |
-| **Reduction** | **~48×** | 1× | 1× | **~1.01×** |
+| Location | Operational | Embodied | **Total (excl. training)** |
+|----------|-------------|----------|---------------------------|
+| Sweden (8 g/kWh, PUE 1.15) | 0.58 mg | 8.4 mg | **~9.0 mg** |
+| US Average (380 g/kWh, PUE 1.50) | 35.9 mg | 8.4 mg | **~44.3 mg** |
+| **Reduction** | **~62×** | 1× | **~4.9×** |
 
-¹ Training amortized over 100 M lifetime queries using Meta's published 420 t CO₂e training figure. With 1 B queries the training share drops 10×, making the grid choice more impactful.
+The **operational** part (the energy burned during inference) scales directly with grid carbon intensity, so it is ~62× lower on Sweden's fossil-free grid. The **embodied** part (hardware manufacturing + supporting infrastructure) is location-independent, so it does not change between columns — which is why the *total* ratio (4.9×) is smaller than the operational one. We report both, honestly.
+
+**Why training is excluded by default:** amortised training would dominate the total (for many models it dwarfs per-query inference) and is not comparable across open and closed models — the party that trained the model is often not the party serving it, and undisclosed training figures are parameter-scaling guesses at best. See METHODOLOGY §5 for the full reasoning and what including it would add.
 
 See **[METHODOLOGY.md](./METHODOLOGY.md)** for full details.
 
@@ -163,8 +163,8 @@ See **[METHODOLOGY.md](./METHODOLOGY.md)** for full details.
 | Mistral Medium 128B | 128B | 256 GB (FP16) | 17,000 t CO₂e | SCI-AI extrapolation |
 | GPT-OSS 117B | 117B (MoE) | 58 GB (MXFP4) | 15,000 t CO₂e | OpenAI est. |
 | Gemma 4 31B | 31B | 61 GB (FP16) | 4,100 t CO₂e | Google DeepMind |
-| GLM 4.7 358B | 358B (MoE) | 179 GB (INT4) | 25,000 t CO₂e | Zhipu AI |
-| Kimi K2.6 1.1T | 1.1T (MoE) | 550 GB (INT4) | 50,000 t CO₂e | Scaling estimate |
+| GLM 5.2 753B | 753B (MoE) | 377 GB (INT4) | 52,000 t CO₂e | Parameter-scaling estimate |
+| Kimi K3 2.8T | 2.8T (MoE) | 1,400 GB (INT4) | 140,000 t CO₂e | Parameter-scaling estimate |
 
 **Embeddings & reranking**
 
@@ -289,7 +289,7 @@ If you use this calculator or its methodology in academic work, please cite:
 **Plain text:**
 
 > Landgren, C. & Berget AI (2026). *CO₂ Impact Calculator for AI Inference* (v2.3). Berget AI.
-> Methodology reviewed by Stockholm Environment Institute (SEI). Available at: <https://github.com/berget-ai/co2-calculator>. Licensed CC BY 4.0.
+> Methodology incorporates targeted suggestions from a researcher at the Stockholm Environment Institute (SEI). Available at: <https://github.com/berget-ai/co2-calculator>. Licensed CC BY 4.0.
 
 **BibTeX:**
 
@@ -301,8 +301,9 @@ If you use this calculator or its methodology in academic work, please cite:
   version      = {2.3},
   license      = {MIT / CC BY 4.0},
   url          = {https://github.com/berget-ai/co2-calculator},
-  note         = {Methodology (METHODOLOGY.md) reviewed by Stockholm Environment Institute (SEI).
-                  Based on the Green Software Foundation SCI-AI specification.}
+  note         = {Methodology (METHODOLOGY.md) incorporates targeted suggestions from
+                   a researcher at the Stockholm Environment Institute (SEI).
+                   Based on the Green Software Foundation SCI-AI specification.}
 }
 ```
 
@@ -313,4 +314,4 @@ A `CITATION.cff` file is included in the repository root for one-click citation 
 
 **Built by Berget AI** · [berget.ai](https://berget.ai) · [API Docs](https://berget.ai/docs)
 
-*Developed in collaboration with Stockholm Environment Institute (SEI) and Climate TRACE.*
+*With thanks to a researcher at the Stockholm Environment Institute (SEI) for targeted comments on the embodied-carbon and utilisation sections.*

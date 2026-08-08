@@ -554,22 +554,30 @@ Refurbished GPUs have **zero embodied carbon** attributed to inference because:
 
 ### 5.1 Training CO₂ Sources
 
-Training emissions are estimated from disclosed or extrapolated data:
+Training emissions are estimated from disclosed or extrapolated data. The values below are **tonnes of CO₂e** and are the same figures the calculator uses (`totalTrainingCO2Grams` in `src/models.ts`, stored in grams); they are reproduced here so the document and the code do not drift apart. (An earlier version of this table mislabelled tonnes as kilograms and listed models no longer in the catalogue — a unit error of roughly 250× on some rows.)
 
-| Model | Training CO₂ (kg) | Source | Confidence |
-|-------|------------------|--------|------------|
-| Llama 3.1 8B | 1,700 | Meta sustainability report [5] | Medium |
-| Llama 3.3 70B | 9,300 | Meta sustainability report [5] | Medium |
-| Mistral Small 24B | 3,200 | Mistral AI environmental disclosure | Medium |
-| GPT-OSS 120B | 16,000 | OpenAI GPU-day estimates [6] | Low |
-| E5 Embedding | 280 | Microsoft Research documentation | High |
-| Whisper Large | 1,200 | OpenAI GPU-day estimates [6] | Low |
-| Kimi K2.6 | 45,000 | Moonshot AI estimates | Low |
+| Model | Training CO₂ (tonnes) | Source |
+|-------|----------------------|--------|
+| Mistral Small 24B | 3,200 | Mistral AI environmental report |
+| Mistral Medium 128B | 17,000 | SCI-AI extrapolation |
+| GLM 5.2 (753B MoE) | 52,000 | Parameter-scaling estimate (undisclosed) |
+| Gemma 4 31B | 4,100 | Google DeepMind sustainability |
+| Kimi K3 (2.8T MoE) | 140,000 | Parameter-scaling estimate (undisclosed) |
+| Claude Opus 4.5 | 33,500 | EcoLogits parameter estimate (undisclosed) |
+| Claude Sonnet 4.5 | 22,000 | EcoLogits parameter estimate (undisclosed) |
+| GPT-5 | 15,000 | EcoLogits parameter estimate (undisclosed) |
+| GPT-5 Pro | 180,000 | EcoLogits parameter estimate (undisclosed) |
+| Gemini 2.5 Pro | 100,000 | EcoLogits parameter estimate (undisclosed) |
+| Mistral Large 123B | 16,000 | EcoLogits / Mistral AI environmental report |
+| E5 Embedding | 0.28 | Microsoft Research |
+| Whisper Large v3 | 1.2 | OpenAI GPU-day estimates |
+
+Disclosed figures are preferred where they exist (Mistral, Google, Microsoft); the rest are parameter-scaling estimates and carry the highest uncertainty.
 
 For models without disclosed training data, we estimate using a simplified scaling formula:
 
 ```
-CO₂_training (kg) ≈ P_params × 0.15 × T_hours × CI_training / 1000
+CO₂_training (tonnes) ≈ P_params × 0.15 × T_hours × CI_training / 1e6
 ```
 
 Where:
@@ -577,7 +585,7 @@ Where:
 - `0.15` = estimated GPU power per billion parameters during training (kW/B params). This is derived from observed training power consumption: a 70B model typically trains on ~256 H100 GPUs drawing ~700W each = ~180 kW total, or ~2.6 kW per billion parameters. The 0.15 factor accounts for the fact that not all GPUs are at peak power throughout training (checkpointing, evaluation, debugging)
 - `T_hours` = estimated training duration in hours. This is inferred from model size and publicly available training compute estimates (e.g., Chinchilla scaling laws suggest ~20 tokens per parameter for optimal training)
 - `CI_training` = carbon intensity of the grid where training occurred (g/kWh). When unknown, we assume US average (380 g/kWh) as a conservative estimate
-- `/ 1000` = converts grams to kilograms
+- `/ 1e6` = converts grams to tonnes
 
 **Important**: This formula has ±50% uncertainty (see Section 9). Disclosed training data is always preferred when available.
 
@@ -739,17 +747,17 @@ The two ratios answer different questions, and we report both deliberately: **~6
 
 ## Appendix A: Model-Specific Parameters
 
-| Model | Params | FLOPs/Token | Arch. Efficiency | Power Draw | Training CO₂ |
-|-------|--------|-------------|------------------|------------|-------------|
-| Llama 3.1 8B | 8B | 12 GFLOP | 0.75 | 200W | **1,700 kg** |
-| Llama 3.3 70B | 70B | 112 GFLOP | 0.80 | 500W | **9,300 kg** |
-| Mistral Small 24B | 24B | 36 GFLOP | 0.78 | 300W | **3,200 kg** |
-| Mistral Medium 128B | 128B | 210 GFLOP | 0.82 | 800W | **17,000 kg** (est.) |
-| E5 Embedding | 560M | 0.7 GFLOP | 0.65 | 100W | **280 kg** |
-| Whisper Large v3 | 1.55B | 2.2 GFLOP | 0.70 | 120W | **1,200 kg** (est.) |
-| Kimi K2.6 | 1.1T | 1,200 GFLOP | 0.62 | 1,200W | **45,000 kg** (est.) |
+| Model | Params | FLOPs/Token | Arch. Efficiency | Power Draw | Training CO₂ (tonnes) |
+|-------|--------|-------------|------------------|------------|----------------------|
+| Mistral Small 24B | 24B | 36 GFLOP | 0.78 | 300W | **3,200** |
+| Mistral Medium 128B | 128B | 210 GFLOP | 0.82 | 800W | **17,000** (est.) |
+| GLM 5.2 (753B MoE) | 753B | 1,000 GFLOP | 0.65 | 1,000W | **52,000** (est.) |
+| Gemma 4 31B | 31B | 62 GFLOP | 0.80 | 400W | **4,100** |
+| Kimi K3 (2.8T MoE) | 2.8T | 2,400 GFLOP | 0.60 | 1,400W | **140,000** (est.) |
+| E5 Embedding | 560M | 0.7 GFLOP | 0.65 | 100W | **0.28** |
+| Whisper Large v3 | 1.55B | 2.2 GFLOP | 0.70 | 120W | **1.2** |
 
-**Note**: Training CO₂ values are estimated from disclosed or extrapolated data. Values marked (est.) have higher uncertainty (±50%). See Section 5.1 for sources.
+**Note**: Training CO₂ values are in **tonnes** and match the calculator's `totalTrainingCO2Grams` (Section 5.1); they are estimated from disclosed or extrapolated data. Values marked (est.) have higher uncertainty (±50%). An earlier version of this appendix mislabelled the training column as kilograms — a unit error of roughly 250× on some rows; the figures above are tonnes.
 
 ## Appendix B: Swedish Grid Hourly Demand Curve
 
