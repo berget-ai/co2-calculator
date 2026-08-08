@@ -1,0 +1,23 @@
+# AI CO₂ Impact Calculator | Berget AI
+
+> An open, measured CO₂ calculator for AI inference. Every Berget AI response reports its own CO₂; this site and repository publish the full method, the measured data behind it, and the code, so the numbers can be checked rather than taken on trust.
+
+This site is a client-rendered React app, so its prose is not in the served HTML. This file and the linked Markdown documents carry the same content in LLM-friendly form.
+
+## Reading the site
+
+- [Article (the full argument, as Markdown)](https://co2.berget.ai/index.html.md): the complete prose of the interactive guide — the call to action, the problem, the four levers (model, grid, sharing, hardware), and the proposal. Start here for the narrative.
+- [Methodology (METHODOLOGY.md)](https://github.com/berget-ai/co2-calculator/blob/main/METHODOLOGY.md): the full technical method — system boundary, measured calibration from production, embodied carbon accounting, and worked examples generated from the same code that runs the site.
+- [Advanced usage (ADVANCED_USAGE.md)](https://github.com/berget-ai/co2-calculator/blob/main/ADVANCED_USAGE.md): how to run the calculator on your own infrastructure, with drop-in integrations for Express, FastAPI and Prometheus.
+
+## Code & data
+
+- [Calculator source (packages/co2-calculator)](https://github.com/berget-ai/co2-calculator): the TypeScript library published to npm as `@berget/co2-calculator`.
+- [Models, hardware, grids](https://github.com/berget-ai/co2-calculator/tree/main/packages/co2-calculator/src): the per-model, per-hardware and per-grid inputs the figures are computed from.
+- [Calibration script](https://github.com/berget-ai/co2-calculator/blob/main/packages/co2-calculator/scripts/calibrate-from-prometheus.mjs): how the per-model GPU-time figures are measured from production Prometheus (not estimated).
+
+## Optional
+
+- [Repository README](https://github.com/berget-ai/co2-calculator/blob/main/README.md): quick start and headline figures (Sweden vs US, operational vs embodied).
+- [Release matching this site (v1.0.5)](https://github.com/berget-ai/co2-calculator/tree/v1.0.5): the tagged tree that reproduces the live numbers.
+- [Contributing](https://github.com/berget-ai/co2-calculator/blob/main/CONTRIBUTING.md): how to contribute hardware PCF data, grid data and measurements.
