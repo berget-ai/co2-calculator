@@ -300,6 +300,7 @@ export function GuideMode({
             grid={grid}
             concurrency={state.concurrency}
             gpuCondition={state.gpuCondition}
+            infraCondition={state.infraCondition}
             onConcurrencyChange={actions.setConcurrency}
           />
         </InteractiveFrame>
@@ -448,6 +449,8 @@ export function GuideMode({
           <HardwarePicker
             gpuCondition={state.gpuCondition}
             onGpuConditionChange={actions.setGpuCondition}
+            infraCondition={state.infraCondition}
+            onInfraConditionChange={actions.setInfraCondition}
           />
         </InteractiveFrame>
         <MethodPanel

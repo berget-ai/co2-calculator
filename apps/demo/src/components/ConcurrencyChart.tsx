@@ -9,6 +9,7 @@ interface Props {
   grid: GridRegion | undefined;
   concurrency: number;
   gpuCondition: "new" | "refurbished";
+  infraCondition: "new" | "refurbished";
   onConcurrencyChange: (v: number) => void;
 }
 
@@ -42,7 +43,8 @@ function computePoint(
   category: ModelCategoryDef,
   model: ModelProfile | undefined,
   grid: GridRegion | undefined,
-  gpuCondition: "new" | "refurbished"
+  gpuCondition: "new" | "refurbished",
+  infraCondition: "new" | "refurbished"
 ): Curve {
   if (!model || !grid) return { gpuEnergy: 0, shared: 0, embodiedGpu: 0, total: 0 };
 
@@ -82,7 +84,8 @@ function computePoint(
   const embodiedGpu = (((embodiedGpuKg * 1000) / projActive) * gpuTimeSec * gpusUsed) / c;
   // Separate supporting infrastructure (databases, logging/storage, network),
   // amortised the same way and shared across the node's concurrent requests.
-  const embodiedOther = (((hw.otherComputeEmbodiedKg * 1000) / projActive) * gpuTimeSec) / c;
+  const otherComputeKg = infraCondition === "refurbished" ? 0 : hw.otherComputeEmbodiedKg;
+  const embodiedOther = (((otherComputeKg * 1000) / projActive) * gpuTimeSec) / c;
 
   const shared = idleOp + serverOp + cooling;
   const total = gpuOp + shared + embodiedGpu + embodiedOther;
@@ -94,7 +97,7 @@ function computePoint(
  * component, with a "you are here" marker at the current slider value and a
  * night curve to show the time-of-day compensation.
  */
-export function ConcurrencyChart({ category, model, grid, concurrency, gpuCondition, onConcurrencyChange }: Props) {
+export function ConcurrencyChart({ category, model, grid, concurrency, gpuCondition, infraCondition, onConcurrencyChange }: Props) {
   const W = 560;
   const H = 220;
   const padL = 46;
@@ -113,14 +116,14 @@ export function ConcurrencyChart({ category, model, grid, concurrency, gpuCondit
     const night: Curve[] = [];
     let max = 0;
     for (let c = XMIN; c <= XMAX; c++) {
-      const d = computePoint(c, 14, category, model, grid, gpuCondition);
-      const n = computePoint(c, 2, category, model, grid, gpuCondition);
+      const d = computePoint(c, 14, category, model, grid, gpuCondition, infraCondition);
+      const n = computePoint(c, 2, category, model, grid, gpuCondition, infraCondition);
       day.push(d);
       night.push(n);
       max = Math.max(max, d.total);
     }
     return { dayPts: day, nightPts: night, maxY: max * 1.08 || 1 };
-  }, [category, model, grid, gpuCondition]);
+  }, [category, model, grid, gpuCondition, infraCondition]);
 
   if (!model || !grid || maxY <= 0) return null;
 
