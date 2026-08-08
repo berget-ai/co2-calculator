@@ -132,7 +132,7 @@ export function ResultsPanel({ result, model, grid }: Props) {
                   {seconds < 1 ? "< 1" : seconds < 60 ? Math.round(seconds) : (seconds / 60).toFixed(1)}
                 </span>
                 <span style={{ fontSize: "1rem", color: C.cloud }}>
-                  {seconds < 60 ? "seconds" : "minutes"} of microwaving coffee in Sweden
+                  {seconds < 60 ? "seconds" : "minutes"} of microwaving coffee
                 </span>
               </div>
 
@@ -182,8 +182,8 @@ export function ResultsPanel({ result, model, grid }: Props) {
                 ) : (
                   <>
                     <strong style={{ color: C.peak }}>Context:</strong> this grid ({grid?.name ?? "selected region"},{" "}
-                    {currentIntensity} g/kWh) is already fossil-heavier than Germany's ({GERMANY_INTENSITY} g/kWh), so
-                    moving it to a cleaner grid is the available saving here. The hardware part is the same anywhere.
+                    {currentIntensity} g/kWh) is no cleaner than Germany's ({GERMANY_INTENSITY} g/kWh), so moving it to
+                    a cleaner grid is the available saving here. The hardware part is the same anywhere.
                   </>
                 )}
               </div>
