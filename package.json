@@ -1,6 +1,6 @@
 {
   "name": "@berget/co2-emissions-calculator",
-  "version": "1.0.5-rc.5",
+  "version": "1.0.5-rc.6",
   "description": "Scientifically-grounded CO2 emissions calculator for AI inference based on SCI-AI specification",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
