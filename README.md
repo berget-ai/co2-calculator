@@ -133,12 +133,12 @@ The calculator follows the **SCI-AI specification** with these components:
 - Water usage tracking (0 L for free-air cooling)
 - Time-of-day grid intensity variation
 
-**Key finding** (Gemma 4 31B, 600 in / 397 out tokens, H200, training excluded — as in the live calculator):
+**Key finding** (Gemma 4 31B, 600 in / 482 out tokens, H200, training excluded — as in the live calculator):
 
 | Location | Operational | Embodied | **Total (excl. training)** |
 |----------|-------------|----------|---------------------------|
-| Sweden (8 g/kWh, PUE 1.15) | 0.58 mg | 8.4 mg | **~9.0 mg** |
-| US Average (380 g/kWh, PUE 1.50) | 35.9 mg | 8.4 mg | **~44.3 mg** |
+| Sweden (8 g/kWh, PUE 1.15) | 1.32 mg | 19.3 mg | **~20.6 mg** |
+| US Average (380 g/kWh, PUE 1.50) | 81.9 mg | 19.3 mg | **~101.2 mg** |
 | **Reduction** | **~62×** | 1× | **~4.9×** |
 
 The **operational** part (the energy burned during inference) scales directly with grid carbon intensity, so it is ~62× lower on Sweden's fossil-free grid. The **embodied** part (hardware manufacturing + supporting infrastructure) is location-independent, so it does not change between columns — which is why the *total* ratio (4.9×) is smaller than the operational one. We report both, honestly.

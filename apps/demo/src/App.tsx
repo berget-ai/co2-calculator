@@ -74,7 +74,15 @@ export function CO2Calculator() {
   const [region, setRegion] = useState("sweden");
   const [gpuCondition, setGpuCondition] = useState<"new" | "refurbished">("new");
   const [infraCondition, setInfraCondition] = useState<"new" | "refurbished">("new");
-  const [concurrency, setConcurrency] = useState(8);
+  // Concurrency defaults to the methodology's shared-batch value (6) so the
+  // UI reproduces the same figure as the methodology example and the article.
+  // Each model's *measured* GPU concurrency (Little's Law) is shown separately
+  // as an operating-point datapoint — it is not used as the shared-cost
+  // denominator, because the supporting-infrastructure term (databases,
+  // logging, network) is shared across the node's whole request load, which is
+  // broader than a single model's GPU batch. The slider explores other loads.
+  const METHOD_BATCH = 6;
+  const [concurrency, setConcurrency] = useState(METHOD_BATCH);
   const [hourOfDay, setHourOfDay] = useState(14);
 
   // Fetch dynamic model data from EcoLogits and OpenRouter
@@ -102,7 +110,11 @@ export function CO2Calculator() {
       modelProfile: model,
       hardware: hw,
       deploymentGrid: grid,
-      measuredResponseTimeSeconds: category.responseTime,
+      // Use the model's own measured response time so the UI, the methodology
+      // example and the article all reproduce the same figure. (Previously a
+      // per-category average, which made the UI diverge from the published
+      // numbers.)
+      measuredResponseTimeSeconds: model.defaultResponseTimeSeconds,
       inputTokens: model.defaultInputTokens,
       outputTokens: model.defaultOutputTokens,
       concurrency,
