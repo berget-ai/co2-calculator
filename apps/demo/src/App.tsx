@@ -74,15 +74,15 @@ export function CO2Calculator() {
   const [region, setRegion] = useState("sweden");
   const [gpuCondition, setGpuCondition] = useState<"new" | "refurbished">("new");
   const [infraCondition, setInfraCondition] = useState<"new" | "refurbished">("new");
-  // Concurrency defaults to the methodology's shared-batch value (6) so the
-  // UI reproduces the same figure as the methodology example and the article.
-  // Each model's *measured* GPU concurrency (Little's Law) is shown separately
-  // as an operating-point datapoint — it is not used as the shared-cost
-  // denominator, because the supporting-infrastructure term (databases,
-  // logging, network) is shared across the node's whole request load, which is
-  // broader than a single model's GPU batch. The slider explores other loads.
+  // Two distinct shared-cost denominators (see the calculator):
+  //  * nodeConcurrency — the node's whole request load; divides the server
+  //    chassis and the supporting-infrastructure embodied term. The slider
+  //    explores this. Default 6 matches the methodology example and article.
+  //  * gpuConcurrency — the requests genuinely sharing THIS model's GPU batch;
+  //    divides GPU compute/idle/embodied. This is the model's measured
+  //    Little's Law value (defaultConcurrency), shown in the chart.
   const METHOD_BATCH = 6;
-  const [concurrency, setConcurrency] = useState(METHOD_BATCH);
+  const [nodeConcurrency, setConcurrency] = useState(METHOD_BATCH);
   const [hourOfDay, setHourOfDay] = useState(14);
 
   // Fetch dynamic model data from EcoLogits and OpenRouter
@@ -117,12 +117,16 @@ export function CO2Calculator() {
       measuredResponseTimeSeconds: model.defaultResponseTimeSeconds,
       inputTokens: model.defaultInputTokens,
       outputTokens: model.defaultOutputTokens,
-      concurrency,
+      // Split denominators: the model's measured GPU batch divides the GPU
+      // fixed costs; the node's whole request load divides the chassis and
+      // supporting-infrastructure costs.
+      gpuConcurrency: model.defaultConcurrency,
+      nodeConcurrency,
       hourOfDay,
       includeTraining: INCLUDE_TRAINING,
       lifetimeQueries: LIFETIME_QUERIES,
     }) as InferenceResult;
-  }, [model, grid, gpuCondition, infraCondition, category, concurrency, hourOfDay]);
+  }, [model, grid, gpuCondition, infraCondition, category, nodeConcurrency, hourOfDay]);
 
   const handleCategoryChange = (key: string) => {
     setModelCategory(key);
@@ -137,7 +141,7 @@ export function CO2Calculator() {
   // Shared state/actions/derived bundles
   const state: CalculatorState = {
     modelCategory, selectedModel, region,
-    gpuCondition, infraCondition, concurrency, hourOfDay,
+    gpuCondition, infraCondition, concurrency: nodeConcurrency, hourOfDay,
   };
 
   const actions: CalculatorActions = {

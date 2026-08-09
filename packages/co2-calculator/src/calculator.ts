@@ -151,7 +151,28 @@ export function calculateInference(params: InferenceParams): InferenceResult {
       ? 1
       : Math.max(1, Math.round(Number.isFinite(rawConcurrency) ? rawConcurrency : GENERIC_DEFAULT_CONCURRENCY));
 
-  const safeConcurrency = concurrency;
+  // --- Split shared-cost denominators (gpuConcurrency vs nodeConcurrency) ---
+  // Two physically distinct fixed costs are shared across DIFFERENT groups:
+  //
+  //  * GPU-related fixed costs (GPU compute energy, GPU idle standby, GPU
+  //    embodied) are shared only by the requests genuinely resident on THIS
+  //    model's GPU batch — measured via Little's Law. That is `gpuConcurrency`.
+  //
+  //  * Node-level fixed costs (server chassis energy and the supporting-
+  //    infrastructure embodied term: databases, logging/storage, network gear)
+  //    are shared by the WHOLE node's request load, which is broader than a
+  //    single model's GPU batch. That is `nodeConcurrency`.
+  //
+  // Using one denominator for both is the sliding system boundary we call out
+  // in the article, so they are kept separate. Each falls back to the generic
+  // `concurrency` (and thence to the derived value) when not given, which
+  // preserves the pre-split behaviour for existing callers.
+  const clampConc = (v: number | undefined, fallback: number) =>
+    Math.max(1, Math.round(Number.isFinite(v as number) ? (v as number) : fallback));
+  const gpuConcurrency =
+    deployment === "onprem" ? 1 : clampConc(params.gpuConcurrency, concurrency);
+  const nodeConcurrency =
+    deployment === "onprem" ? 1 : clampConc(params.nodeConcurrency, concurrency);
 
   // --- Caching (KV prefix cache) ---
   // When enabled, the model's measured cachedPromptFraction of the prompt is
@@ -188,7 +209,9 @@ export function calculateInference(params: InferenceParams): InferenceResult {
   // power, PUE overhead) is DIVIDED among all concurrent requests, creating
   // a trade-off: higher concurrency → more GPU time per request, but less
   // infrastructure cost per request.
-  const concurrencyAdjustedTime = applyConcurrencyDelay(tokenAdjustedTime, safeConcurrency);
+  // Concurrency delay models queueing on THIS model's GPU batch, so it uses
+  // the GPU concurrency (not the broader node concurrency).
+  const concurrencyAdjustedTime = applyConcurrencyDelay(tokenAdjustedTime, gpuConcurrency);
   const gpuTimeSec = concurrencyAdjustedTime;
   const gpuTimeH = gpuTimeSec / SECONDS_IN_HOUR;
 
@@ -209,7 +232,11 @@ export function calculateInference(params: InferenceParams): InferenceResult {
   // (token-adjusted) GPU time's worth of the shared rate — short requests a
   // little, long requests more — and the total across the real request mix
   // conserves the node's full fixed cost.
-  const productiveBatch = safeConcurrency;
+  //
+  // The two denominators are split (see above): GPU-related fixed costs are
+  // divided by `gpuConcurrency`, node-level fixed costs by `nodeConcurrency`.
+  const gpuBatch = gpuConcurrency;
+  const nodeBatch = nodeConcurrency;
 
   const { effectiveIntensity, isLowPeriod, factor } = applyTimeOfDay(
     deploymentGrid,
@@ -276,7 +303,7 @@ export function calculateInference(params: InferenceParams): InferenceResult {
 
   // --- GPU operational energy (incremental load only, shared across batch) ---
   // Shared across the productive batch (requests genuinely sharing the GPU).
-  const gpuEnergyKwh = (incrementalPerGpuWatts * gpuTimeH * gpusUsed) / productiveBatch / 1_000;
+  const gpuEnergyKwh = (incrementalPerGpuWatts * gpuTimeH * gpusUsed) / gpuBatch / 1_000;
   const gpuOperationalCO2 = gpuEnergyKwh * effectiveIntensity;
 
   // --- GPU idle baseline (standby draw, shared across batch) ---
@@ -285,16 +312,16 @@ export function calculateInference(params: InferenceParams): InferenceResult {
   // below). Uses this request's own GPU time, so short requests bear little
   // standby cost and long requests more; the productive-batch denominator
   // keeps the total conserved across the skewed request mix.
-  const idleEnergyKwh = (idlePerGpuWatts * gpuTimeH * gpusUsed) / productiveBatch / 1_000;
+  const idleEnergyKwh = (idlePerGpuWatts * gpuTimeH * gpusUsed) / gpuBatch / 1_000;
   const idleOperationalCO2 = idleEnergyKwh * effectiveIntensity;
 
   // --- Server Infrastructure (Section 3.6) ---
-  // Server chassis power is a fixed per-node cost shared across the productive
-  // batch of requests genuinely sharing the node.
-  // Energy is per-request (divided by productiveBatch), and the CO₂ follows
+  // Server chassis power is a fixed per-node cost shared across the node's
+  // whole request load (nodeConcurrency) — broader than one model's GPU batch.
+  // Energy is per-request (divided by nodeBatch), and the CO₂ follows
   // directly from that per-request energy — keeping energyKwh, totalEnergyKwh
   // and waterLiters consistent with the CO₂ components.
-  const serverEnergyKwh = (hardware.chassisWatts * gpuTimeH) / productiveBatch / 1_000;
+  const serverEnergyKwh = (hardware.chassisWatts * gpuTimeH) / nodeBatch / 1_000;
   const serverOperationalCO2 = serverEnergyKwh * effectiveIntensity;
 
   // --- PUE overhead (grid-specific) ---
@@ -334,7 +361,7 @@ export function calculateInference(params: InferenceParams): InferenceResult {
   // reasoning request bears proportionally more. Summed across the real
   // (right-skewed) mix of requests, this conserves the GPU's full
   // manufacturing amortisation.
-  const embodiedGpuCO2 = (embodiedPerGpuGrams * gpuTimeSec * gpusUsed) / productiveBatch;
+  const embodiedGpuCO2 = (embodiedPerGpuGrams * gpuTimeSec * gpusUsed) / gpuBatch;
 
   // --- Embodied Other Compute (separate supporting infrastructure) ---
   // Databases, logging/object-storage servers and network gear that serve the
@@ -344,7 +371,7 @@ export function calculateInference(params: InferenceParams): InferenceResult {
   // region-independent (the same supporting stack exists everywhere) and is
   // needed for the totals to reconcile against real-world consumption.
   const otherComputePerSecond = (hardware.otherComputeEmbodiedKg * 1_000) / projectedActiveSeconds;
-  const embodiedOtherCO2 = (otherComputePerSecond * gpuTimeSec) / productiveBatch;
+  const embodiedOtherCO2 = (otherComputePerSecond * gpuTimeSec) / nodeBatch;
 
   // --- Training (amortised) ---
   const trainingCO2 = includeTraining

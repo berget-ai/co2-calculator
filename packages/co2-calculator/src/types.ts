@@ -147,8 +147,28 @@ export interface InferenceParams {
    * when omitted it is derived from the model's measured production
    * concurrency (defaultConcurrency) scaled by the time-of-day traffic
    * pattern. Forced to 1 when deployment is "onprem".
+   *
+   * @deprecated Prefer `gpuConcurrency` and `nodeConcurrency`. When only
+   * `concurrency` is given it is used for BOTH denominators (the pre-split
+   * behaviour); when the two specific values are given they take precedence.
    */
   concurrency?: number;
+  /**
+   * Concurrent requests genuinely sharing THIS model's GPU batch — the
+   * denominator for the GPU-related fixed costs (GPU compute energy, GPU idle
+   * standby, GPU embodied). Measured on our infra via Little's Law
+   * (`defaultConcurrency`). Defaults to `concurrency` when omitted.
+   */
+  gpuConcurrency?: number;
+  /**
+   * Concurrent requests sharing the WHOLE node's request load — the
+   * denominator for the node-level fixed costs (server chassis energy and the
+   * supporting-infrastructure embodied term: databases, logging/storage,
+   * network gear). This is broader than a single model's GPU batch because the
+   * supporting stack serves every request on the node. Defaults to
+   * `concurrency` when omitted.
+   */
+  nodeConcurrency?: number;
   /**
    * "shared" (default): the node is shared with other tenants, so fixed
    * server/embodied costs are split across concurrent requests.

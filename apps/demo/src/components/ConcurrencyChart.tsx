@@ -230,14 +230,16 @@ export function ConcurrencyChart({ category, model, grid, concurrency, gpuCondit
         </span>
       </div>
 
-      {/* Measured operating point (separate from the shared-cost denominator) */}
+      {/* Measured operating point vs the two shared-cost denominators */}
       {model?.defaultConcurrency != null && (
         <div style={{ marginTop: "0.4rem", fontSize: "0.68rem", color: C.muted, lineHeight: 1.45 }}>
           Measured on our infra: this model averages{" "}
           <strong style={{ color: C.cloud }}>{model.defaultConcurrency}</strong> concurrent
-          GPU requests (Little's Law, 30d). The shared-cost curve above uses a common batch of{" "}
-          {concurrency} because the supporting infrastructure (databases, logging, network) is
-          shared across the node's whole request load, not just one model's GPU batch.
+          GPU requests (Little's Law, 30d) — that is the <em>GPU batch</em>, which divides the
+          GPU's own fixed costs (compute, idle standby, GPU embodied). The chassis and the
+          supporting infrastructure (databases, logging, network) are shared across the node's
+          whole request load — a broader <em>node batch</em> ({concurrency} here), which is what
+          the slider explores. Two denominators, kept separate.
         </div>
       )}
     </div>
