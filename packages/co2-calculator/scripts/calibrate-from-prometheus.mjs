@@ -154,13 +154,36 @@ async function fetchCacheHitRate(engine) {
 // ─── models.ts update ───
 
 function replaceField(src, modelId, field, newValue, comment) {
-  const re = new RegExp(
-    `("${escapeRe(modelId)}"\\s*:\\s*\\{[\\s\\S]*?${field}:\\s*)([0-9_.]+)(,?\\s*\n)`
-  );
-  const m = src.match(re);
-  if (!m) return { src, found: false, old: null };
-  const old = m[2];
-  const updated = src.replace(re, `$1${newValue}, // ${comment}\n`);
+  // Scope the search to THIS model's object only. Find the model's opening
+  // `"<id>": {`, then its matching closing brace via brace counting, and only
+  // search for `field` within that span. This prevents the previous bug where
+  // a lazy `[\s\S]*?` slid past the model boundary and matched the FIRST
+  // `field` in a LATER profile (e.g. a frontier model) whenever a trailing
+  // inline comment broke the old value regex — silently writing the wrong
+  // value to the wrong model.
+  const openMarker = `"${modelId}": {`;
+  const start = src.indexOf(openMarker);
+  if (start === -1) return { src, found: false, old: null };
+
+  let depth = 0;
+  let end = -1;
+  for (let i = start + openMarker.length - 1; i < src.length; i++) {
+    const ch = src[i];
+    if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) { end = i; break; }
+    }
+  }
+  if (end === -1) return { src, found: false, old: null };
+
+  const block = src.slice(start, end + 1);
+  const fieldRe = new RegExp(`${field}:\\s*([0-9_.]+)([^\\n]*)`);
+  const fm = block.match(fieldRe);
+  if (!fm) return { src, found: false, old: null };
+  const old = fm[1];
+  const newBlock = block.replace(fieldRe, `${field}: ${newValue}, // ${comment}`);
+  const updated = src.slice(0, start) + newBlock + src.slice(end + 1);
   return { src: updated, found: true, old };
 }
 
