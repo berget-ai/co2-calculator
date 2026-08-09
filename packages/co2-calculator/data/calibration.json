@@ -1,7 +1,7 @@
 {
   "description": "Measured calibration data for Berget-hosted models, aggregated from production Prometheus metrics. Used to set the model profiles in src/models.ts. Aggregates only — no raw request data, no prompts, no user data.",
-  "window": "7d",
-  "exportedAt": "2026-08-08T22:02:23.079Z",
+  "window": "30d",
+  "exportedAt": "2026-08-09T08:00:00.000Z",
   "metrics": {
     "p50GpuTimeSeconds": "Median GPU compute time per request, queue wait excluded (vLLM request_inference_time; SGLang e2e latency, whose queue time is negligible).",
     "meanOutputTokens": "Mean generated (output) tokens per request, including reasoning models' internal thinking tokens.",
@@ -11,36 +11,36 @@
   "models": {
     "google/gemma-4-31B-it": {
       "engine": "vllm",
-      "p50GpuTimeSeconds": 1.99,
-      "meanOutputTokens": 486,
-      "concurrencyLittleLaw": 11.11,
+      "p50GpuTimeSeconds": 2.02,
+      "meanOutputTokens": 482,
+      "concurrencyLittleLaw": 2.54,
       "kvCacheHitRate": 0.33
     },
     "mistralai/Mistral-Small-3.2-24B-Instruct-2506": {
       "engine": "vllm",
       "p50GpuTimeSeconds": 0.24,
-      "meanOutputTokens": 134,
-      "concurrencyLittleLaw": 0.09,
+      "meanOutputTokens": 133,
+      "concurrencyLittleLaw": 0.02,
       "kvCacheHitRate": 0.67
     },
     "mistralai/Mistral-Medium-3.5-128B": {
       "engine": "vllm",
       "p50GpuTimeSeconds": 0.23,
-      "meanOutputTokens": 54,
-      "concurrencyLittleLaw": 0.05,
+      "meanOutputTokens": 64,
+      "concurrencyLittleLaw": 0.01,
       "kvCacheHitRate": null
     },
     "zai-org/GLM-5.2": {
       "engine": "sglang",
-      "p50GpuTimeSeconds": 6.43,
-      "meanOutputTokens": 397,
+      "p50GpuTimeSeconds": 6.29,
+      "meanOutputTokens": 392,
       "concurrencyLittleLaw": null,
       "kvCacheHitRate": 0
     },
     "moonshotai/Kimi-K3": {
       "engine": "sglang",
-      "p50GpuTimeSeconds": 6.79,
-      "meanOutputTokens": 398,
+      "p50GpuTimeSeconds": 6.65,
+      "meanOutputTokens": 387,
       "concurrencyLittleLaw": null,
       "kvCacheHitRate": 0
     }

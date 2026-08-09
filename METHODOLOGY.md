@@ -42,9 +42,9 @@ Additional adaptations:
 - Production-calibrated concurrency and response time models
 - **Measured production values** for Berget's own models (GPU time, output tokens, concurrency, cache-hit rate), pulled from our Prometheus metrics rather than estimated — see Section 3.0
 
-**Key finding**: A single query to Gemma 4 31B on Berget's infrastructure produces approximately **9.0 mg CO₂e** in total emissions excluding training, compared to ~44.3 mg on the US average grid. For **operational** emissions only (energy consumed during inference) the reduction is **~62×** (0.58 mg vs 35.9 mg), demonstrating the impact of grid decarbonisation; including the grid-independent embodied cost, the total reduction is **~4.9×**. Because the Swedish grid is so clean, the embodied share of hardware manufacturing and supporting infrastructure is the dominant part of the remaining total (~94%).
+**Key finding**: A single query to Gemma 4 31B on Berget's infrastructure produces approximately **20.6 mg CO₂e** in total emissions excluding training, compared to ~101.2 mg on the US average grid. For **operational** emissions only (energy consumed during inference) the reduction is **~62×** (1.32 mg vs 81.9 mg), demonstrating the impact of grid decarbonisation; including the grid-independent embodied cost, the total reduction is **~4.9×**. Because the Swedish grid is so clean, the embodied share of hardware manufacturing and supporting infrastructure is the dominant part of the remaining total (~94%).
 
-**Why the difference between ~62× and ~17×?** Operational emissions (compute + idle + server + cooling energy) depend on the grid carbon intensity, so Sweden's clean grid gives a ~62× advantage. However, embodied emissions (hardware manufacturing) are **independent of the inference grid** — they depend on where the hardware was manufactured, not where inference runs. Since embodied emissions are the same regardless of inference location, they dilute the operational advantage to ~17× when comparing total emissions (training excluded from both figures). We report both numbers rather than only the larger one.
+**Why the difference between ~62× and ~4.9×?** Operational emissions (compute + idle + server + cooling energy) depend on the grid carbon intensity, so Sweden's clean grid gives a ~62× advantage. However, embodied emissions (hardware manufacturing) are **independent of the inference grid** — they depend on where the hardware was manufactured, not where inference runs. Since embodied emissions are the same regardless of inference location, they dilute the operational advantage to ~4.9× when comparing total emissions (training excluded from both figures). We report both numbers rather than only the larger one.
 
 ---
 
@@ -627,7 +627,7 @@ Where (all shared costs divided by the productive batch, Section 3.2a):
 
 ### 6.2 Example Calculation
 
-**Query**: Gemma 4 31B, 600 tokens in / 397 tokens out, Sweden, 14:00, NVIDIA H200 hardware, shared deployment, caching enabled. (Training excluded, as in the app.)
+**Query**: Gemma 4 31B, 600 tokens in / 482 tokens out, Sweden, 14:00, NVIDIA H200 hardware, shared deployment, caching enabled. (Training excluded, as in the app.)
 
 **This example is generated from the same code as the live calculator** (`scripts/generate-methodology-example.mjs`, run against `dist/index.js`), so the figures here and the published site figure are one and the same. Token counts, baseline time, productive batch and cache-hit rate come from production Prometheus metrics (Section 3.0); only the grid, hardware and climate factors are modelled.
 
@@ -635,24 +635,24 @@ At 14:00 the effective grid intensity is the base CI scaled by the day factor: `
 
 | Component | Calculation | Result |
 |-----------|-------------|--------|
-| Baseline GPU time | measured p50, queue excluded | 1 s |
-| Effective input tokens | 600 × (1 − 0.60 cache) | 240 |
-| Token ratio | (240+397)/(600+397) | 0.64 |
-| Token-adjusted time | 1.0 × √0.64 | 0.80 s |
+| Baseline GPU time | measured p50, queue excluded | 2.02 s |
+| Effective input tokens | 600 × (1 − 0.33 cache) | 402 |
+| Token ratio | (402+482)/(600+482) | 0.82 |
+| Token-adjusted time | 2.02 × √0.82 | 1.83 s |
 | Productive batch | measured Little's Law (Section 3.2a) | 6 |
 | Effective intensity | 8 × 1.15 (day) | 9.2 g/kWh |
 | GPUs used | 31B params, H200 (141 GB) | 1 |
 | Incremental GPU power | (peak−idle)/8 × 0.25 | 178 W |
 | Idle baseline per GPU | idle/8 | 100 W |
-| GPU compute CO₂ | incremental energy × 9.2 / 6 | 61 µg |
-| GPU idle CO₂ | idle energy × 9.2 / 6 | 34 µg |
-| Server CO₂ | chassis energy × 9.2 / 6 | 409 µg |
-| Cooling overhead | (compute+idle+server) × 0.15 | 75 µg |
-| Embodied GPU | 0.0127 g/s × 0.80 s / 6 | 1.69 mg |
-| Embodied supporting infra | 0.0507 g/s × 0.80 s / 6 | 6.76 mg |
-| **Total (excl. training)** | | **≈ 9.0 mg** |
+| GPU compute CO₂ | incremental energy × 9.2 / 6 | 139 µg |
+| GPU idle CO₂ | idle energy × 9.2 / 6 | 78 µg |
+| Server CO₂ | chassis energy × 9.2 / 6 | 933 µg |
+| Cooling overhead | (compute+idle+server) × 0.15 | 172 µg |
+| Embodied GPU | 0.0127 g/s × 1.83 s / 6 | 3.86 mg |
+| Embodied supporting infra | 0.0507 g/s × 1.83 s / 6 | 15.44 mg |
+| **Total (excl. training)** | | **≈ 20.6 mg** |
 
-**Note**: Operational emissions only (compute + idle + server + cooling, excluding embodied and training) are **≈ 0.58 mg**. Embodied carbon is **~94%** of this total, dominated by the *supporting infrastructure* term (databases, logging/object-storage and network gear, Section 4.2b) — the GPU node's own manufacturing (1.69 mg) is the smaller embodied share. This supporting infrastructure is genuinely separate from the GPU node's chassis and measured power draw, is needed for the totals to reconcile against real-world consumption, and is roughly equivalent across regions, so it does not change the *relative* Sweden-vs-rest comparison.
+**Note**: Operational emissions only (compute + idle + server + cooling, excluding embodied and training) are **≈ 1.32 mg**. Embodied carbon is **~94%** of this total, dominated by the *supporting infrastructure* term (databases, logging/object-storage and network gear, Section 4.2b) — the GPU node's own manufacturing (3.86 mg) is the smaller embodied share. This supporting infrastructure is genuinely separate from the GPU node's chassis and measured power draw, is needed for the totals to reconcile against real-world consumption, and is roughly equivalent across regions, so it does not change the *relative* Sweden-vs-rest comparison.
 
 ---
 
@@ -701,29 +701,29 @@ We publish the reconciliation script so the reader can re-run it against the sam
 
 ### 8.2 Berget Specific
 
-On Berget's infrastructure, Gemma 4 31B, 600 tokens in / 397 tokens out, shared deployment, caching enabled. **Figures generated from the calculator** (`scripts/generate-methodology-example.mjs`):
+On Berget's infrastructure, Gemma 4 31B, 600 tokens in / 482 tokens out, shared deployment, caching enabled. **Figures generated from the calculator** (`scripts/generate-methodology-example.mjs`):
 
 | Component | Sweden (8 g/kWh, PUE 1.15) | US Average (380 g/kWh, PUE 1.50) |
 |-----------|---------------------------|----------------------------------|
-| GPU compute | 61 µg | 2.88 mg |
-| GPU idle baseline | 34 µg | 1.62 mg |
-| Server | 409 µg | 19.41 mg |
-| Cooling overhead | 75 µg | 11.95 mg |
-| **Operational subtotal** | **≈ 0.58 mg** | **≈ 35.86 mg** |
-| Embodied GPU | 1.69 mg | 1.69 mg |
-| Embodied supporting infra | 6.76 mg | 6.76 mg |
-| **TOTAL (excl. training)** | **≈ 9.03 mg** | **≈ 44.30 mg** |
+| GPU compute | 139 µg | 6.58 mg |
+| GPU idle baseline | 78 µg | 3.69 mg |
+| Server | 933 µg | 44.33 mg |
+| Cooling overhead | 172 µg | 27.30 mg |
+| **Operational subtotal** | **≈ 1.32 mg** | **≈ 81.90 mg** |
+| Embodied GPU | 3.86 mg | 3.86 mg |
+| Embodied supporting infra | 15.44 mg | 15.44 mg |
+| **TOTAL (excl. training)** | **≈ 20.62 mg** | **≈ 101.20 mg** |
 
-**Key insight**: operational emissions (the energy consumed during inference: compute + idle + server + cooling) are **~62×** lower on the Swedish grid, because they scale directly with grid carbon intensity. Embodied carbon is **independent of the grid** — it depends on hardware manufacturing, not where inference runs — so it does not change between columns. That holds for both embodied terms: the GPU node's own manufacturing (1.69 mg) and the supporting infrastructure (6.76 mg — databases, logging/storage and network gear, Section 4.2b), which is roughly equivalent wherever the service runs.
+**Key insight**: operational emissions (the energy consumed during inference: compute + idle + server + cooling) are **~62×** lower on the Swedish grid, because they scale directly with grid carbon intensity. Embodied carbon is **independent of the grid** — it depends on hardware manufacturing, not where inference runs — so it does not change between columns. That holds for both embodied terms: the GPU node's own manufacturing (3.86 mg) and the supporting infrastructure (15.44 mg — databases, logging/storage and network gear, Section 4.2b), which is roughly equivalent wherever the service runs.
 
 For a fair comparison of **operational efficiency only** (excluding the fixed embodied cost):
-- Sweden: **≈ 0.58 mg** operational CO₂e
-- US Average: **≈ 35.86 mg** operational CO₂e
+- Sweden: **≈ 1.32 mg** operational CO₂e
+- US Average: **≈ 81.90 mg** operational CO₂e
 - **Reduction: ~62×**
 
 For **total emissions** (including embodied, excluding training):
-- Sweden: **≈ 9.03 mg** total CO₂e
-- US Average: **≈ 44.30 mg** total CO₂e
+- Sweden: **≈ 20.62 mg** total CO₂e
+- US Average: **≈ 101.20 mg** total CO₂e
 - **Reduction: ~4.9×**
 
 The two ratios answer different questions, and we report both deliberately: **~62×** is the operational (grid-driven) advantage; **~4.9×** is the all-in advantage once the grid-independent embodied cost (GPU node + supporting infrastructure) is included. Quoting only the larger number would overstate the case.

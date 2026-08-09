@@ -158,7 +158,7 @@ export function GuideMode({
           <ul style={{ margin: 0, paddingLeft: "1.15rem", color: C.peak, lineHeight: 1.6, fontSize: "0.95rem" }}>
             <li style={{ marginBottom: "0.5rem" }}>
               The most important choice is the <strong>right model for the task</strong>. Reaching for an
-              ever-larger model by default is the wrong path: a frontier model can emit roughly <strong>16× more CO₂
+              ever-larger model by default is the wrong path: a frontier model can emit roughly <strong>9× more CO₂
               per query</strong> than a specialised one that does the same job just as well — even on a clean grid.
               We need, collectively, to learn to use the specialised models.
             </li>
@@ -271,8 +271,8 @@ export function GuideMode({
         <p style={prose.p}>
           This is why the model choice is the single biggest lever most teams control. On our own infrastructure, the
           same short question answered by a large MoE frontier model (Kimi K3, 2.8T) comes out at roughly
-          <strong> 149&nbsp;mg CO₂</strong>, where a specialised model that handles the task just as well (Gemma 4
-          31B) comes out at <strong> 9&nbsp;mg</strong> — about a <strong>16×</strong> gap, on the same clean Swedish
+          <strong> 180&nbsp;mg CO₂</strong>, where a specialised model that handles the task just as well (Gemma 4
+          31B) comes out at <strong> 21&nbsp;mg</strong> — about a <strong>9×</strong> gap, on the same clean Swedish
           grid. A cleaner grid narrows the operational part of that gap, but it cannot close it: most of the
           difference is the extra hardware the larger model ties up. The frontier model is the right tool for some
           tasks — but not all of them, and reaching for it by default is a choice with a measurable cost.

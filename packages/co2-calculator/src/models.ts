@@ -27,10 +27,10 @@ export const MODEL_PROFILES: Record<string, ModelProfile> = {
     totalTrainingCO2Grams: 3_200_000_000, // 3,200 tons (Mistral env. report estimate)
     trainingSource: "Mistral AI env. report (HF: 538K+ downloads/month)",
     defaultInputTokens: 800,
-    defaultOutputTokens: 190, // Measured mean output tokens/req (7d) via Prometheus
-    defaultResponseTimeSeconds: 0.2, // Measured p50 GPU time, queue excluded (7d) via Prometheus vllm
-    defaultConcurrency: 1, // Measured ~0.08 via Little's Law (24h); rounds to ~1 concurrent request
-    cachedPromptFraction: 0.62, // Measured: 62% of prompt tokens from KV cache (7d, vLLM)
+    defaultOutputTokens: 133, // Measured mean output tokens/req (30d) via Prometheus
+    defaultResponseTimeSeconds: 0.24, // Measured p50 GPU time, queue excluded (30d) via Prometheus vllm
+    defaultConcurrency: 1, // Measured ~0.02 via Little's Law (30d); rounds to ~1 concurrent request
+    cachedPromptFraction: 0.67, // Measured: 67% of prompt tokens from KV cache (30d, vLLM)
     popularity: {
       downloadsPerMonth: 537_956,
       hfLikes: 593,
@@ -45,10 +45,10 @@ export const MODEL_PROFILES: Record<string, ModelProfile> = {
     totalTrainingCO2Grams: 17_000_000_000, // 17,000 tons (SCI-AI extrapolation)
     trainingSource: "SCI-AI extrapolation (Berget AI OpenRouter metadata: 128B dense, FP8)",
     defaultInputTokens: 1_000,
-    defaultOutputTokens: 30, // Measured mean output tokens/req (7d) via Prometheus
-    defaultResponseTimeSeconds: 0.2, // Measured p50 GPU time, queue excluded (7d) via Prometheus vllm
-    defaultConcurrency: 1, // Measured ~0.02 via Little's Law (24h); node sits mostly idle
-    cachedPromptFraction: 0, // Measured: prefix cache not hit (7d, vLLM)
+    defaultOutputTokens: 64, // Measured mean output tokens/req (30d) via Prometheus
+    defaultResponseTimeSeconds: 0.23, // Measured p50 GPU time, queue excluded (30d) via Prometheus vllm
+    defaultConcurrency: 1, // Measured ~0.01 via Little's Law (30d); node sits mostly idle
+    cachedPromptFraction: 0, // Measured: prefix cache not hit (30d, vLLM)
     popularity: {
       downloadsPerMonth: 390_474,
       hfLikes: 349,
@@ -63,9 +63,9 @@ export const MODEL_PROFILES: Record<string, ModelProfile> = {
     totalTrainingCO2Grams: 52_000_000_000, // parameter-scaling estimate (Zhipu AI undisclosed)
     trainingSource: "Parameter-scaling estimate (Berget AI OpenRouter metadata, 753B MoE, FP8)",
     defaultInputTokens: 1_000,
-    defaultOutputTokens: 549, // Measured mean output tokens/req (7d) via Prometheus
-    defaultResponseTimeSeconds: 5.8, // Measured p50 GPU time, queue excluded (7d) via Prometheus sglang
-    defaultConcurrency: 1, // Measured ~0.9 via Little's Law (24h)
+    defaultOutputTokens: 392, // Measured mean output tokens/req (30d) via Prometheus
+    defaultResponseTimeSeconds: 6.29, // Measured p50 GPU time, queue excluded (30d) via Prometheus sglang
+    defaultConcurrency: 1, // Measured ~0.9 via Little's Law (30d)
     cachedPromptFraction: 0, // Prefix cache disabled on the SGLang B300 deployment
   },
   "google/gemma-4-31B-it": {
@@ -77,10 +77,10 @@ export const MODEL_PROFILES: Record<string, ModelProfile> = {
     totalTrainingCO2Grams: 4_100_000_000, // 4,100 tons (Google DeepMind estimate)
     trainingSource: "Google DeepMind sustain. (HF: 10M+ downloads/month, 30.7B params)",
     defaultInputTokens: 600,
-    defaultOutputTokens: 397, // Measured mean output tokens/req (7d) via Prometheus
-    defaultResponseTimeSeconds: 1, // Measured p50 GPU time, queue excluded (7d) via Prometheus vllm
-    defaultConcurrency: 7, // Measured ~6.75 via Little's Law (24h) — the busiest shared model
-    cachedPromptFraction: 0.60, // Measured: 60% of prompt tokens from KV cache (7d, vLLM)
+    defaultOutputTokens: 482, // Measured mean output tokens/req (30d) via Prometheus
+    defaultResponseTimeSeconds: 2.02, // Measured p50 GPU time, queue excluded (30d) via Prometheus vllm
+    defaultConcurrency: 3, // Measured ~2.5 via Little's Law (30d) — rounds to ~3 concurrent requests
+    cachedPromptFraction: 0.33, // Measured: 33% of prompt tokens from KV cache (30d, vLLM)
     popularity: {
       downloadsPerMonth: 10_131_972,
       hfLikes: 2950,
@@ -95,9 +95,9 @@ export const MODEL_PROFILES: Record<string, ModelProfile> = {
     totalTrainingCO2Grams: 140_000_000_000, // parameter-scaling estimate (Moonshot AI undisclosed)
     trainingSource: "Parameter-scaling estimate (Berget AI OpenRouter metadata, 2.8T MoE / 104B active, INT4)",
     defaultInputTokens: 5_000,
-    defaultOutputTokens: 488, // Measured mean output tokens/req (7d) via Prometheus
-    defaultResponseTimeSeconds: 5.5, // Measured p50 GPU time, queue excluded (7d) via Prometheus sglang
-    defaultConcurrency: 3, // Measured ~2.7 via Little's Law (24h)
+    defaultOutputTokens: 387, // Measured mean output tokens/req (30d) via Prometheus
+    defaultResponseTimeSeconds: 6.65, // Measured p50 GPU time, queue excluded (30d) via Prometheus sglang
+    defaultConcurrency: 3, // Measured ~2.7 via Little's Law (30d)
     cachedPromptFraction: 0, // Prefix cache disabled on the SGLang B300 deployment
   },
 

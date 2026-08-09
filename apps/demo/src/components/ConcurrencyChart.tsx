@@ -229,6 +229,17 @@ export function ConcurrencyChart({ category, model, grid, concurrency, gpuCondit
           now ({concurrency} users): {fmt(cur.total)}
         </span>
       </div>
+
+      {/* Measured operating point (separate from the shared-cost denominator) */}
+      {model?.defaultConcurrency != null && (
+        <div style={{ marginTop: "0.4rem", fontSize: "0.68rem", color: C.muted, lineHeight: 1.45 }}>
+          Measured on our infra: this model averages{" "}
+          <strong style={{ color: C.cloud }}>{model.defaultConcurrency}</strong> concurrent
+          GPU requests (Little's Law, 30d). The shared-cost curve above uses a common batch of{" "}
+          {concurrency} because the supporting infrastructure (databases, logging, network) is
+          shared across the node's whole request load, not just one model's GPU batch.
+        </div>
+      )}
     </div>
   );
 }
