@@ -24,6 +24,10 @@ export type ModelProfile = {
   parameters: number;
   defaultInputTokens: number;
   defaultOutputTokens: number;
+  /** Measured p50 GPU time per request (queue excluded), used by the calculator. */
+  defaultResponseTimeSeconds?: number;
+  /** Measured GPU concurrency (Little's Law), shown as an operating-point datapoint. */
+  defaultConcurrency?: number;
   popularity?: { downloadsPerMonth: number };
 };
 
