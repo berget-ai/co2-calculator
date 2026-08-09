@@ -215,26 +215,29 @@ export function calculateInference(params: InferenceParams): InferenceResult {
   const gpuTimeSec = concurrencyAdjustedTime;
   const gpuTimeH = gpuTimeSec / SECONDS_IN_HOUR;
 
-  // --- Productive batch size (shared-cost denominator) ---
+  // --- Shared-cost denominators (split: GPU batch vs node batch) ---
   // vLLM's `request_inference_time` is WALL-CLOCK residency time: with
   // continuous batching, N requests each record the full duration they were
   // resident even though they shared the GPU. The GPU is one device with one
   // power draw; batching amortises energy and embodied carbon across the
-  // batch, it does not multiply them. So every shared cost (incremental
-  // compute energy, idle standby, embodied amortisation, server chassis) is
-  // divided by the number of requests genuinely sharing the GPU — the
-  // productive batch size.
+  // batch, it does not multiply them.
   //
   // `defaultConcurrency` is measured via Little's Law on end-to-end latency
-  // (rate × mean latency), which IS the productive batch size for a shared
-  // deployment: it counts the requests resident on the node, which is exactly
-  // what divides the shared cost. Each request then bears its own
-  // (token-adjusted) GPU time's worth of the shared rate — short requests a
-  // little, long requests more — and the total across the real request mix
-  // conserves the node's full fixed cost.
+  // (rate × mean latency). For a shared deployment this is the model's **GPU
+  // batch**: the requests genuinely resident on THIS model's GPU. It is the
+  // denominator for the GPU-related fixed costs (GPU compute energy, GPU idle
+  // standby, GPU embodied). Each request then bears its own (token-adjusted)
+  // GPU time's worth of that shared rate — short requests a little, long
+  // requests more — and the total across the real request mix conserves the
+  // GPU's fixed cost.
   //
-  // The two denominators are split (see above): GPU-related fixed costs are
-  // divided by `gpuConcurrency`, node-level fixed costs by `nodeConcurrency`.
+  // The node-level fixed costs are a DIFFERENT, broader group: the server
+  // chassis energy and the supporting-infrastructure embodied term
+  // (databases, logging/storage, network gear) serve the WHOLE node's request
+  // load, not just one model's GPU batch. They are divided by
+  // `nodeConcurrency`, which is typically larger than `gpuConcurrency`.
+  // Keeping the two denominators distinct avoids understating the GPU share —
+  // see the split note where they are derived above.
   const gpuBatch = gpuConcurrency;
   const nodeBatch = nodeConcurrency;
 
