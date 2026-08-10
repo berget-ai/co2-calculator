@@ -137,8 +137,8 @@ The calculator follows the **SCI-AI specification** with these components:
 
 | Location | Operational | Embodied | **Total (excl. training)** |
 |----------|-------------|----------|---------------------------|
-| Sweden (8 g/kWh, PUE 1.15) | 1.32 mg | 19.3 mg | **~20.6 mg** |
-| US Average (380 g/kWh, PUE 1.50) | 81.9 mg | 19.3 mg | **~101.2 mg** |
+| Sweden (8 g/kWh, PUE 1.15) | 1.57 mg | 23.2 mg | **~24.7 mg** |
+| US Average (380 g/kWh, PUE 1.50) | 97.3 mg | 23.2 mg | **~120.5 mg** |
 | **Reduction** | **~62×** | 1× | **~4.9×** |
 
 The **operational** part (the energy burned during inference) scales directly with grid carbon intensity, so it is ~62× lower on Sweden's fossil-free grid. The **embodied** part (hardware manufacturing + supporting infrastructure) is location-independent, so it does not change between columns — which is why the *total* ratio (4.9×) is smaller than the operational one. We report both, honestly.

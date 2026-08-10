@@ -152,6 +152,65 @@ describe("calculateInference", () => {
     );
   });
 
+  // --- Split shared-cost denominators (gpuConcurrency vs nodeConcurrency) ---
+
+  it("scales GPU terms with gpuConcurrency, not nodeConcurrency", () => {
+    // Vary only the GPU batch; the GPU-related terms (compute, idle, GPU
+    // embodied) must scale inversely with it, while the node-level terms
+    // (server chassis, supporting-infra embodied) stay fixed.
+    const small = calculateInference(baseParams({ gpuConcurrency: 2, nodeConcurrency: 16 }));
+    const large = calculateInference(baseParams({ gpuConcurrency: 8, nodeConcurrency: 16 }));
+
+    // GPU terms fall as the GPU batch grows
+    expect(large.components.gpuOperational.co2Grams).toBeLessThan(small.components.gpuOperational.co2Grams);
+    expect(large.components.gpuIdle.co2Grams).toBeLessThan(small.components.gpuIdle.co2Grams);
+    expect(large.components.embodiedGpu.co2Grams).toBeLessThan(small.components.embodiedGpu.co2Grams);
+
+    // Node-level terms are unaffected by the GPU batch
+    expect(large.components.serverOperational.co2Grams).toBeCloseTo(small.components.serverOperational.co2Grams, 9);
+    expect(large.components.embodiedOther.co2Grams).toBeCloseTo(small.components.embodiedOther.co2Grams, 9);
+  });
+
+  it("scales chassis and supporting-infra terms with nodeConcurrency, not gpuConcurrency", () => {
+    // Vary only the node batch; the node-level terms must scale inversely with
+    // it, while the GPU-related terms stay fixed.
+    const small = calculateInference(baseParams({ gpuConcurrency: 4, nodeConcurrency: 2 }));
+    const large = calculateInference(baseParams({ gpuConcurrency: 4, nodeConcurrency: 16 }));
+
+    // Node-level terms fall as the node batch grows
+    expect(large.components.serverOperational.co2Grams).toBeLessThan(small.components.serverOperational.co2Grams);
+    expect(large.components.embodiedOther.co2Grams).toBeLessThan(small.components.embodiedOther.co2Grams);
+
+    // GPU terms are unaffected by the node batch
+    expect(large.components.gpuOperational.co2Grams).toBeCloseTo(small.components.gpuOperational.co2Grams, 9);
+    expect(large.components.gpuIdle.co2Grams).toBeCloseTo(small.components.gpuIdle.co2Grams, 9);
+    expect(large.components.embodiedGpu.co2Grams).toBeCloseTo(small.components.embodiedGpu.co2Grams, 9);
+  });
+
+  it("treats deprecated `concurrency` as a fallback for both denominators", () => {
+    // With only `concurrency` set, both denominators use it (pre-split
+    // behaviour). With both specific values set, they take precedence.
+    const legacy = calculateInference(baseParams({ concurrency: 6 }));
+    const explicit = calculateInference(baseParams({ concurrency: 6, gpuConcurrency: 6, nodeConcurrency: 6 }));
+
+    expect(explicit.components.gpuOperational.co2Grams).toBeCloseTo(legacy.components.gpuOperational.co2Grams, 9);
+    expect(explicit.components.serverOperational.co2Grams).toBeCloseTo(legacy.components.serverOperational.co2Grams, 9);
+    expect(explicit.components.embodiedGpu.co2Grams).toBeCloseTo(legacy.components.embodiedGpu.co2Grams, 9);
+    expect(explicit.components.embodiedOther.co2Grams).toBeCloseTo(legacy.components.embodiedOther.co2Grams, 9);
+    expect(explicit.totalCO2Grams).toBeCloseTo(legacy.totalCO2Grams, 9);
+  });
+
+  it("honours a smaller GPU batch than node batch (the documented case)", () => {
+    // The measured situation: GPU batch (3) < node batch (6). GPU embodied
+    // should be exactly 2× what it would be if divided by the node batch.
+    const split = calculateInference(baseParams({ gpuConcurrency: 3, nodeConcurrency: 6 }));
+    const uniform = calculateInference(baseParams({ gpuConcurrency: 6, nodeConcurrency: 6 }));
+
+    expect(split.components.embodiedGpu.co2Grams).toBeCloseTo(uniform.components.embodiedGpu.co2Grams * 2, 6);
+    // Supporting infra still divided by the node batch — unchanged.
+    expect(split.components.embodiedOther.co2Grams).toBeCloseTo(uniform.components.embodiedOther.co2Grams, 9);
+  });
+
   it("returns total CO₂ as sum of components (Section 6)", () => {
     const result = calculateInference(baseParams());
     const sum =

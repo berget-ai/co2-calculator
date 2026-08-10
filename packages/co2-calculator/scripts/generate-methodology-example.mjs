@@ -25,7 +25,7 @@ function fmt(g) {
   return `${g.toFixed(3)} g`;
 }
 
-function run(gridKey, concurrency) {
+function run(gridKey, gpuConcurrency, nodeConcurrency) {
   return calculateInference({
     modelProfile: model,
     hardware: hw,
@@ -33,7 +33,8 @@ function run(gridKey, concurrency) {
     measuredResponseTimeSeconds: model.defaultResponseTimeSeconds,
     inputTokens: model.defaultInputTokens,
     outputTokens: model.defaultOutputTokens,
-    concurrency,
+    gpuConcurrency,
+    nodeConcurrency,
     hourOfDay: 14,
     includeTraining: false,
     lifetimeQueries: 0,
@@ -46,8 +47,12 @@ const cachedFraction = model.cachedPromptFraction ?? 0;
 const effInput = model.defaultInputTokens * (1 - cachedFraction);
 const tokenRatio = (effInput + model.defaultOutputTokens) / (model.defaultInputTokens + model.defaultOutputTokens);
 const tokenAdjusted = model.defaultResponseTimeSeconds * Math.sqrt(tokenRatio);
-const conc = 6; // derived measured concurrency (Little's Law) rounded
-const gpuTimeSec = tokenAdjusted; // concurrency <= 8 so no extra delay
+// Split shared-cost denominators: the model's measured GPU batch (Little's
+// Law) divides GPU compute/idle/embodied; the node's whole request load
+// divides the server chassis and the supporting-infrastructure embodied term.
+const gpuConc = model.defaultConcurrency ?? 3; // measured GPU batch (Little's Law)
+const nodeConc = 6; // node's whole request load (shared chassis + infra)
+const gpuTimeSec = tokenAdjusted; // gpuConc <= 8 so no extra delay
 const gpuTimeH = gpuTimeSec / SECONDS_IN_HOUR;
 const gpusUsed = 1;
 const idlePerGpu = hw.nodeIdleWatts / hw.gpuCount;
@@ -66,20 +71,21 @@ console.log(`| Baseline GPU time | measured p50, queue excluded | ${model.defaul
 console.log(`| Effective input tokens | ${model.defaultInputTokens} × (1 − ${cachedFraction}) | ${Math.round(effInput)} |`);
 console.log(`| Token ratio | (${Math.round(effInput)}+${model.defaultOutputTokens})/(${model.defaultInputTokens}+${model.defaultOutputTokens}) | ${tokenRatio.toFixed(2)} |`);
 console.log(`| Token-adjusted time | ${model.defaultResponseTimeSeconds} × √${tokenRatio.toFixed(2)} | ${gpuTimeSec.toFixed(2)} s |`);
-console.log(`| Productive batch | measured Little's Law | ${conc} |`);
+console.log(`| GPU batch (Little's Law) | measured, divides GPU costs | ${gpuConc} |`);
+console.log(`| Node batch (whole request load) | divides chassis + infra | ${nodeConc} |`);
 console.log(`| Effective intensity | ${grid.intensityGPerKwh} × ${grid.peakPeriodFactor} (day) | ${intensity.toFixed(1)} g/kWh |`);
 console.log(`| GPUs used | 31B params, H200 (141 GB) | ${gpusUsed} |`);
 console.log(`| Incremental GPU power | (peak−idle)/8 × 0.25 | ${incrPerGpu.toFixed(0)} W |`);
 console.log(`| Idle baseline per GPU | idle/8 | ${idlePerGpu.toFixed(0)} W |`);
 
-const r = run("sweden", conc);
+const r = run("sweden", gpuConc, nodeConc);
 const c = r.components;
-console.log(`| GPU compute CO₂ | incremental energy × ${intensity.toFixed(1)} / ${conc} | ${fmt(c.gpuOperational.co2Grams)} |`);
-console.log(`| GPU idle CO₂ | idle energy × ${intensity.toFixed(1)} / ${conc} | ${fmt(c.gpuIdle.co2Grams)} |`);
-console.log(`| Server CO₂ | chassis energy × ${intensity.toFixed(1)} / ${conc} | ${fmt(c.serverOperational.co2Grams)} |`);
+console.log(`| GPU compute CO₂ | incremental energy × ${intensity.toFixed(1)} / ${gpuConc} | ${fmt(c.gpuOperational.co2Grams)} |`);
+console.log(`| GPU idle CO₂ | idle energy × ${intensity.toFixed(1)} / ${gpuConc} | ${fmt(c.gpuIdle.co2Grams)} |`);
+console.log(`| Server CO₂ | chassis energy × ${intensity.toFixed(1)} / ${nodeConc} | ${fmt(c.serverOperational.co2Grams)} |`);
 console.log(`| Cooling overhead | (compute+idle+server) × 0.15 | ${fmt(c.datacenterOverhead.co2Grams)} |`);
-console.log(`| Embodied GPU | ${embodiedPerSec.toFixed(4)} g/s × ${gpuTimeSec.toFixed(2)} s / ${conc} | ${fmt(c.embodiedGpu.co2Grams)} |`);
-console.log(`| Embodied other (DB/logging/network) | ${otherEmbodiedPerSec.toFixed(4)} g/s × ${gpuTimeSec.toFixed(2)} s / ${conc} | ${fmt(c.embodiedOther.co2Grams)} |`);
+console.log(`| Embodied GPU | ${embodiedPerSec.toFixed(4)} g/s × ${gpuTimeSec.toFixed(2)} s / ${gpuConc} | ${fmt(c.embodiedGpu.co2Grams)} |`);
+console.log(`| Embodied other (DB/logging/network) | ${otherEmbodiedPerSec.toFixed(4)} g/s × ${gpuTimeSec.toFixed(2)} s / ${nodeConc} | ${fmt(c.embodiedOther.co2Grams)} |`);
 console.log(`| **Total (excl. training)** | | **${fmt(r.totalCO2Grams)}** |`);
 
 const operational = c.gpuOperational.co2Grams + c.gpuIdle.co2Grams + c.serverOperational.co2Grams + c.datacenterOverhead.co2Grams;
@@ -91,7 +97,7 @@ console.log("\n### §8.2 Sweden vs US (generated)");
 console.log("");
 console.log("| Component | Sweden (8 g/kWh, PUE 1.15) | US Average (380 g/kWh, PUE 1.50) |");
 console.log("|-----------|---------------------------|----------------------------------|");
-const us = run("usa", conc);
+const us = run("usa", gpuConc, nodeConc);
 const uc = us.components;
 const rows = [
   ["GPU compute", c.gpuOperational, uc.gpuOperational],
