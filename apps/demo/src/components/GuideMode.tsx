@@ -88,7 +88,7 @@ export function GuideMode({
             letterSpacing: "-0.02em",
           }}
         >
-          AI industry: stop hiding your CO₂ emissions.
+          We open source our CO₂ emissions — and so should you.
         </h1>
         <p style={{ ...prose.p, fontSize: "1.125rem" }}>
           There's real confusion about AI's emissions — and the reason is a lack of transparency. That responsibility
@@ -168,8 +168,8 @@ export function GuideMode({
               CO₂ in every response, like tokens.
             </li>
             <li>
-              The same request can also emit 50× more CO₂ depending on where the servers sit — and almost no
-              provider publishes the number. Below: the full method, from first principles.
+              The same request can also emit 50× more CO₂ for the energy it burns, depending on where the servers sit
+              — and almost no provider publishes the number. Below: the full method, from first principles.
             </li>
           </ul>
         </div>
@@ -202,11 +202,11 @@ export function GuideMode({
           isn't a nice-to-have — it's the whole game.
         </p>
         <p style={prose.p}>
-          Part of the problem is that the footprint is genuinely hard to reason about. A single AI request depends on
-          the model, where the server runs, the carbon mix of that grid, and even the time of day — too many moving
-          parts for anyone to hold an intuition for, let alone compare two providers by hand. That's exactly why we
-          don't just publish a formula: we track the CO₂ of every individual request, so the comparison is done for
-          you, the same way every time. The method below shows how.
+          Part of the problem is that the footprint is genuinely hard to wrap your head around. A single AI request
+          depends on the model, where the server runs, the carbon mix of that grid, and even the time of day — too
+          many moving parts for anyone to hold an intuition for, let alone compare two providers by hand. That's
+          exactly why we don't just publish a formula: we track the CO₂ of every individual request, so the number is
+          already there, the same way every time. The method below shows how.
         </p>
         <MethodPanel
           assumptions={[
@@ -226,7 +226,7 @@ export function GuideMode({
         <div style={prose.kicker}>§1 · The workload</div>
         <h2 style={prose.h2}>First, choose a model and a type of usage</h2>
         <p style={prose.p}>
-          Every calculation needs a concrete starting point: a workload. We can't reason about "AI's footprint" in the
+          Every calculation needs a concrete starting point: a workload. We can't talk about "AI's footprint" in the
           abstract — only about a specific model doing a specific job. So the example below asks you to supply one:
           pick the use case closest to yours, then a model. A quick chat reply and a long code analysis are very
           different jobs, and the model you choose sets the scale of the work. Watch the JSON at the top — and the
@@ -286,12 +286,13 @@ export function GuideMode({
           busy shared GPU almost always beats a private one that mostly waits.
         </p>
         <p style={prose.p}>
-          Caching is the other lever, and it compounds. When a cached prefix lets the model skip most of the prefill,
-          each request occupies the GPU for less time — which means more requests fit on the same hardware, so the
-          fixed cost is shared across more of them. Less GPU time <em>and</em> more sharing: that's why a well-cached
-          shared service is hard to beat. The catch is that this is hard to do well on your own box — it needs the
-          right serving framework, KV-cache management and spare memory — so it tends to be exactly the advantage a
-          dedicated provider can offer and an on-prem setup can't.
+          Caching is a smaller lever on its own — the ring above puts it at around 10% — but it compounds with
+          sharing. When a cached prefix lets the model skip most of the prefill, each request occupies the GPU for
+          less time, which means more requests fit on the same hardware, so the fixed cost is shared across more of
+          them. The direct saving is modest; the real value is that it lets a busy shared node stay busy. The catch is
+          that this is hard to do well on your own box — it needs the right serving framework, KV-cache management
+          and spare memory — so it tends to be exactly the advantage a dedicated provider can offer and an on-prem
+          setup can't.
         </p>
         <InteractiveFrame label="shared vs solo — the concurrency trade-off">
           <ConcurrencyChart
@@ -312,18 +313,6 @@ export function GuideMode({
           curve drops sharply and then levels off — the fixed costs are already divided down to almost nothing, so
           there's progressively less left to share. A private server sits at the far left of this curve, carrying the
           whole fixed cost alone; a busy shared node sits far to the right.
-        </p>
-        <p style={prose.p}>
-          The second dimension is <strong>time.</strong> A typical day is busy around midday and quiet at night, and
-          the grid's carbon intensity follows: the marginal electricity at peak hours is dirtier than off-peak. We
-          model this with a day factor of ×1.15 and a night factor of ×0.7 — deliberately asymmetric, so that over a
-          full 24-hour cycle the daytime overestimate "pays for" the night-time underestimate and the long-run total
-          lands at about +2% (conservative, not optimistic). The upshot for you:{" "}
-          <em>moving a call to the night genuinely lowers its CO₂</em> — roughly 30% — because the cleaner off-peak mix
-          is real, not an accounting trick. And underneath it all, the meter never fully stops: even an idle GPU keeps
-          drawing a standby baseline — our own measurements put it at roughly 120 W per card on a flagship node at 0%
-          load, not a deep sleep. That standby cost is part of your query too, shared across whoever is using the
-          node, which is why a busy node wastes so much less than an idle one.
         </p>
         <InteractiveFrame label="a typical day — usage and CO₂ by hour">
           <DailyLoadChart hourOfDay={state.hourOfDay} onHourChange={actions.setHourOfDay} />
@@ -353,11 +342,14 @@ export function GuideMode({
         <div style={prose.kicker}>§2 · The grid</div>
         <h2 style={prose.h2}>Location, location, location</h2>
         <p style={prose.p}>
-          The same GPU doing the same work can emit 50× more CO₂ depending on where it sits. Sweden's grid runs on hydro
-          and nuclear at roughly 8 g CO₂/kWh; a gas-and-coal-heavy grid can exceed 400 g.
+          The same GPU doing the same work can emit 50× more CO₂ <em>for the energy it burns</em> depending on where it
+          sits. Sweden's grid runs on hydro and nuclear at roughly 8 g CO₂/kWh; a gas-and-coal-heavy grid can exceed
+          400 g. That 50× is the operational part — the electricity. Once you include the hardware's embodied cost
+          (which doesn't move with the grid), the total difference is smaller but still large.
         </p>
         <p style={prose.p}>
-          Click around the globe. The difference is not a rounding error — it's the single biggest lever we have.
+          Click around the globe. The difference is not a rounding error — and because it compounds with the model
+          choice, it's one of the biggest levers we have.
         </p>
         <InteractiveFrame label="pick a region">
           <RegionPicker region={state.region} onRegionSelect={actions.setRegion} />
@@ -366,11 +358,21 @@ export function GuideMode({
         <div id="region-row-sentinel" style={{ height: 1 }} aria-hidden="true" />
         <p style={prose.p}>
           One more subtlety: <strong>when</strong> the query runs matters too. A grid's carbon intensity isn't constant
-          over the day — demand and the available generation mix shift hour by hour. We handle this with a deliberate
-          two-level approximation: a <em>peak-period factor</em> that scales the intensity up by ~15% during the day,
-          and a <em>low-period factor</em> that scales it down to ~70% at night. It's a rough model, but it nudges the
-          estimate in the right direction and avoids pretending the grid is flat. Throughout this page we show numbers
-          for 14:00 — the peak, conservative case.
+          over the day — a typical day is busy around midday and quiet at night, and demand and the available
+          generation mix shift hour by hour, so the marginal electricity at peak hours is dirtier than off-peak. We
+          handle this with a deliberate two-level approximation: a <em>peak-period factor</em> that scales the
+          intensity up by ~15% during the day, and a <em>low-period factor</em> that scales it down to ~70% at night —
+          deliberately asymmetric, so that over a full 24-hour cycle the daytime overestimate "pays for" the
+          night-time underestimate and the long-run total lands at about +2% (conservative, not optimistic). The
+          upshot for you: <em>moving a call to the night genuinely lowers its CO₂</em> — roughly 30% — because the
+          cleaner off-peak mix is real, not an accounting trick. Throughout this page we show numbers for 14:00 — the
+          peak, conservative case.
+        </p>
+        <p style={prose.p}>
+          And underneath it all, the meter never fully stops: even an idle GPU keeps drawing a standby baseline — our
+          own measurements put it at roughly 120 W per card on a flagship node at 0% load; the card never drops into a
+          low-power idle/suspend mode. That standby cost is part of your query too, shared across whoever is using the
+          node, which is why a busy node wastes so much less than an idle one.
         </p>
         <MethodPanel
           assumptions={[
@@ -558,7 +560,7 @@ export function GuideMode({
               If you procure AI
             </div>
             <p style={{ fontSize: "0.875rem", color: C.cloud, lineHeight: 1.6, margin: "0 0 0.75rem" }}>
-              Choosing a provider on a clean grid is the single largest emissions decision you make — and on Sweden's
+              Choosing a provider on a clean grid is one of the largest emissions decisions you make — and on Sweden's
               hydro-and-nuclear grid it's also a vote for domestic, fossil-free infrastructure. Put it in the contract.
               A clause you can adapt:
             </p>

@@ -9,6 +9,21 @@ interface Props {
   onInfraConditionChange: (v: "new" | "refurbished") => void;
 }
 
+// Marginal embodied cost per query of choosing NEW over refurbished, computed
+// with the SAME method as the calculator (METHODOLOGY §4.2/§4.2b): amortise
+// over 50% projected lifetime utilisation across 5 years, then divide by the
+// shared batch — the GPU term by the GPU batch (3), the supporting-infra term
+// by the node batch (6). Shown for the reference query (Gemma 4 31B, ~1.83 s
+// token-adjusted GPU time). This matches the §6.2 worked example.
+const LIFETIME_ACTIVE_S = 5 * 365 * 24 * 3600 * 0.5;
+const REF_GPU_TIME_S = 1.83;
+const GPU_BATCH = 3;
+const NODE_BATCH = 6;
+const gpuEmbodiedPerQuery =
+  ((HARDWARE_CONFIGS.h200.embodiedPerGpuKg * 1000) / LIFETIME_ACTIVE_S) * REF_GPU_TIME_S / GPU_BATCH;
+const infraEmbodiedPerQuery =
+  ((HARDWARE_CONFIGS.h200.otherComputeEmbodiedKg * 1000) / LIFETIME_ACTIVE_S) * REF_GPU_TIME_S / NODE_BATCH;
+
 export function HardwarePicker({
   gpuCondition,
   onGpuConditionChange,
@@ -30,7 +45,7 @@ export function HardwarePicker({
             <div style={{ fontWeight: 600, color: C.peak }}>New GPU</div>
             <div style={{ fontSize: "0.75rem", color: C.muted }}>Full embodied carbon</div>
             <div style={{ fontSize: "0.875rem", color: C.danger, marginTop: "0.5rem" }}>
-              +{formatCO2(((HARDWARE_CONFIGS.h200.embodiedPerGpuKg * 1000) / (5 * 365 * 24 * 3600)) * 2)} per query
+              +{formatCO2(gpuEmbodiedPerQuery)} per query
             </div>
           </Card>
           <Card selected={gpuCondition === "refurbished"} onClick={() => onGpuConditionChange("refurbished")}>
@@ -60,7 +75,7 @@ export function HardwarePicker({
             <div style={{ fontWeight: 600, color: C.peak }}>New infra</div>
             <div style={{ fontSize: "0.75rem", color: C.muted }}>Full embodied carbon</div>
             <div style={{ fontSize: "0.875rem", color: C.danger, marginTop: "0.5rem" }}>
-              +{formatCO2(((HARDWARE_CONFIGS.h200.otherComputeEmbodiedKg * 1000) / (5 * 365 * 24 * 3600)) * 2)} per query
+              +{formatCO2(infraEmbodiedPerQuery)} per query
             </div>
           </Card>
           <Card selected={infraCondition === "refurbished"} onClick={() => onInfraConditionChange("refurbished")}>
@@ -72,6 +87,11 @@ export function HardwarePicker({
             <div style={{ fontSize: "0.875rem", color: C.moss, marginTop: "0.5rem" }}>0 g per query</div>
           </Card>
         </div>
+      </div>
+      <div style={{ marginTop: "0.75rem", fontSize: "0.68rem", color: C.muted, lineHeight: 1.45 }}>
+        Per-query figures use the calculator's own method (50% lifetime utilisation, GPU term ÷ GPU batch 3,
+        infra term ÷ node batch 6) for the reference query — so they match the §6.2 breakdown and update if the
+        hardware constants change.
       </div>
     </div>
   );
