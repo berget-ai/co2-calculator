@@ -37,6 +37,13 @@
  *      reconcile against actual consumption, and are roughly equivalent across
  *      regions. Values below are an allocation of that shared infrastructure
  *      to one node.
+ *
+ * System boundary (prevents a double-count — see METHODOLOGY §4.2b):
+ * the node's OWN network interfaces (per-GPU NICs, basic NIC/management
+ * ports) are inside `embodiedPerGpuKg`; this term carries only the SHARED
+ * rack/site fabric (top-of-rack + aggregation switches, firewalls) and the
+ * database/logging/storage servers. Node carries its NICs; this term carries
+ * the equipment that connects the nodes.
  */
 
 import type { HardwareConfig } from "./types.js";

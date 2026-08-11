@@ -468,9 +468,18 @@ NVIDIA and AMD do NOT publish per-GPU embodied carbon LCAs. The `Embodied/GPU` v
 
 ### 4.2b Supporting infrastructure (databases, logging, network)
 
-Separate from the GPU node's own chassis (already inside `Embodied/GPU`) is the **supporting infrastructure** that serves a node but is not part of its measured power draw: database servers, logging/object-storage servers and network gear (top-of-rack switches, firewalls). This is genuinely distinct hardware — not a double-count of node components — and must be included for the totals to reconcile against real-world consumption. It is roughly equivalent across regions, so it does not change the *relative* Sweden-vs-rest comparison, only the absolute level.
+**This term is embodied carbon, not operational.** It is the manufacturing footprint of the supporting hardware, amortised over its lifetime — the same method as the GPU embodied term (§4.2), applied to a separate set of machines.
 
-We allocate **4,000 kg CO₂e per 8-GPU node** (≈ 3× 1U servers at 1,000 kg, 2× firewalls at 300 kg, 2× switches at 200 kg) and **2,500 kg per small (L4) node**, amortised over projected lifetime active time and divided across the node's concurrent requests — the same method as the GPU embodied term. This is a coarse allocation and a stated candidate for refinement against inventory data.
+**What it is.** Separate from the GPU node's own chassis (already inside `Embodied/GPU`) is the **supporting infrastructure** that serves a node but is not part of its measured power draw: database servers, logging/object-storage servers and network gear (top-of-rack switches, firewalls). This is genuinely distinct hardware — not a double-count of node components — and must be included for the totals to reconcile against real-world consumption. It is roughly equivalent across regions, so it does not change the *relative* Sweden-vs-rest comparison, only the absolute level.
+
+**The system boundary — node networking vs rack/site networking.** This is the distinction that prevents a double-count, and we state it explicitly:
+
+- **Inside the GPU node (already in the 1,000 kg/GPU, §4.2):** the node's *own* network interface cards — the per-GPU NICs and the node's basic NIC/management ports (the "Basic NIC / management / 10-100G" and optional "8×400G/NDR NICs" rows in §4.2). These are components *of the server* and are divided across its 8 GPUs.
+- **Outside the GPU node (this §4.2b term):** the *shared* network fabric that sits between and above the nodes — top-of-rack switches, aggregation switches and firewalls — plus the database and logging/object-storage servers. None of this is part of any single node's chassis or its metered power draw, so it is **not** in the 1,000 kg/GPU figure. Counting it here is therefore not a double-count: the node carries its own NICs, and this term carries the rack- and site-level equipment that connects them.
+
+**What is included, and why it is ~2× the GPU node's own embodied share.** We allocate **4,000 kg CO₂e per 8-GPU node**, broken down as: ≈ 3× 1U database/logging/storage servers at ~1,000 kg each (3,000 kg), 2× firewalls at ~300 kg (600 kg), and 2× top-of-rack switches at ~200 kg (400 kg). For a small (L4) node we allocate **2,500 kg**. Per node this is roughly **half** the ~8 t embodied of the GPU node itself (8 × 1,000 kg) — but because the supporting stack serves the *whole* node's request load while a single query occupies only a fraction of one GPU, the per-query supporting-infrastructure term (§6.2: 15.44 mg) lands at about **2×** the per-query GPU-node embodied term (7.72 mg). The ratio is an allocation outcome, not a claim that the supporting hardware is larger than the GPU node.
+
+**Uncertainty.** This is a coarse allocation based on representative equipment counts, not a per-asset inventory. It is a stated candidate for refinement against our actual asset register (§9), and we publish it openly so the boundary can be scrutinised rather than assumed.
 
 **Exception — NVIDIA H200 (Supermicro AS-8125GS-TNHR):**
 Component-level estimates are derived from two sources:
