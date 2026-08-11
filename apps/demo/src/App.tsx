@@ -22,6 +22,7 @@ const MODEL_CATEGORIES: ModelCategories = {
     models: [
       { id: "mistralai/Mistral-Small-3.2-24B-Instruct-2506", name: "Mistral Small 24B" },
       { id: "google/gemma-4-31B-it", name: "Gemma 4 31B" },
+      { id: "moonshotai/Kimi-K3", name: "Kimi K3 2.8T MoE" },
       { id: "openai/gpt-5", name: "GPT-5" },
       { id: "anthropic/claude-sonnet-4-5", name: "Claude Sonnet 4.5" },
       { id: "google/gemini-3-pro", name: "Gemini 3 Pro" },

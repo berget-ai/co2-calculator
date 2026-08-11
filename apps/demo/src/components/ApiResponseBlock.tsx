@@ -80,7 +80,7 @@ export function ApiResponseBlock({ result, model, selectedModel, highlightKey = 
           {row("completion_tokens", String(completionTokens), false)}
           {row("total_tokens", String(promptTokens + completionTokens), false)}
           {row("co2_grams", co2, highlightKey === "co2", "← see §1–4")}
-          {row("gpu_energy_joules", joules, highlightKey === "energy", "← see §2, §3")}
+          {row("gpu_compute_energy_joules", joules, highlightKey === "energy", "← compute only, excludes idle standby — see §2, §3")}
         </div>
         <div>
           <span style={{ color: C.muted }}>{"}"}</span>

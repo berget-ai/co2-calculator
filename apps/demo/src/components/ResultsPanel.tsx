@@ -95,17 +95,21 @@ export function ResultsPanel({ result, model, grid }: Props) {
         </div>
 
         {(() => {
-          // We anchor the comparison to microwaving ON SWEDEN'S GRID (8 g/kWh),
-          // the cleanest we offer. That is the honest baseline: it prices every
-          // activity — the AI request and the coffee alike — at the lowest
-          // available CO₂ cost, instead of normalising to a dirtier grid where
-          // the same request would look smaller. The consequence: because the
-          // baseline itself is so clean, even a tiny CO₂ amount maps to many
-          // seconds of microwaving. That is the point — on a clean grid a
-          // second of anything costs almost nothing, so a small CO₂ figure is
-          // still "many clean seconds", not a large footprint.
-          const SWEDEN_INTENSITY = 8; // g/kWh, the clean-baseline anchor
-          const coffeeCO2PerSecond = (0.8 / 3600) * SWEDEN_INTENSITY;
+          // We anchor the comparison to microwaving ON SWEDEN'S GRID (the
+          // cleanest we offer), priced at the same 14:00 day-adjusted intensity
+          // (9.2 g/kWh) used everywhere else on the page. That is the honest
+          // baseline: it prices every activity — the AI request and the coffee
+          // alike — at the lowest available CO₂ cost, instead of normalising to
+          // a dirtier grid where the same request would look smaller. The
+          // consequence: because the baseline itself is so clean, even a tiny
+          // CO₂ amount maps to many seconds of microwaving. That is the point —
+          // on a clean grid a second of anything costs almost nothing, so a
+          // small CO₂ figure is still "many clean seconds", not a large footprint.
+          // Use the day-adjusted Sweden intensity (8 × 1.15 = 9.2 g/kWh) so the
+          // microwave figure matches the 14:00 peak case shown everywhere else
+          // on the page (and the footer), rather than the flat 8 g base.
+          const SWEDEN_INTENSITY_DAY = 8 * 1.15; // g/kWh, clean baseline at 14:00
+          const coffeeCO2PerSecond = (0.8 / 3600) * SWEDEN_INTENSITY_DAY;
           const seconds = result.totalCO2Grams / coffeeCO2PerSecond;
 
           // The grid-intensity multiplier applies only to the operational
