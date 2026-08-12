@@ -144,25 +144,58 @@ export function ResultsPanel({ result, model, grid }: Props) {
                 </span>
               </div>
 
-              <div
-                style={{
-                  height: 8,
-                  background: "rgba(0,0,0,0.3)",
-                  borderRadius: 4,
-                  overflow: "hidden",
-                  marginBottom: "0.75rem",
-                }}
-              >
-                <div
-                  style={{
-                    width: `${Math.min(100, (seconds / 120) * 100)}%`,
-                    height: "100%",
-                    background: seconds < 30 ? C.moss : seconds < 60 ? C.sage : C.stone,
-                    borderRadius: 4,
-                    transition: "width 0.5s ease",
-                  }}
-                />
-              </div>
+              {(() => {
+                // Show the footprint as a ROW of coffee cups — one cup per 60
+                // seconds of microwaving (a full cup takes ~a minute) — so the
+                // quantity is visually absolute: 120 s renders twice as many cups
+                // as 60 s. A relative bar (the old design, scaled to a fixed max)
+                // made every result fill a similar-looking fraction of a track,
+                // hiding the real difference in magnitude. A partial cup shows
+                // the remainder, so 90 s reads as one full cup and a half.
+                const SECONDS_PER_CUP = 60;
+                const cups = seconds / SECONDS_PER_CUP;
+                const fullCups = Math.floor(cups);
+                const partial = cups - fullCups; // 0..1 fill of the last cup
+                const CUP = 22;
+                const cupColor = seconds < 30 ? C.moss : seconds < 60 ? C.sage : C.stone;
+                return (
+                  <div
+                    role="img"
+                    aria-label={`${Math.round(seconds)} seconds of microwaving, shown as ${cups.toFixed(1)} coffee cups`}
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                      gap: "0.35rem",
+                      marginBottom: "0.75rem",
+                    }}
+                  >
+                    {Array.from({ length: fullCups }).map((_, i) => (
+                      <Coffee key={i} size={CUP} strokeWidth={1.5} style={{ color: cupColor }} />
+                    ))}
+                    {partial > 0.05 && (
+                      <span style={{ position: "relative", width: CUP, height: CUP, display: "inline-block" }}>
+                        {/* faint empty cup as the track */}
+                        <Coffee size={CUP} strokeWidth={1.5} style={{ color: cupColor, opacity: 0.22 }} />
+                        {/* clipped full cup overlaid to show the partial fill */}
+                        <span
+                          style={{
+                            position: "absolute",
+                            inset: 0,
+                            overflow: "hidden",
+                            width: `${partial * 100}%`,
+                          }}
+                        >
+                          <Coffee size={CUP} strokeWidth={1.5} style={{ color: cupColor }} />
+                        </span>
+                      </span>
+                    )}
+                    {fullCups === 0 && partial <= 0.05 && (
+                      <span style={{ fontSize: "0.8rem", color: C.muted }}>less than one cup</span>
+                    )}
+                  </div>
+                );
+              })()}
 
               <p style={{ fontSize: "0.875rem", color: C.muted, margin: 0 }}>
                 One AI request = {seconds < 1 ? "less than a second" : `${Math.round(seconds)} seconds`} of running an
@@ -202,27 +235,78 @@ export function ResultsPanel({ result, model, grid }: Props) {
       </div>
 
       {/* Breakdown */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1.5rem" }}>
-        {[
+      {(() => {
+        const items = [
           { key: "gpuOperational", label: "GPU Compute", color: COMPONENT_COLORS.gpu.bg },
           { key: "gpuIdle", label: "GPU Idle Baseline", color: COMPONENT_COLORS.server.bg },
           { key: "serverOperational", label: "Server & DC", color: COMPONENT_COLORS.server.bg },
           { key: "datacenterOverhead", label: "Cooling", color: COMPONENT_COLORS.overhead.bg },
           { key: "embodiedGpu", label: "GPU Hardware", color: COMPONENT_COLORS.embodied.bg },
           { key: "embodiedOther", label: "Supporting Infra (DB/logging/network)", color: COMPONENT_COLORS.embodied.bg },
-        ].map((item) => {
-          const value = result.components[item.key as keyof typeof result.components].co2Grams;
-          const pct = (value / result.totalCO2Grams) * 100;
-          return (
-            <div key={item.key} style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-              <div style={{ width: 12, height: 12, borderRadius: 3, background: item.color }} />
-              <div style={{ flex: 1, fontSize: "0.875rem" }}>{item.label}</div>
-              <div style={{ fontSize: "0.875rem", color: C.peak, fontWeight: 600 }}>{formatCO2(value)}</div>
-              <div style={{ fontSize: "0.75rem", color: C.muted, width: 40, textAlign: "right" }}>{pct.toFixed(0)}%</div>
+        ];
+        // ABSOLUTE scale: every bar is sized against a FIXED ceiling, not against
+        // the current total. The old per-row "%" made a component's share grow
+        // visually whenever the total shrank (e.g. GPU Idle going from 1.5 g to
+        // 30 mg still read as a bigger slice), which looked like emissions were
+        // rising. Scaling to a fixed ceiling makes the bars physically shrink as
+        // the footprint shrinks. 0.5 g comfortably covers the largest result we
+        // show (a closed frontier model, ~0.3 g) with headroom.
+        const SCALE_CEILING_GRAMS = 0.5;
+        const total = result.totalCO2Grams;
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1.5rem" }}>
+            {/* Stacked absolute bar: total width tracks the real total, so a
+                smaller footprint is visibly a shorter bar. */}
+            <div
+              role="img"
+              aria-label={`Total ${formatCO2(total)}, broken down by component`}
+              style={{
+                display: "flex",
+                height: 14,
+                width: `${Math.min(100, (total / SCALE_CEILING_GRAMS) * 100)}%`,
+                minWidth: 4,
+                borderRadius: 4,
+                overflow: "hidden",
+                marginBottom: "0.5rem",
+                transition: "width 0.4s ease",
+              }}
+            >
+              {items.map((item) => {
+                const value = result.components[item.key as keyof typeof result.components].co2Grams;
+                if (value <= 0 || total <= 0) return null;
+                return (
+                  <div
+                    key={item.key}
+                    title={`${item.label}: ${formatCO2(value)}`}
+                    style={{ width: `${(value / total) * 100}%`, background: item.color }}
+                  />
+                );
+              })}
             </div>
-          );
-        })}
-      </div>
+            {items.map((item) => {
+              const value = result.components[item.key as keyof typeof result.components].co2Grams;
+              const pct = total > 0 ? (value / total) * 100 : 0;
+              // Per-row bar is also absolute (against the fixed ceiling), so a
+              // component that shrinks in mg shows a shorter bar even if its
+              // percentage share of the total grew.
+              const absWidth = Math.min(100, (value / SCALE_CEILING_GRAMS) * 100);
+              return (
+                <div key={item.key} style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                  <div style={{ width: 12, height: 12, borderRadius: 3, background: item.color, flexShrink: 0 }} />
+                  <div style={{ flex: 1, fontSize: "0.875rem", minWidth: 0 }}>
+                    <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</div>
+                    <div style={{ height: 4, background: "rgba(0,0,0,0.3)", borderRadius: 2, marginTop: 3, overflow: "hidden" }}>
+                      <div style={{ width: `${absWidth}%`, height: "100%", background: item.color, borderRadius: 2, transition: "width 0.4s ease" }} />
+                    </div>
+                  </div>
+                  <div style={{ fontSize: "0.875rem", color: C.peak, fontWeight: 600, flexShrink: 0 }}>{formatCO2(value)}</div>
+                  <div style={{ fontSize: "0.75rem", color: C.muted, width: 40, textAlign: "right", flexShrink: 0 }}>{pct.toFixed(0)}%</div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* Water */}
       <div

@@ -18,8 +18,6 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@berget/co2-emissions-calculator": ["../../src/index.ts"],
-      "@berget/co2-emissions-calculator/*": ["../../src/*"],
       "@berget/ui": ["../../../berget-design-system/dist/index.js"],
       "@berget/ui/*": ["../../../berget-design-system/dist/*"]
     }
