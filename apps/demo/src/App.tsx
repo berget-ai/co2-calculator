@@ -183,7 +183,7 @@ export function CO2Calculator() {
             </div>
           </div>
           <a
-            href="https://github.com/berget-ai/co2-emissions-calculator"
+            href="https://github.com/berget-ai/co2-calculator"
             target="_blank"
             rel="noopener noreferrer"
             style={{
@@ -255,10 +255,15 @@ function EmissionsFooter({ result }: { result: InferenceResult | null }) {
 
   const total = result.totalCO2Grams;
 
-  // Coffee comparison: an 800W microwave for 2 min (120s) ≈ 0.24 g CO₂ on
-  // Sweden's grid → grams CO₂ per second of microwaving.
-  const coffeeCO2PerSecond = 0.24 / 120;
+  // Coffee comparison, using the SAME anchor as the ResultsPanel so the cup
+  // count matches exactly: an 800W microwave priced at Sweden's day-adjusted
+  // 14:00 intensity (8 × 1.15 = 9.2 g/kWh) → grams CO₂ per second of
+  // microwaving. One cup = 60 s of microwaving (a full cup takes ~a minute).
+  const SWEDEN_INTENSITY_DAY = 8 * 1.15; // g/kWh, clean baseline at 14:00
+  const coffeeCO2PerSecond = (0.8 / 3600) * SWEDEN_INTENSITY_DAY;
   const coffeeSeconds = total / coffeeCO2PerSecond;
+  const SECONDS_PER_CUP = 60;
+  const coffeeCups = coffeeSeconds / SECONDS_PER_CUP;
 
   return (
     <footer
@@ -373,7 +378,7 @@ function EmissionsFooter({ result }: { result: InferenceResult | null }) {
             title="Same energy as microwaving a cup of coffee (800W, Swedish grid)"
           >
             <Coffee size={13} strokeWidth={1.5} style={{ color: C.muted, flexShrink: 0 }} />
-            {coffeeSeconds < 1 ? "<1" : Math.round(coffeeSeconds)}s
+            {coffeeCups < 0.1 ? "<0.1" : coffeeCups.toFixed(1)} cups
           </div>
           {/* Water usage — only shown when the region actually consumes water */}
           {result.waterLiters > 0 && (
