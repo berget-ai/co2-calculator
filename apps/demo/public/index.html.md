@@ -1,6 +1,6 @@
 # We open source our CO₂ emissions — and so should you
 
-There's real confusion about AI's emissions — and the reason is a lack of transparency. That responsibility doesn't sit with the person typing a prompt; it sits with the companies that choose where to run their servers, and the buyers who procure AI without asking. At Berget AI we've committed to being 100% transparent about ours: every response reports its own CO₂. Now we're releasing our methods and code as open source, so the rest of the industry can do the same.
+There's real confusion about AI's emissions — and the reason is a lack of transparency. That responsibility doesn't sit with the person typing a prompt; it sits with the companies that choose where to run their servers, and the buyers who procure AI without asking. At Berget AI we've committed to full transparency about ours: every response reports its own CO₂. Now we're releasing our methods and code as open source, so the rest of the industry can do the same.
 
 **In short — if you buy or build on AI:**
 
@@ -16,7 +16,7 @@ When you procure AI, a handful of choices decide almost all of the footprint: wh
 
 AI's environmental footprint is real, and the industry that builds it has a responsibility to measure and report it. Yet a buyer comparing two providers, or a team choosing between two models, has no way to compare their climate impact — not because the physics is unknowable, but because almost nobody publishes it.
 
-And when numbers do appear, they're calculated differently every time, so anyone can draw the boundary that makes them look best. That isn't just an inconvenience; it's how accountability is avoided. Comparability isn't a nice-to-have — it's the whole game.
+And when numbers do appear, they're calculated differently every time, so anyone can draw the boundary that makes them look best. That isn't just an inconvenience; it's how accountability is avoided. Without comparability, there is nothing to hold anyone to.
 
 Part of the problem is that the footprint is genuinely hard to wrap your head around. A single AI request depends on the model, where the server runs, the carbon mix of that grid, and even the time of day — too many moving parts for anyone to hold an intuition for, let alone compare two providers by hand. That's exactly why we don't just publish a formula: we track the CO₂ of every individual request, so the number is already there, the same way every time. The method below shows how.
 
@@ -68,7 +68,7 @@ And this is where geography really bites. In a cold Nordic climate you can cool 
 
 Every GPU carries the cost of its own manufacturing — and that cost is significant. We estimate roughly **1,000 kg of CO₂ per datacenter GPU**, a figure that already includes the GPU's share of the whole node it lives in (the CPU, memory, storage, chassis and networking are divided across its eight GPUs). The figures come from server-level life-cycle assessments by Dell and HPE, with the total manufacturing footprint divided per GPU. New hardware amortises that cost over its lifetime; refurbished hardware carries zero embodied carbon, because those emissions are already spent.
 
-Model size decides how many GPUs a query needs. A small, quantised model fits on a single card; a trillion-parameter model has to be spread across several. And here's the part people miss: **a smaller model can often run on older, humbler hardware.** An older inference card like the NVIDIA L4 embodies only ~300 kg — a fraction of a flagship H200 — and because that hardware has already been in service for years, much of its manufacturing footprint is already amortised. Choosing a right-sized model on mature hardware can cut emissions dramatically before you've optimised anything else.
+Model size decides how many GPUs a query needs. A small, quantised model fits on a single card; a trillion-parameter model has to be spread across several. **A smaller model can also often run on older, humbler hardware.** An older inference card like the NVIDIA L4 embodies only ~300 kg — a fraction of a flagship H200 — and because that hardware has already been in service for years, much of its manufacturing footprint is already amortised. Choosing a right-sized model on mature hardware can cut emissions dramatically before you've optimised anything else.
 
 > **Method — embodied carbon.** Embodied carbon is ~1,000 kg CO₂ per datacenter GPU. That is the whole node's manufacturing footprint (~7–8 t) divided across its 8 GPUs, so it already includes each GPU's share of the CPU, RAM, SSD, chassis and networking — there is no separate "node" term on top. Amortised over a 5-year lifetime and allocated per query by GPU-seconds. GPUs needed per model = model size × bytes/parameter × 1.2 (KV-cache overhead), divided by GPU memory — so larger models span more GPUs. Refurbished hardware is counted as zero embodied carbon — the manufacturing emissions are already spent. Per-GPU figures carry ±30–50% uncertainty: NVIDIA/AMD don't publish per-GPU LCAs, so we derive them from server-level reports. Sources: NVIDIA HGX H100 PCF Summary (2024); Dell LCA of PowerEdge servers (2023); Gupta et al. (2021), "Chasing Carbon", HPCA; Boavizta.
 
@@ -82,7 +82,7 @@ Add operational energy, datacenter overhead and embodied hardware — and you ge
 
 ---
 
-## Reality check: How do we verify these numbers are correct?
+## Reality check: How we check the numbers against the meters
 
 Models are only useful if they're checked against reality. Because Berget AI owns its own hardware and networking equipment — and isn't dependent on external cloud providers — we can measure, with high precision, how much CO₂ our infrastructure actually emits each day. That lets us compare the totals reported through our APIs against real, metered consumption, and validate our assumptions against the physical world.
 
@@ -92,7 +92,7 @@ Doing that reconciliation in real time is hard, though. A full month's total emi
 
 ---
 
-## The standard we propose: Adopt this. Demand this.
+## The standard we propose: What we're asking for
 
 **If you provide AI:** report `co2_grams` in every response — the method and the code above are open, so use them, scrutinise them, improve them. There are drop-in integrations for Express, FastAPI and Prometheus in the integration guide. **If you procure AI:** require emissions data, and the location of the servers, in your contracts. **If you build on AI:** ask your provider for it.
 
