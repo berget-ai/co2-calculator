@@ -93,7 +93,7 @@ export function GuideMode({
         <p style={{ ...prose.p, fontSize: "1.125rem" }}>
           There's real confusion about AI's emissions — and the reason is a lack of transparency. That responsibility
           doesn't sit with the person typing a prompt; it sits with the companies that choose where to run their
-          servers, and the buyers who procure AI without asking. At Berget AI we've committed to being 100% transparent
+          servers, and the buyers who procure AI without asking. At Berget AI we've committed to full transparency
           about ours: every response reports its own CO₂. Now we're releasing our methods and code as open source, so
           the rest of the industry can do the same.
         </p>
@@ -198,8 +198,8 @@ export function GuideMode({
         </p>
         <p style={prose.p}>
           And when numbers do appear, they're calculated differently every time, so anyone can draw the boundary that
-          makes them look best. That isn't just an inconvenience; it's how accountability is avoided. Comparability
-          isn't a nice-to-have — it's the whole game.
+          makes them look best. That isn't just an inconvenience; it's how accountability is avoided. Without
+          comparability, there is nothing to hold anyone to.
         </p>
         <p style={prose.p}>
           Part of the problem is that the footprint is genuinely hard to wrap your head around. A single AI request
@@ -441,8 +441,8 @@ export function GuideMode({
         </p>
         <p style={prose.p}>
           Model size decides how many GPUs a query needs. A small, quantised model fits on a single card; a
-          trillion-parameter model has to be spread across several. And here's the part people miss:{" "}
-          <strong>a smaller model can often run on older, humbler hardware.</strong> An older inference card like the
+          trillion-parameter model has to be spread across several.{" "}
+          <strong>A smaller model can also often run on older, humbler hardware.</strong> An older inference card like the
           NVIDIA L4 embodies only ~300 kg — a fraction of a flagship H200 — and because that hardware has already been
           in service for years, much of its manufacturing footprint is already amortised. Choosing a right-sized model
           on mature hardware can cut emissions dramatically before you've optimised anything else.
@@ -504,7 +504,7 @@ export function GuideMode({
       {/* ═══ VERIFICATION ═══ */}
       <Section id="the-verification">
         <div style={prose.kicker}>Reality check</div>
-        <h2 style={prose.h2}>How do we verify these numbers are correct?</h2>
+        <h2 style={prose.h2}>How we check the numbers against the meters</h2>
         <p style={prose.p}>
           Models are only useful if they're checked against reality. Because Berget AI owns its own hardware and
           networking equipment — and isn't dependent on external cloud providers — we can measure, with high precision,
@@ -535,7 +535,7 @@ export function GuideMode({
       {/* ═══ THE ASK ═══ */}
       <Section id="the-standard">
         <div style={prose.kicker}>The standard we propose</div>
-        <h2 style={prose.h2}>Adopt this. Demand this.</h2>
+        <h2 style={prose.h2}>What we're asking for</h2>
         <p style={prose.p}>
           <strong>If you provide AI:</strong> report <code>co2_grams</code> in every response — the method and the code
           above are open, so use them, scrutinise them, improve them. There are drop-in integrations for Express,
@@ -604,7 +604,7 @@ export function GuideMode({
             </code>{" "}
             and{" "}
             <code style={{ background: "rgba(0,0,0,0.3)", padding: "0.125rem 0.25rem", borderRadius: 4, fontFamily: "monospace" }}>
-              gpu_energy_joules
+              gpu_compute_energy_joules
             </code>{" "}
             in your API responses. Your users deserve to know the environmental cost of each request.
           </p>
