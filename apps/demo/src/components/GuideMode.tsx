@@ -129,7 +129,7 @@ export function GuideMode({
               Live
             </span>
           </div>
-          <ApiResponseBlock result={result} model={model} selectedModel={state.selectedModel} highlightKey="co2" />
+          <ApiResponseBlock result={result} model={model} selectedModel={state.selectedModel} region={state.region} highlightKey="co2" />
         </div>
 
         {/* TL;DR for decision-makers */}
@@ -224,13 +224,14 @@ export function GuideMode({
       {/* ═══ §1 MODEL & USE CASE ═══ */}
       <Section id="the-model">
         <div style={prose.kicker}>§1 · The workload</div>
-        <h2 style={prose.h2}>First, choose a model and a type of usage</h2>
+        <h2 style={prose.h2}>The model you choose is the biggest lever you control</h2>
         <p style={prose.p}>
-          Every calculation needs a concrete starting point: a workload. We can't talk about "AI's footprint" in the
-          abstract — only about a specific model doing a specific job. So the example below asks you to supply one:
-          pick the use case closest to yours, then a model. A quick chat reply and a long code analysis are very
-          different jobs, and the model you choose sets the scale of the work. Watch the JSON at the top — and the
-          running total in the footer — update as you change it.
+          Of all the choices behind an AI request, the model is the one that moves the footprint most — and the one
+          most teams can change tomorrow. But to see that, we need a concrete workload: we can't talk about "AI's
+          footprint" in the abstract, only about a specific model doing a specific job. So the example below asks you
+          to supply one: pick the use case closest to yours, then a model. A quick chat reply and a long code analysis
+          are very different jobs, and the model you choose sets the scale of the work. Watch the JSON at the top —
+          and the running total in the footer — update as you change it.
         </p>
         <InteractiveFrame label="pick a model and use case">
           <CategoryModelPicker
@@ -269,50 +270,13 @@ export function GuideMode({
           />
         </InteractiveFrame>
         <p style={prose.p}>
-          This is why the model choice is the single biggest lever most teams control. On our own infrastructure, the
+          The size of that lever is easy to underestimate. On our own infrastructure, the
           same short question answered by a large MoE frontier model (Kimi K3, 2.8T) comes out at roughly
           <strong> 300&nbsp;mg CO₂</strong>, where a specialised model that handles the task just as well (Gemma 4
           31B) comes out at <strong> 25&nbsp;mg</strong> — about a <strong>12×</strong> gap, on the same clean Swedish
           grid. A cleaner grid narrows the operational part of that gap, but it cannot close it: most of the
           difference is the extra hardware the larger model ties up. The frontier model is the right tool for some
           tasks — but not all of them, and reaching for it by default is a choice with a measurable cost.
-        </p>
-        <p style={prose.p}>
-          This is also the quiet case for <strong>shared infrastructure over a server of your own.</strong> Run this
-          model on an on-prem box and you own the GPU for the whole month — whether it's busy or not. Its servers,
-          cooling and networking draw power around the clock, and its entire manufacturing footprint lands on your
-          queries alone. Spread over a quiet month, that embodied cost per request can dwarf the operational energy by
-          an order of magnitude. On a shared node those fixed costs are split across everyone using it, which is why a
-          busy shared GPU almost always beats a private one that mostly waits.
-        </p>
-        <p style={prose.p}>
-          Caching is a smaller lever on its own — the ring above puts it at around 10% — but it compounds with
-          sharing. When a cached prefix lets the model skip most of the prefill, each request occupies the GPU for
-          less time, which means more requests fit on the same hardware, so the fixed cost is shared across more of
-          them. The direct saving is modest; the real value is that it lets a busy shared node stay busy. The catch is
-          that this is hard to do well on your own box — it needs the right serving framework, KV-cache management
-          and spare memory — so it tends to be exactly the advantage a dedicated provider can offer and an on-prem
-          setup can't.
-        </p>
-        <InteractiveFrame label="shared vs solo — the concurrency trade-off">
-          <ConcurrencyChart
-            category={category}
-            model={model}
-            grid={grid}
-            concurrency={state.concurrency}
-            gpuCondition={state.gpuCondition}
-            infraCondition={state.infraCondition}
-            onConcurrencyChange={actions.setConcurrency}
-          />
-        </InteractiveFrame>
-        <p style={prose.p}>
-          Watch the white curve as you drag the slider. Every fixed cost — the server's standby draw, the chassis, the
-          cooling, and the GPU's own manufacturing footprint — is split across however many requests share the node.
-          More sharing, less each. The benefit is steepest at the start: going from one user to eight divides those
-          fixed costs by eight, while going from eight to thirty-two only divides them by four more. That's why the
-          curve drops sharply and then levels off — the fixed costs are already divided down to almost nothing, so
-          there's progressively less left to share. A private server sits at the far left of this curve, carrying the
-          whole fixed cost alone; a busy shared node sits far to the right.
         </p>
         <InteractiveFrame label="a typical day — usage and CO₂ by hour">
           <DailyLoadChart hourOfDay={state.hourOfDay} onHourChange={actions.setHourOfDay} />
@@ -427,9 +391,69 @@ export function GuideMode({
         />
       </Section>
 
-      {/* ═══ §3 HARDWARE ═══ */}
+      {/* ═══ §3 SHARING / DEPLOYMENT ═══ */}
+      <Section id="the-sharing">
+        <div style={prose.kicker}>§3 · Shared or your own</div>
+        <h2 style={prose.h2}>Whose hardware does it run on — and how many share it?</h2>
+        <p style={prose.p}>
+          The same model on the same grid can still emit very differently depending on one more choice: whether you
+          run it on your own server, share a node with others (as with Berget AI), or ride a hyperscaler that packs
+          many tenants onto the same hardware. The difference comes down to a single mechanism —{" "}
+          <strong>how many requests split the fixed cost of the node.</strong>
+        </p>
+        <p style={prose.p}>
+          This is the quiet case for <strong>shared infrastructure over a server of your own.</strong> Run a model on
+          an on-prem box and you own the GPU for the whole month — whether it's busy or not. Its servers, cooling and
+          networking draw power around the clock, and its entire manufacturing footprint lands on your queries alone.
+          Spread over a quiet month, that embodied cost per request can dwarf the operational energy by an order of
+          magnitude. On a shared node those fixed costs are split across everyone using it, which is why a busy shared
+          GPU almost always beats a private one that mostly waits.
+        </p>
+        <p style={prose.p}>
+          Caching is a smaller lever on its own — the ring above puts it at around 10% — but it compounds with
+          sharing. When a cached prefix lets the model skip most of the prefill, each request occupies the GPU for
+          less time, which means more requests fit on the same hardware, so the fixed cost is shared across more of
+          them. The direct saving is modest; the real value is that it lets a busy shared node stay busy. The catch is
+          that this is hard to do well on your own box — it needs the right serving framework, KV-cache management
+          and spare memory — so it tends to be exactly the advantage a dedicated provider can offer and an on-prem
+          setup can't.
+        </p>
+        <InteractiveFrame label="shared vs solo — the concurrency trade-off">
+          <ConcurrencyChart
+            category={category}
+            model={model}
+            grid={grid}
+            concurrency={state.concurrency}
+            gpuCondition={state.gpuCondition}
+            infraCondition={state.infraCondition}
+            onConcurrencyChange={actions.setConcurrency}
+          />
+        </InteractiveFrame>
+        <p style={prose.p}>
+          Watch the white curve as you drag the slider. Every fixed cost — the server's standby draw, the chassis, the
+          cooling, and the GPU's own manufacturing footprint — is split across however many requests share the node.
+          More sharing, less each. The benefit is steepest at the start: going from one user to eight divides those
+          fixed costs by eight, while going from eight to thirty-two only divides them by four more. That's why the
+          curve drops sharply and then levels off — the fixed costs are already divided down to almost nothing, so
+          there's progressively less left to share. A private server sits at the far left of this curve, carrying the
+          whole fixed cost alone; a busy shared node sits far to the right.
+        </p>
+        <MethodPanel
+          assumptions={[
+            "Every fixed cost — GPU compute energy, GPU idle baseline, server, cooling and GPU embodied carbon — is divided by the number of requests genuinely sharing the GPU (the productive batch). Each request bears its own token-adjusted GPU-time share, so short requests bear less and long reasoning requests more; the total across the request mix conserves the node's full fixed cost.",
+            "An idle GPU is NOT in a deep sleep: our DCGM measurements show ~122 W per B300 card at 0% load (spec ~125 W). That is the node's standby draw. Each request in the breakdown below bears only its share of it — the per-GPU standby (idle ÷ 8 GPUs) divided by the concurrent requests sharing the card — so the idle line per request is tens of watts, not the full 122 W. We also add the incremental active power (25% of the idle→peak span) while computing.",
+            "On-prem (deployment = 'onprem') forces concurrency to 1: the whole node's fixed cost lands on your queries alone.",
+          ]}
+          reasoning="Sharing is where the fixed costs live or die. A node's standby draw, chassis, cooling and embodied carbon are spent whether the GPU is busy or idle, so the only question that matters is how many requests they are divided across. We model the whole range from a private server (concurrency 1) to a busy shared node, because that single number — genuine concurrency — decides most of the fixed-cost allocation per query."
+          sources={[
+            { label: "Fu et al. (2024) — LLMCO2: Advancing Accurate Carbon Footprint Prediction for LLM Inferences, arXiv:2410.02950", url: "https://arxiv.org/abs/2410.02950" },
+          ]}
+        />
+      </Section>
+
+      {/* ═══ §4 HARDWARE ═══ */}
       <Section id="the-hardware">
-        <div style={prose.kicker}>§3 · The hardware</div>
+        <div style={prose.kicker}>§4 · The hardware</div>
         <h2 style={prose.h2}>Hardware has a history</h2>
         <p style={prose.p}>
           Every GPU carries the cost of its own manufacturing — and that cost is significant. We estimate roughly{" "}
@@ -440,12 +464,28 @@ export function GuideMode({
           hardware carries zero embodied carbon, because those emissions are already spent.
         </p>
         <p style={prose.p}>
-          Model size decides how many GPUs a query needs. A small, quantised model fits on a single card; a
-          trillion-parameter model has to be spread across several.{" "}
-          <strong>A smaller model can also often run on older, humbler hardware.</strong> An older inference card like the
-          NVIDIA L4 embodies only ~300 kg — a fraction of a flagship H200 — and because that hardware has already been
-          in service for years, much of its manufacturing footprint is already amortised. Choosing a right-sized model
-          on mature hardware can cut emissions dramatically before you've optimised anything else.
+          So what hardware does your chosen model actually need? The binding constraint is memory: a model's weights
+          (plus ~20% for the KV cache) must fit in GPU memory, and that alone decides how many cards the query has to
+          occupy.{" "}
+          {result && result.gpusAllocated <= 1 ? (
+            <>
+              The model you picked above fits on a <strong>single card</strong> — it doesn't need a flagship node, and
+              that opens up a real saving.
+            </>
+          ) : (
+            <>
+              The model you picked above needs <strong>{result?.gpusAllocated ?? "several"} cards</strong> just to
+              hold its weights — a footprint that follows it no matter where it runs.
+            </>
+          )}
+        </p>
+        <p style={prose.p}>
+          That matters because a smaller model can often run on <strong>older, humbler hardware.</strong> A small,
+          quantised model fits on a single card; a trillion-parameter model has to be spread across several. An older
+          inference card like the NVIDIA L4 embodies only ~300 kg — a fraction of a flagship H200 — and because that
+          hardware has already been in service for years, much of its manufacturing footprint is already amortised.
+          Choosing a right-sized model on mature hardware can cut emissions dramatically before you've optimised
+          anything else.
         </p>
         <InteractiveFrame label="configure hardware">
           <HardwarePicker
@@ -472,9 +512,9 @@ export function GuideMode({
         />
       </Section>
 
-      {/* ═══ §4 TOGETHER ═══ */}
+      {/* ═══ §5 TOGETHER ═══ */}
       <Section id="the-total">
-        <div style={prose.kicker}>§4 · The total</div>
+        <div style={prose.kicker}>§5 · The total</div>
         <h2 style={prose.h2}>Putting it all together</h2>
         <p style={prose.p}>
           Add operational energy, datacenter overhead and embodied hardware — and you get the figure that's been
@@ -537,7 +577,7 @@ export function GuideMode({
         <div style={prose.kicker}>The standard we propose</div>
         <h2 style={prose.h2}>What we're asking for</h2>
         <p style={prose.p}>
-          <strong>If you provide AI:</strong> report <code>co2_grams</code> in every response — the method and the code
+          <strong>If you provide AI:</strong> report <code>usage.emissions.co2e_grams</code> in every response — the method and the code
           above are open, so use them, scrutinise them, improve them. There are drop-in integrations for Express,
           FastAPI and Prometheus in the{" "}
           <a href="https://github.com/berget-ai/co2-calculator/blob/main/ADVANCED_USAGE.md" target="_blank" rel="noopener noreferrer" style={{ color: C.moss }}>
@@ -598,17 +638,25 @@ export function GuideMode({
             <span style={{ fontWeight: 600, color: C.peak, fontSize: "1.125rem" }}>Include CO₂ in Every Response</span>
           </div>
           <p style={{ fontSize: "0.875rem", color: C.muted, margin: 0, marginBottom: "1rem" }}>
-            Just like Berget AI does — return{" "}
+            Just like Berget AI does — return an{" "}
             <code style={{ background: "rgba(0,0,0,0.3)", padding: "0.125rem 0.25rem", borderRadius: 4, fontFamily: "monospace" }}>
-              co2_grams
+              emissions
+            </code>{" "}
+            object inside{" "}
+            <code style={{ background: "rgba(0,0,0,0.3)", padding: "0.125rem 0.25rem", borderRadius: 4, fontFamily: "monospace" }}>
+              usage
+            </code>{" "}
+            with{" "}
+            <code style={{ background: "rgba(0,0,0,0.3)", padding: "0.125rem 0.25rem", borderRadius: 4, fontFamily: "monospace" }}>
+              co2e_grams
             </code>{" "}
             and{" "}
             <code style={{ background: "rgba(0,0,0,0.3)", padding: "0.125rem 0.25rem", borderRadius: 4, fontFamily: "monospace" }}>
-              gpu_compute_energy_joules
+              energy_kwh
             </code>{" "}
             in your API responses. Your users deserve to know the environmental cost of each request.
           </p>
-          <ApiResponseBlock result={result} model={model} selectedModel={state.selectedModel} highlightKey="co2" />
+          <ApiResponseBlock result={result} model={model} selectedModel={state.selectedModel} region={state.region} highlightKey="co2" />
         </div>
 
         {/* Library code */}

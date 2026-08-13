@@ -1,5 +1,7 @@
 export * from "./types.js";
 export * from "./calculator.js";
+export { toApiEmissions, METHODOLOGY_URL, CALCULATOR_VERSION } from "./api-emissions.js";
+export type { ApiEmissions } from "./api-emissions.js";
 export { MODEL_PROFILES, getModelsByCategory } from "./models.js";
 export { HARDWARE_CONFIGS } from "./hardware.js";
 export { GRID_REGIONS } from "./grids.js";
