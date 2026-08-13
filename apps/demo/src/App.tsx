@@ -75,15 +75,13 @@ export function CO2Calculator() {
   const [region, setRegion] = useState("sweden");
   const [gpuCondition, setGpuCondition] = useState<"new" | "refurbished">("new");
   const [infraCondition, setInfraCondition] = useState<"new" | "refurbished">("new");
-  // Two distinct shared-cost denominators (see the calculator):
-  //  * nodeConcurrency — the node's whole request load; divides the server
-  //    chassis and the supporting-infrastructure embodied term. The slider
-  //    explores this. Default 6 matches the methodology example and article.
-  //  * gpuConcurrency — the requests genuinely sharing THIS model's GPU batch;
-  //    divides GPU compute/idle/embodied. This is the model's measured
-  //    Little's Law value (defaultConcurrency), shown in the chart.
-  const METHOD_BATCH = 6;
-  const [nodeConcurrency, setConcurrency] = useState(METHOD_BATCH);
+  // Which serving deployment the request runs on. WHO runs the hardware —
+  // your own server, a shared node (Berget), or a hyperscaler's disaggregated
+  // serving — determines how the fixed costs are shared and how efficiently
+  // the hardware is used. This replaces the old concurrency slider: with the
+  // fixed cost amortised over the day, "how many share right now" is no
+  // longer the lever; the deployment model is.
+  const [deployment, setDeployment] = useState<"onprem" | "shared" | "hyperscaler">("shared");
   const [hourOfDay, setHourOfDay] = useState(14);
 
   // Fetch dynamic model data from EcoLogits and OpenRouter
@@ -102,9 +100,9 @@ export function CO2Calculator() {
   const result = useMemo(() => {
     if (!model || !grid) return null;
     const hw = {
-      ...HARDWARE_CONFIGS.h200,
-      embodiedPerGpuKg: gpuCondition === "refurbished" ? 0 : HARDWARE_CONFIGS.h200.embodiedPerGpuKg,
-      otherComputeEmbodiedKg: infraCondition === "refurbished" ? 0 : HARDWARE_CONFIGS.h200.otherComputeEmbodiedKg,
+      ...HARDWARE_CONFIGS.b300,
+      embodiedPerGpuKg: gpuCondition === "refurbished" ? 0 : HARDWARE_CONFIGS.b300.embodiedPerGpuKg,
+      otherComputeEmbodiedKg: infraCondition === "refurbished" ? 0 : HARDWARE_CONFIGS.b300.otherComputeEmbodiedKg,
     };
 
     return calculateInference({
@@ -118,16 +116,15 @@ export function CO2Calculator() {
       measuredResponseTimeSeconds: model.defaultResponseTimeSeconds,
       inputTokens: model.defaultInputTokens,
       outputTokens: model.defaultOutputTokens,
-      // Split denominators: the model's measured GPU batch divides the GPU
-      // fixed costs; the node's whole request load divides the chassis and
-      // supporting-infrastructure costs.
-      gpuConcurrency: model.defaultConcurrency,
-      nodeConcurrency,
+      // The deployment profile drives the shared-cost denominators: on-prem
+      // forces concurrency 1, shared uses the day-average, and hyperscaler
+      // packs more onto each GPU via disaggregated serving.
+      deployment,
       hourOfDay,
       includeTraining: INCLUDE_TRAINING,
       lifetimeQueries: LIFETIME_QUERIES,
     }) as InferenceResult;
-  }, [model, grid, gpuCondition, infraCondition, category, nodeConcurrency, hourOfDay]);
+  }, [model, grid, gpuCondition, infraCondition, category, deployment, hourOfDay]);
 
   const handleCategoryChange = (key: string) => {
     setModelCategory(key);
@@ -142,7 +139,7 @@ export function CO2Calculator() {
   // Shared state/actions/derived bundles
   const state: CalculatorState = {
     modelCategory, selectedModel, region,
-    gpuCondition, infraCondition, concurrency: nodeConcurrency, hourOfDay,
+    gpuCondition, infraCondition, deployment, hourOfDay,
   };
 
   const actions: CalculatorActions = {
@@ -151,7 +148,7 @@ export function CO2Calculator() {
     setRegion,
     setGpuCondition,
     setInfraCondition,
-    setConcurrency,
+    setDeployment,
     setHourOfDay,
   };
 

@@ -3,7 +3,7 @@ import { CategoryModelPicker } from "./CategoryModelPicker";
 import { RegionPicker } from "./RegionPicker";
 import { HardwarePicker } from "./HardwarePicker";
 import { ConcurrencyTimeExplorer } from "./ConcurrencyTimeExplorer";
-import { ConcurrencyChart } from "./ConcurrencyChart";
+import { DeploymentProfileChart } from "./DeploymentProfileChart";
 import { DailyLoadChart } from "./DailyLoadChart";
 import { CoolingWaterChart } from "./CoolingWaterChart";
 import { LeversDonut } from "./LeversDonut";
@@ -158,7 +158,7 @@ export function GuideMode({
           <ul style={{ margin: 0, paddingLeft: "1.15rem", color: C.peak, lineHeight: 1.6, fontSize: "0.95rem" }}>
             <li style={{ marginBottom: "0.5rem" }}>
               The most important choice is the <strong>right model for the task</strong>. Reaching for an
-              ever-larger model by default is the wrong path: a frontier model can emit roughly <strong>12× more CO₂
+              ever-larger model by default is the wrong path: a frontier model can emit roughly <strong>9× more CO₂
               per query</strong> than a specialised one that does the same job just as well — even on a clean grid.
               We need, collectively, to learn to use the specialised models.
             </li>
@@ -258,22 +258,21 @@ export function GuideMode({
           Size sets the floor: a model must fit in GPU memory (weights, plus ~20% for the KV cache), so a trillion-parameter
           model occupies several GPUs at once while a small quantised one fits on a single card. Context length and cache
           then stretch or shrink the time: long prompts mean more tokens and a growing KV cache, while a cached prefix
-          lets the model skip most of that work. And concurrency decides how many queries split the fixed cost of the
-          servers. Try it — here's roughly how long your request occupies the GPU, and how sharing the node changes it.
+          lets the model skip most of that work. And how many other queries share the node decides how the fixed cost
+          of the servers is split — though as §3 shows, that sharing is set by who runs the hardware, not by the moment.
+          Try it — here's roughly how long your request occupies the GPU, and how queueing stretches it under load.
         </p>
-        <InteractiveFrame label="request length & sharing">
+        <InteractiveFrame label="request length & queueing">
           <ConcurrencyTimeExplorer
             category={category}
             model={model}
-            concurrency={state.concurrency}
-            onConcurrencyChange={actions.setConcurrency}
           />
         </InteractiveFrame>
         <p style={prose.p}>
           The size of that lever is easy to underestimate. On our own infrastructure, the
           same short question answered by a large MoE frontier model (Kimi K3, 2.8T) comes out at roughly
-          <strong> 300&nbsp;mg CO₂</strong>, where a specialised model that handles the task just as well (Gemma 4
-          31B) comes out at <strong> 25&nbsp;mg</strong> — about a <strong>12×</strong> gap, on the same clean Swedish
+          <strong> 370&nbsp;mg CO₂</strong>, where a specialised model that handles the task just as well (Gemma 4
+          31B) comes out at <strong> 42&nbsp;mg</strong> — about a <strong>9×</strong> gap, on the same clean Swedish
           grid. A cleaner grid narrows the operational part of that gap, but it cannot close it: most of the
           difference is the extra hardware the larger model ties up. The frontier model is the right tool for some
           tasks — but not all of them, and reaching for it by default is a choice with a measurable cost.
@@ -289,7 +288,7 @@ export function GuideMode({
             "Request length scales sub-linearly with tokens (√token ratio) and grows slightly with concurrency (logarithmic delay above 8 concurrent users).",
             "Every fixed cost — GPU compute energy, GPU idle baseline, server, cooling and GPU embodied carbon — is divided by the number of requests genuinely sharing the GPU (the productive batch). Each request bears its own token-adjusted GPU-time share, so short requests bear less and long reasoning requests more; the total across the request mix conserves the node's full fixed cost.",
             "Time-of-day: peak ×1.15 (day) and low ×0.7 (night) are asymmetric on purpose — weighted over 24h they net to ≈+2%, so the daytime overestimate finances the night-time underestimate plus a small conservative margin. Running at night genuinely emits less CO₂ (cleaner off-peak marginal mix), ~30% lower per query.",
-            "An idle GPU is NOT in a deep sleep: our DCGM measurements show ~122 W per B300 card at 0% load (spec ~125 W). That is the node's standby draw. Each request in the breakdown below bears only its share of it — the per-GPU standby (idle ÷ 8 GPUs) divided by the concurrent requests sharing the card — so the idle line per request is tens of watts, not the full 122 W. We also add the incremental active power (25% of the idle→peak span) while computing.",
+            "An idle GPU is NOT in a deep sleep: our DCGM measurements show ~236 W per B300 card at 0% load (measured over 7 days on the production node). That is the node's standby draw, and it is part of the fixed cost amortised over the day (§3.2d). We also add the incremental active power (25% of the idle→peak span) while computing.",
             "Model parameters and usage figures are refreshed from public sources (EcoLogits, Hugging Face, OpenRouter).",
           ]}
           reasoning="Rather than inventing per-model energy figures, we lean on published model cards and independent measurement projects, then scale by the actual time a query occupies the GPU. Two models of the same size can still differ — architecture, quantisation and serving efficiency matter — so we treat per-model data as the best available estimate, not ground truth."
@@ -418,34 +417,38 @@ export function GuideMode({
           and spare memory — so it tends to be exactly the advantage a dedicated provider can offer and an on-prem
           setup can't.
         </p>
-        <InteractiveFrame label="shared vs solo — the concurrency trade-off">
-          <ConcurrencyChart
-            category={category}
+        <InteractiveFrame label="who runs the hardware — the deployment trade-off">
+          <DeploymentProfileChart
             model={model}
             grid={grid}
-            concurrency={state.concurrency}
+            deployment={state.deployment}
             gpuCondition={state.gpuCondition}
             infraCondition={state.infraCondition}
-            onConcurrencyChange={actions.setConcurrency}
+            hourOfDay={state.hourOfDay}
+            onDeploymentChange={actions.setDeployment}
           />
         </InteractiveFrame>
         <p style={prose.p}>
-          Watch the white curve as you drag the slider. Every fixed cost — the server's standby draw, the chassis, the
-          cooling, and the GPU's own manufacturing footprint — is split across however many requests share the node.
-          More sharing, less each. The benefit is steepest at the start: going from one user to eight divides those
-          fixed costs by eight, while going from eight to thirty-two only divides them by four more. That's why the
-          curve drops sharply and then levels off — the fixed costs are already divided down to almost nothing, so
-          there's progressively less left to share. A private server sits at the far left of this curve, carrying the
-          whole fixed cost alone; a busy shared node sits far to the right.
+          The three bars are the same model, the same request, the same grid — the only thing that changes is who
+          runs the hardware. Every fixed cost — the server's standby draw, the chassis, the cooling, and the GPU's
+          own manufacturing footprint — is spent whether the node is busy or idle, so the only question that matters
+          is how many requests it is divided across. On your own server you carry all of it alone. On a shared node
+          it is amortised over the day's requests. And a hyperscaler goes further still: by splitting the prefill
+          and decode phases onto separate machine pools (disaggregated serving), it packs more concurrent work onto
+          each GPU, so each request bears a smaller share. The result is not a marginal tweak — it is the difference
+          between the tallest and the shortest bar above.
         </p>
         <MethodPanel
           assumptions={[
-            "Every fixed cost — GPU compute energy, GPU idle baseline, server, cooling and GPU embodied carbon — is divided by the number of requests genuinely sharing the GPU (the productive batch). Each request bears its own token-adjusted GPU-time share, so short requests bear less and long reasoning requests more; the total across the request mix conserves the node's full fixed cost.",
-            "An idle GPU is NOT in a deep sleep: our DCGM measurements show ~122 W per B300 card at 0% load (spec ~125 W). That is the node's standby draw. Each request in the breakdown below bears only its share of it — the per-GPU standby (idle ÷ 8 GPUs) divided by the concurrent requests sharing the card — so the idle line per request is tens of watts, not the full 122 W. We also add the incremental active power (25% of the idle→peak span) while computing.",
-            "On-prem (deployment = 'onprem') forces concurrency to 1: the whole node's fixed cost lands on your queries alone.",
+            "Every fixed cost — GPU idle baseline, server chassis, cooling and GPU embodied carbon — is a sunk cost the node accrues around the clock. It is amortised over the whole day's work (the day-average concurrency), not the instantaneous concurrency of the moment a request lands: day traffic 'pays for' the night idle, so a night request is not unfairly loaded with the whole node's fixed cost.",
+            "On-prem (deployment = 'onprem') forces concurrency to 1: the whole node's fixed cost lands on your queries alone, in an enterprise server room (PUE ~1.4).",
+            "Hyperscaler (deployment = 'hyperscaler') models disaggregated serving: a ~2× packing factor on the fixed-cost denominator and ~20% lower GPU time per request (Splitwise), in a hyperscale facility (PUE ~1.1, Google fleet average 1.09).",
+            "An idle GPU is NOT in a deep sleep: our DCGM measurements show ~236 W per B300 card at 0% load (measured over 7 days on the production node). That standby draw is part of the fixed cost amortised over the day.",
           ]}
-          reasoning="Sharing is where the fixed costs live or die. A node's standby draw, chassis, cooling and embodied carbon are spent whether the GPU is busy or idle, so the only question that matters is how many requests they are divided across. We model the whole range from a private server (concurrency 1) to a busy shared node, because that single number — genuine concurrency — decides most of the fixed-cost allocation per query."
+          reasoning="Who runs the hardware is where the fixed costs live or die. A node's standby draw, chassis, cooling and embodied carbon are spent whether the GPU is busy or idle, so the only question that matters is how many requests they are divided across — and how efficiently the serving stack packs those requests onto the hardware. We model three deployments spanning the realistic range: a private server (concurrency 1), a shared node (day-average concurrency), and a hyperscaler's disaggregated serving (higher effective concurrency plus a more efficient serving stack and facility)."
           sources={[
+            { label: "Patel et al. (2024) — Splitwise: Efficient generative LLM inference using phase splitting, ISCA 2024, arXiv:2311.18677", url: "https://arxiv.org/abs/2311.18677" },
+            { label: "Zhong et al. (2024) — DistServe: Disaggregating Prefill and Decoding for Goodput-optimized LLM Serving, OSDI 2024, arXiv:2401.09670", url: "https://arxiv.org/abs/2401.09670" },
             { label: "Fu et al. (2024) — LLMCO2: Advancing Accurate Carbon Footprint Prediction for LLM Inferences, arXiv:2410.02950", url: "https://arxiv.org/abs/2410.02950" },
           ]}
         />
@@ -464,9 +467,9 @@ export function GuideMode({
           hardware carries zero embodied carbon, because those emissions are already spent.
         </p>
         <p style={prose.p}>
-          So what hardware does your chosen model actually need? The binding constraint is memory: a model's weights
-          (plus ~20% for the KV cache) must fit in GPU memory, and that alone decides how many cards the query has to
-          occupy.{" "}
+          So what hardware does your chosen model actually need? The binding constraint is memory: the model's
+          weights, plus the KV cache of every request being served at once, must fit in GPU memory — and that decides
+          how many cards the query has to occupy.{" "}
           {result && result.gpusAllocated <= 1 ? (
             <>
               The model you picked above fits on a <strong>single card</strong> — it doesn't need a flagship node, and
@@ -474,15 +477,16 @@ export function GuideMode({
             </>
           ) : (
             <>
-              The model you picked above needs <strong>{result?.gpusAllocated ?? "several"} cards</strong> just to
-              hold its weights — a footprint that follows it no matter where it runs.
+              The model you picked above needs <strong>{result?.gpusAllocated ?? "several"} cards</strong> — for a
+              large model, it's the weights plus the KV cache of all its concurrent requests that spread it across
+              the node. That footprint follows it no matter where it runs.
             </>
           )}
         </p>
         <p style={prose.p}>
           That matters because a smaller model can often run on <strong>older, humbler hardware.</strong> A small,
           quantised model fits on a single card; a trillion-parameter model has to be spread across several. An older
-          inference card like the NVIDIA L4 embodies only ~300 kg — a fraction of a flagship H200 — and because that
+          inference card like the NVIDIA L4 embodies only ~300 kg — a fraction of a flagship B300 — and because that
           hardware has already been in service for years, much of its manufacturing footprint is already amortised.
           Choosing a right-sized model on mature hardware can cut emissions dramatically before you've optimised
           anything else.
@@ -679,12 +683,12 @@ export function GuideMode({
 
 const result = calculateInference({
   modelProfile: MODEL_PROFILES["${state.selectedModel}"],
-  hardware: HARDWARE_CONFIGS.h200,
+  hardware: HARDWARE_CONFIGS.b300,
   deploymentGrid: GRID_REGIONS["${state.region}"],
   measuredResponseTimeSeconds: ${category.responseTime},
   inputTokens: ${model?.defaultInputTokens},
   outputTokens: ${model?.defaultOutputTokens},
-  concurrency: ${state.concurrency},
+  deployment: "${state.deployment}",
   hourOfDay: 14,
 });
 

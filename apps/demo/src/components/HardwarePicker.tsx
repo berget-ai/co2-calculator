@@ -10,19 +10,20 @@ interface Props {
 }
 
 // Marginal embodied cost per query of choosing NEW over refurbished, computed
-// with the SAME method as the calculator (METHODOLOGY §4.2/§4.2b): amortise
-// over 50% projected lifetime utilisation across 5 years, then divide by the
-// shared batch — the GPU term by the GPU batch (3), the supporting-infra term
-// by the node batch (6). Shown for the reference query (Gemma 4 31B, ~1.83 s
+// with the SAME method as the calculator (METHODOLOGY §4.2/§4.2b + §3.2d):
+// amortise over 50% projected lifetime utilisation across 5 years, then divide
+// by the DAY-AVERAGE concurrency (3 for the Gemma reference query) — the same
+// denominator for both the GPU term and the supporting-infra term, since the
+// fixed costs are now amortised over the whole day, not split GPU-batch vs
+// node-batch. Shown for the reference query (Gemma 4 31B, ~1.83 s
 // token-adjusted GPU time). This matches the §6.2 worked example.
 const LIFETIME_ACTIVE_S = 5 * 365 * 24 * 3600 * 0.5;
 const REF_GPU_TIME_S = 1.83;
-const GPU_BATCH = 3;
-const NODE_BATCH = 6;
+const DAY_AVERAGE_CONCURRENCY = 3; // Gemma's measured Little's Law value (§3.2d)
 const gpuEmbodiedPerQuery =
-  ((HARDWARE_CONFIGS.h200.embodiedPerGpuKg * 1000) / LIFETIME_ACTIVE_S) * REF_GPU_TIME_S / GPU_BATCH;
+  ((HARDWARE_CONFIGS.b300.embodiedPerGpuKg * 1000) / LIFETIME_ACTIVE_S) * REF_GPU_TIME_S / DAY_AVERAGE_CONCURRENCY;
 const infraEmbodiedPerQuery =
-  ((HARDWARE_CONFIGS.h200.otherComputeEmbodiedKg * 1000) / LIFETIME_ACTIVE_S) * REF_GPU_TIME_S / NODE_BATCH;
+  ((HARDWARE_CONFIGS.b300.otherComputeEmbodiedKg * 1000) / LIFETIME_ACTIVE_S) * REF_GPU_TIME_S / DAY_AVERAGE_CONCURRENCY;
 
 export function HardwarePicker({
   gpuCondition,
@@ -35,7 +36,7 @@ export function HardwarePicker({
       {/* GPU Selection */}
       <div style={{ marginBottom: "1.5rem" }}>
         <div style={{ fontSize: "0.875rem", fontWeight: 600, color: C.peak, marginBottom: "0.75rem" }}>
-          GPU (NVIDIA H200 ×8)
+          GPU (NVIDIA B300 ×8)
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
           <Card selected={gpuCondition === "new"} onClick={() => onGpuConditionChange("new")}>
@@ -89,8 +90,8 @@ export function HardwarePicker({
         </div>
       </div>
       <div style={{ marginTop: "0.75rem", fontSize: "0.68rem", color: C.muted, lineHeight: 1.45 }}>
-        Per-query figures use the calculator's own method (50% lifetime utilisation, GPU term ÷ GPU batch 3,
-        infra term ÷ node batch 6) for the reference query — so they match the §6.2 breakdown and update if the
+        Per-query figures use the calculator's own method (50% lifetime utilisation, both terms ÷ the day-average
+        concurrency 3) for the reference query — so they match the §6.2 breakdown and update if the
         hardware constants change.
       </div>
     </div>

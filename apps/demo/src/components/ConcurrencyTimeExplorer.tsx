@@ -1,11 +1,10 @@
+import { useState } from "react";
 import { C, Card } from "./shared";
 import type { ModelCategoryDef, ModelProfile } from "./types";
 
 interface Props {
   category: ModelCategoryDef;
   model: ModelProfile | undefined;
-  concurrency: number;
-  onConcurrencyChange: (v: number) => void;
 }
 
 // Mirror of the library's applyConcurrencyDelay (baseline concurrency = 8,
@@ -20,9 +19,15 @@ function concurrencyDelay(baseResponseTime: number, concurrency: number): number
 /**
  * Lives in §1: lets the reader see how many seconds their query is estimated
  * to occupy the GPU, and how sharing the node across more concurrent users
- * trades per-query latency against shared infrastructure cost.
+ * stretches the per-request latency (queueing). This is a LATENCY view only —
+ * it does not change the per-request CO₂, because the node's fixed cost is
+ * amortised over the whole day, not over the concurrency of the moment.
  */
-export function ConcurrencyTimeExplorer({ category, model, concurrency, onConcurrencyChange }: Props) {
+export function ConcurrencyTimeExplorer({ category, model }: Props) {
+  // Local slider state: this explores latency only, so it is decoupled from
+  // the calculator's deployment model (which owns the CO₂ allocation).
+  const [concurrency, setConcurrency] = useState(8);
+
   // The library scales response time by sqrt(tokenRatio) relative to the
   // model's default token counts. Here the workload is the category default,
   // so tokenRatio = 1 and the base time is the category response time.
@@ -45,11 +50,12 @@ export function ConcurrencyTimeExplorer({ category, model, concurrency, onConcur
             max={64}
             step={1}
             value={concurrency}
-            onChange={(e) => onConcurrencyChange(Number(e.target.value))}
+            onChange={(e) => setConcurrency(Number(e.target.value))}
             style={{ width: "100%" }}
           />
           <div style={{ fontSize: "0.75rem", color: C.muted, marginTop: "0.25rem" }}>
-            More concurrent requests = lower infrastructure cost per request, but slightly longer per-request GPU time.
+            More concurrent requests mean a little more queueing, so each request occupies the GPU slightly longer.
+            This affects latency, not the per-request carbon — the node's fixed cost is already amortised over the day.
           </div>
         </div>
       </Card>

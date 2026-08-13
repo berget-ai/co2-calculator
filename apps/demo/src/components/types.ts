@@ -38,6 +38,9 @@ export type GridRegion = {
   intensityGPerKwh: number;
 };
 
+/** Which serving deployment the request runs on (who runs the hardware). */
+export type DeploymentProfile = "onprem" | "shared" | "hyperscaler";
+
 export type InferenceComponents = {
   gpuOperational: { co2Grams: number; energyKwh: number };
   gpuIdle: { co2Grams: number; energyKwh: number };
@@ -61,7 +64,7 @@ export interface CalculatorState {
   region: string;
   gpuCondition: "new" | "refurbished";
   infraCondition: "new" | "refurbished";
-  concurrency: number;
+  deployment: DeploymentProfile;
   hourOfDay: number;
 }
 
@@ -71,7 +74,7 @@ export interface CalculatorActions {
   setRegion: (v: string) => void;
   setGpuCondition: (v: "new" | "refurbished") => void;
   setInfraCondition: (v: "new" | "refurbished") => void;
-  setConcurrency: (v: number) => void;
+  setDeployment: (v: DeploymentProfile) => void;
   setHourOfDay: (v: number) => void;
 }
 

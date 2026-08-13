@@ -49,6 +49,15 @@ export interface ModelProfile {
    * caching is disabled.
    */
   cachedPromptFraction?: number;
+  /**
+   * Minimum GPUs this model must be spread across in production, overriding
+   * the static weight-based memory estimate. Use when the real constraint is
+   * not the weights but the concurrency-driven KV cache: a model whose weights
+   * fit on N cards may still need more to hold the KV cache of many concurrent
+   * long-context requests. When set, the calculator uses
+   * max(weightBasedGpus, minGpus), clamped to the node's gpuCount.
+   */
+  minGpus?: number;
   /** Hugging Face popularity metrics */
   popularity?: {
     downloadsPerMonth: number;
@@ -170,12 +179,25 @@ export interface InferenceParams {
    */
   nodeConcurrency?: number;
   /**
-   * "shared" (default): the node is shared with other tenants, so fixed
-   * server/embodied costs are split across concurrent requests.
-   * "onprem": you run the model on your own server — concurrency is 1 and the
-   * entire infrastructure + embodied footprint lands on your queries alone.
+   * Which serving deployment the request runs on. Decides how the node's
+   * fixed costs (idle standby, chassis, embodied) are shared and how
+   * efficiently the hardware is used:
+   *
+   * - "onprem": you run the model on your own server. Concurrency is 1, so
+   *   the entire infrastructure + embodied footprint lands on your queries
+   *   alone, and the PUE is a typical enterprise server-room value (~1.4).
+   *
+   * - "shared" (default): the node is shared with other tenants (the Berget
+   *   model). Fixed costs are amortised over the day-average concurrency, and
+   *   the PUE is the datacentre's measured value (Nordics ~1.15).
+   *
+   * - "hyperscaler": a large provider running disaggregated serving
+   *   (separate prefill and decode pools — Splitwise, DistServe). Higher
+   *   effective concurrency and better packing spread the fixed cost further,
+   *   the serving stack is more efficient (lower GPU time per request), and
+   *   the PUE is a hyperscale value (~1.1, Google fleet average 1.09).
    */
-  deployment?: "shared" | "onprem";
+  deployment?: "onprem" | "shared" | "hyperscaler";
   /**
    * Whether the KV prefix cache is used. When true (default), the model's
    * measured cachedPromptFraction of the prompt skips prefill, reducing GPU

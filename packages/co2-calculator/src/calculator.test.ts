@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { calculateInference, calculateComparisons, fmtTime, fmtNumber, fmtParams, getConcurrencyFromTrafficPattern } from "./calculator.js";
+import { calculateInference, calculateComparisons, fmtTime, fmtNumber, fmtParams, getConcurrencyFromTrafficPattern, DEFAULT_TRAFFIC_PATTERN, DEPLOYMENT_PROFILES } from "./calculator.js";
 import { MODEL_PROFILES } from "./models.js";
 import { HARDWARE_CONFIGS } from "./hardware.js";
 import { GRID_REGIONS } from "./grids.js";
@@ -58,6 +58,63 @@ describe("calculateInference", () => {
       hardware: HARDWARE_CONFIGS.h200,
     });
     expect(calculateInference(mistral).gpusAllocated).toBe(1); // 48GB fits in 141GB
+  });
+
+  it("minGpus overrides the weight-based estimate when larger (KV-cache-bound)", () => {
+    // A model whose weights fit on 1 GPU but that sets minGpus: 8 (production
+    // concurrency-driven KV cache) must report 8, not 1.
+    const kvBound = baseParams({
+      modelProfile: {
+        ...MODEL_PROFILES["mistralai/Mistral-Small-3.2-24B-Instruct-2506"],
+        minGpus: 8,
+      },
+      hardware: HARDWARE_CONFIGS.b300,
+    });
+    expect(calculateInference(kvBound).gpusAllocated).toBe(8);
+  });
+
+  it("minGpus does not lower the weight-based estimate", () => {
+    // If the weight-based estimate already exceeds minGpus, the estimate wins.
+    const heavy = baseParams({
+      modelProfile: {
+        ...MODEL_PROFILES["mistralai/Mistral-Medium-3.5-128B"],
+        modelSizeBytes: undefined, // Force FP16 → ~268 GB → 4 GPUs on h100
+        minGpus: 1,
+      },
+      hardware: HARDWARE_CONFIGS.h100,
+    });
+    expect(calculateInference(heavy).gpusAllocated).toBe(4);
+  });
+
+  it("minGpus is clamped to the node's gpuCount", () => {
+    const over = baseParams({
+      modelProfile: {
+        ...MODEL_PROFILES["mistralai/Mistral-Small-3.2-24B-Instruct-2506"],
+        minGpus: 99,
+      },
+      hardware: HARDWARE_CONFIGS.b300, // gpuCount 8
+    });
+    expect(calculateInference(over).gpusAllocated).toBe(8);
+  });
+
+  it("minGpus is sanitised (fractional / NaN) before applying", () => {
+    const fractional = baseParams({
+      modelProfile: {
+        ...MODEL_PROFILES["mistralai/Mistral-Small-3.2-24B-Instruct-2506"],
+        minGpus: 4.9,
+      },
+      hardware: HARDWARE_CONFIGS.b300,
+    });
+    expect(calculateInference(fractional).gpusAllocated).toBe(4); // floor(4.9)
+
+    const nan = baseParams({
+      modelProfile: {
+        ...MODEL_PROFILES["mistralai/Mistral-Small-3.2-24B-Instruct-2506"],
+        minGpus: NaN,
+      },
+      hardware: HARDWARE_CONFIGS.b300,
+    });
+    expect(calculateInference(nan).gpusAllocated).toBe(1); // NaN → ignored
   });
 
   it("allocates 6 GPUs for large models that need more memory", () => {
@@ -300,6 +357,288 @@ describe("getConcurrencyFromTrafficPattern", () => {
 
   it("returns high concurrency at peak", () => {
     expect(getConcurrencyFromTrafficPattern(15)).toBeGreaterThan(25);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SPEC: day/night fixed-cost allocation (dygnsallokering av fast kostnad)
+//
+// Principle under test (user decision, to be implemented):
+//   The node is powered on 24/7. Its FIXED costs — GPU idle baseline, server
+//   chassis energy, GPU embodied and supporting-infra embodied — are sunk
+//   costs that accrue around the clock regardless of traffic. They should be
+//   amortised over the WHOLE DAY's work, not over the instantaneous
+//   concurrency of the moment a request happens to arrive.
+//
+//   Today (WRONG): fixed cost ÷ instantaneousConcurrency. At night
+//   (concurrency → 1) a single request bears the node's ENTIRE fixed cost,
+//   inflating its footprint ~8× even though the node would have burned that
+//   idle power anyway had the request never arrived.
+//
+//   Target (RIGHT): fixed cost ÷ dayAverageConcurrency. Every request bears
+//   the same fixed cost per GPU-second regardless of hour. Day traffic (many
+//   requests) "pays for" the night idle, so night requests are already
+//   "paid for" — they only add their incremental compute energy plus a
+//   day-averaged share of the fixed cost.
+//
+// These tests are written FIRST (TDD). They FAIL against the current
+// instantaneous-concurrency implementation and PASS once the fixed-cost
+// denominators use the day-average concurrency instead of the instantaneous
+// one. The numbers below are the expected orders of magnitude, derived from
+// the current calculator on the b300 config; they will be tightened once the
+// implementation lands.
+// ---------------------------------------------------------------------------
+
+describe("day/night fixed-cost allocation (SPEC)", () => {
+  // We use a HIGH-TRAFFIC model (defaultConcurrency 32) so the instantaneous
+  // concurrency genuinely collapses at night (derived → 1) and peaks in the
+  // afternoon (derived → 27). With the measured low-traffic profiles
+  // (defaultConcurrency 1-3) the clamp-to-1 floor masks the effect; the bug
+  // only becomes visible when the day/night concurrency swing is large.
+  const busyModel = {
+    ...MODEL_PROFILES["google/gemma-4-31B-it"],
+    defaultConcurrency: 32,
+  };
+
+  const runAt = (hourOfDay: number) =>
+    calculateInference({
+      modelProfile: busyModel,
+      hardware: HARDWARE_CONFIGS.b300,
+      deploymentGrid: GRID_REGIONS.sweden,
+      measuredResponseTimeSeconds: 2.02,
+      inputTokens: 600,
+      outputTokens: 482,
+      hourOfDay,
+      includeTraining: true,
+      lifetimeQueries: 1_000_000_000,
+      // no explicit concurrency → derived from defaultConcurrency × traffic
+    });
+
+  it("FIXED costs do NOT explode at night (the core bug)", () => {
+    // Measured today on b300: gpuIdle ratio night:day ≈ 13×, embodiedGpu
+    // ratio ≈ 21×. Under day-average allocation both must collapse to ~1
+    // (the only remaining night/day difference is the cleaner night grid on
+    // the ENERGY-derived idle term; embodied is grid-independent → ~1.0).
+    const night = runAt(2);
+    const day = runAt(14);
+
+    const idleRatio =
+      night.components.gpuIdle.co2Grams / day.components.gpuIdle.co2Grams;
+    const embodiedRatio =
+      night.components.embodiedGpu.co2Grams / day.components.embodiedGpu.co2Grams;
+
+    // Embodied is grid-independent → ratio must be ~1 (allow grid-free slack).
+    expect(embodiedRatio).toBeLessThan(1.5); // was ~21 under instantaneous
+    // Idle carries the night-grid discount (5.6 vs 9.2 g/kWh ≈ 0.61×) on top
+    // of the (removed) concurrency explosion → bounded, not ~13×.
+    expect(idleRatio).toBeLessThan(1.5); // was ~13 under instantaneous
+  });
+
+  it("a night request is no longer PENALISED — the unfair premium is gone", () => {
+    // Before the fix the night request was MORE expensive than a day request
+    // (ratio ≈ 1.03) because the 21× embodied / 13× idle explosion swamped
+    // the cleaner night grid. After the fix the night request must be no more
+    // expensive than day — the night-time fixed-cost penalty is removed.
+    const night = runAt(2);
+    const day = runAt(14);
+    expect(night.totalCO2Grams).toBeLessThanOrEqual(day.totalCO2Grams);
+
+    // The remaining night/day difference is small and comes only from the
+    // cleaner night grid on the energy-derived terms. Embodied (the dominant
+    // term) is now hour-invariant, so the total ratio sits close to 1 — it
+    // must NOT be pushed far below 1 by an artificial night discount.
+    const ratio = night.totalCO2Grams / day.totalCO2Grams;
+    expect(ratio).toBeGreaterThan(0.9); // no fake night discount
+    expect(ratio).toBeLessThanOrEqual(1.0); // and no night penalty
+  });
+
+  it("the fixed-cost DENOMINATOR is hour-invariant (gpuTime may still vary)", () => {
+    // The fixed-cost allocation denominator (day-average concurrency) is the
+    // same night and day, so the embodied cost per unit of GPU work is
+    // hour-invariant. The residual difference in embodiedGpu between night
+    // and day comes ONLY from applyConcurrencyDelay: at night (low
+    // concurrency) there is no queueing, so the request is faster and bears
+    // proportionally less embodied carbon. That is a legitimate latency
+    // effect, not an allocation bug.
+    //
+    // We assert the residual variation is SMALL (within ~25%) — i.e. the 21×
+    // allocation explosion is gone and only the modest queueing effect
+    // remains — rather than demanding exact equality (which would wrongly
+    // forbid the real latency signal).
+    const night = runAt(2);
+    const day = runAt(14);
+
+    const gpuRatio =
+      night.components.embodiedGpu.co2Grams / day.components.embodiedGpu.co2Grams;
+    const otherRatio =
+      night.components.embodiedOther.co2Grams / day.components.embodiedOther.co2Grams;
+
+    // Both embodied terms now move together, bounded near 1 (was ~21×).
+    for (const ratio of [gpuRatio, otherRatio]) {
+      expect(ratio).toBeGreaterThan(0.6);
+      expect(ratio).toBeLessThan(1.5);
+    }
+  });
+
+  it("day-average allocation CONSERVES the node's daily fixed cost", () => {
+    // The conservation invariant: summed across a representative 24h of
+    // traffic, the allocated embodied cost must equal the node's actual daily
+    // embodied amortisation — neither dropped nor multiplied. We assert the
+    // STRUCTURE: night hours must NOT contribute a disproportionate share of
+    // the daily embodied cost.
+    const hours = Array.from({ length: 24 }, (_, h) => h);
+    const weights = hours.map((h) => DEFAULT_TRAFFIC_PATTERN[h]);
+    const weightSum = weights.reduce((a, b) => a + b, 0);
+
+    const embodiedByHour = hours.map((h) => runAt(h).components.embodiedGpu.co2Grams);
+    const totalDaily = hours.reduce(
+      (acc, h) => acc + (weights[h] / weightSum) * embodiedByHour[h], 0);
+
+    const nightHours = [0, 1, 2, 3, 4, 5];
+    const nightShare = nightHours.reduce(
+      (acc, h) => acc + (weights[h] / weightSum) * embodiedByHour[h], 0) / totalDaily;
+
+    // Night is 25% of hours but only ~7% of traffic weight. Under day-average
+    // allocation its share of the embodied cost tracks its (small) traffic
+    // share. Under instantaneous allocation the 21× night explosion inflates
+    // it far beyond its traffic share.
+    expect(nightShare).toBeLessThan(0.20);
+  });
+
+  it("a model WITHOUT a measured defaultConcurrency does NOT get the night spike", () => {
+    // Regression test for the Copilot-flagged fallback bug: when a model has
+    // no defaultConcurrency, the fixed-cost denominator must fall back to the
+    // GENERIC_DEFAULT_CONCURRENCY (a day average), NOT the time-of-day-scaled
+    // instantaneous concurrency — otherwise the night spike is reintroduced.
+    const unmeasured = {
+      ...MODEL_PROFILES["google/gemma-4-31B-it"],
+      defaultConcurrency: undefined,
+    };
+    const runCustom = (hourOfDay: number) =>
+      calculateInference({
+        modelProfile: unmeasured,
+        hardware: HARDWARE_CONFIGS.b300,
+        deploymentGrid: GRID_REGIONS.sweden,
+        measuredResponseTimeSeconds: 2.02,
+        inputTokens: 600,
+        outputTokens: 482,
+        hourOfDay,
+        includeTraining: false,
+        lifetimeQueries: 1_000_000_000,
+      });
+
+    const night = runCustom(2);
+    const day = runCustom(14);
+    // The embodied allocation must stay bounded night vs day (no ~8× spike
+    // from the time-of-day collapse). The residual variation is the
+    // legitimate queueing/latency effect only.
+    const ratio =
+      night.components.embodiedGpu.co2Grams / day.components.embodiedGpu.co2Grams;
+    expect(ratio).toBeGreaterThan(0.6);
+    expect(ratio).toBeLessThan(1.5);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SPEC: deployment profiles (on-prem / shared / hyperscaler)
+//
+// WHO runs the hardware determines the per-request footprint. These tests
+// lock in the expected ordering and the mechanism behind it:
+//
+//   on-prem     — you are alone (concurrency 1), so you bear the node's whole
+//                 fixed cost, in an enterprise server room (PUE ~1.4).
+//                 → HIGHEST per-request footprint.
+//   shared      — fixed cost amortised over the day-average concurrency, in a
+//                 Nordic datacentre (grid PUE ~1.15). → MIDDLE.
+//   hyperscaler — disaggregated serving (Splitwise/DistServe) packs ~2× the
+//                 effective concurrency and cuts GPU time ~20%, in a
+//                 hyperscale facility (PUE ~1.1). → LOWEST.
+//
+// Expected ordering: onprem > shared > hyperscaler.
+// ---------------------------------------------------------------------------
+
+describe("deployment profiles (SPEC)", () => {
+  const runAs = (deployment: "onprem" | "shared" | "hyperscaler") =>
+    calculateInference({
+      modelProfile: MODEL_PROFILES["google/gemma-4-31B-it"],
+      hardware: HARDWARE_CONFIGS.b300,
+      deploymentGrid: GRID_REGIONS.sweden,
+      measuredResponseTimeSeconds: 2.02,
+      inputTokens: 600,
+      outputTokens: 482,
+      hourOfDay: 14,
+      includeTraining: false,
+      lifetimeQueries: 1_000_000_000,
+      deployment,
+    });
+
+  it("orders the footprints on-prem > shared > hyperscaler", () => {
+    const onprem = runAs("onprem");
+    const shared = runAs("shared");
+    const hyper = runAs("hyperscaler");
+
+    expect(onprem.totalCO2Grams).toBeGreaterThan(shared.totalCO2Grams);
+    expect(shared.totalCO2Grams).toBeGreaterThan(hyper.totalCO2Grams);
+  });
+
+  it("on-prem bears the whole fixed cost (concurrency 1)", () => {
+    // On-prem divides the fixed cost by 1, shared by the day-average. So the
+    // on-prem embodied cost must be ~defaultConcurrency× the shared one.
+    const onprem = runAs("onprem");
+    const shared = runAs("shared");
+    const conc = MODEL_PROFILES["google/gemma-4-31B-it"].defaultConcurrency ?? 1;
+
+    expect(onprem.components.embodiedGpu.co2Grams).toBeCloseTo(
+      shared.components.embodiedGpu.co2Grams * conc, 5);
+  });
+
+  it("hyperscaler spreads the fixed cost further (packing factor 2)", () => {
+    // The hyperscaler packing factor doubles the effective fixed-cost
+    // denominator, so its embodied-GPU cost is ~half the shared one (the
+    // residual difference is the gpuTimeFactor also shortening GPU time).
+    const shared = runAs("shared");
+    const hyper = runAs("hyperscaler");
+
+    const ratio = hyper.components.embodiedGpu.co2Grams / shared.components.embodiedGpu.co2Grams;
+    // packingFactor 2 × gpuTimeFactor 0.8 → 0.8/2 = 0.4 of the shared value.
+    expect(ratio).toBeCloseTo(0.4, 2);
+  });
+
+  it("hyperscaler cuts GPU time (gpuTimeFactor 0.8)", () => {
+    // GPU compute energy scales with GPU time, so the hyperscaler's GPU
+    // operational energy is ~0.8× the shared one (before the packing-factor
+    // division — both are divided by their respective denominators).
+    const shared = runAs("shared");
+    const hyper = runAs("hyperscaler");
+
+    const ratio =
+      hyper.components.gpuOperational.co2Grams / shared.components.gpuOperational.co2Grams;
+    // gpuTimeFactor 0.8 AND packingFactor 2 → 0.8/2 = 0.4 of the shared value.
+    expect(ratio).toBeCloseTo(0.4, 2);
+  });
+
+  it("applies deployment-specific PUE (on-prem highest)", () => {
+    // The datacentre overhead term scales with (PUE − 1): on-prem 1.4,
+    // shared ~1.15 (grid), hyperscaler 1.1. Holding the rest of the footprint
+    // roughly comparable, the on-prem overhead share is the largest.
+    const onprem = runAs("onprem");
+    const hyper = runAs("hyperscaler");
+
+    // Overhead = (energy terms) × (PUE − 1). On-prem's energy terms are the
+    // largest AND its (PUE−1)=0.4 is the largest, so its overhead dominates.
+    expect(onprem.components.datacenterOverhead.co2Grams).toBeGreaterThan(
+      hyper.components.datacenterOverhead.co2Grams);
+  });
+
+  it("DEPLOYMENT_PROFILES are exported and literature-anchored", () => {
+    // Sanity-check the profile constants match the documented sources.
+    expect(DEPLOYMENT_PROFILES.onprem.packingFactor).toBe(1);
+    expect(DEPLOYMENT_PROFILES.onprem.pueOverride).toBeCloseTo(1.4, 5);
+    expect(DEPLOYMENT_PROFILES.shared.packingFactor).toBe(1);
+    expect(DEPLOYMENT_PROFILES.shared.pueOverride).toBeUndefined();
+    expect(DEPLOYMENT_PROFILES.hyperscaler.packingFactor).toBeCloseTo(2.0, 5);
+    expect(DEPLOYMENT_PROFILES.hyperscaler.gpuTimeFactor).toBeCloseTo(0.8, 5);
+    expect(DEPLOYMENT_PROFILES.hyperscaler.pueOverride).toBeCloseTo(1.1, 5);
   });
 });
 

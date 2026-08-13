@@ -35,11 +35,11 @@ function run(modelId: string, gridKey: string, hw: any, extra: any = {}): number
 }
 
 function computeLevers(): Lever[] {
-  const hwNew = HARDWARE_CONFIGS.h200;
+  const hwNew = HARDWARE_CONFIGS.b300;
   // "Refurbished" for the Hardware lever means the whole stack is reused:
   // zero embodied on both the GPU node's own share and the supporting
   // infrastructure (databases, logging/storage, network).
-  const hwRefurb = { ...HARDWARE_CONFIGS.h200, embodiedPerGpuKg: 0, otherComputeEmbodiedKg: 0 };
+  const hwRefurb = { ...HARDWARE_CONFIGS.b300, embodiedPerGpuKg: 0, otherComputeEmbodiedKg: 0 };
   const REF = "google/gemma-4-31B-it"; // reference model for non-model levers
 
   // Pick the smallest and largest text models dynamically from the catalogue,

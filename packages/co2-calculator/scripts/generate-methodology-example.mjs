@@ -15,7 +15,7 @@
 import { calculateInference, MODEL_PROFILES, GRID_REGIONS, HARDWARE_CONFIGS } from "../dist/index.js";
 
 const model = MODEL_PROFILES["google/gemma-4-31B-it"];
-const hw = HARDWARE_CONFIGS.h200;
+const hw = HARDWARE_CONFIGS.b300;
 const SECONDS_IN_HOUR = 3600;
 const GPU_LIFETIME_SECONDS = 5 * 365 * 24 * 3600;
 
@@ -25,7 +25,7 @@ function fmt(g) {
   return `${g.toFixed(3)} g`;
 }
 
-function run(gridKey, gpuConcurrency, nodeConcurrency) {
+function run(gridKey, deployment) {
   return calculateInference({
     modelProfile: model,
     hardware: hw,
@@ -33,8 +33,7 @@ function run(gridKey, gpuConcurrency, nodeConcurrency) {
     measuredResponseTimeSeconds: model.defaultResponseTimeSeconds,
     inputTokens: model.defaultInputTokens,
     outputTokens: model.defaultOutputTokens,
-    gpuConcurrency,
-    nodeConcurrency,
+    deployment,
     hourOfDay: 14,
     includeTraining: false,
     lifetimeQueries: 0,
@@ -47,12 +46,11 @@ const cachedFraction = model.cachedPromptFraction ?? 0;
 const effInput = model.defaultInputTokens * (1 - cachedFraction);
 const tokenRatio = (effInput + model.defaultOutputTokens) / (model.defaultInputTokens + model.defaultOutputTokens);
 const tokenAdjusted = model.defaultResponseTimeSeconds * Math.sqrt(tokenRatio);
-// Split shared-cost denominators: the model's measured GPU batch (Little's
-// Law) divides GPU compute/idle/embodied; the node's whole request load
-// divides the server chassis and the supporting-infrastructure embodied term.
-const gpuConc = model.defaultConcurrency ?? 3; // measured GPU batch (Little's Law)
-const nodeConc = 6; // node's whole request load (shared chassis + infra)
-const gpuTimeSec = tokenAdjusted; // gpuConc <= 8 so no extra delay
+// Fixed-cost denominator: the DAY-AVERAGE concurrency (the model's measured
+// Little's Law value), not the instantaneous time-of-day value — §3.2d. The
+// shared profile has packingFactor 1, so the denominator is the day average.
+const dayAvgConc = model.defaultConcurrency ?? 3; // day-average GPU batch (Little's Law)
+const gpuTimeSec = tokenAdjusted; // dayAvgConc <= 8 so no extra delay
 const gpuTimeH = gpuTimeSec / SECONDS_IN_HOUR;
 const gpusUsed = 1;
 const idlePerGpu = hw.nodeIdleWatts / hw.gpuCount;
@@ -63,7 +61,7 @@ const intensity = grid.intensityGPerKwh * grid.peakPeriodFactor;
 
 console.log("### §6.2 worked example (generated from dist/index.js)");
 console.log("");
-console.log(`Model: ${model.displayName}, ${model.defaultInputTokens} in / ${model.defaultOutputTokens} out, Sweden, 14:00, H200, shared, caching on.`);
+console.log(`Model: ${model.displayName}, ${model.defaultInputTokens} in / ${model.defaultOutputTokens} out, Sweden, 14:00, B300, shared, caching on.`);
 console.log("");
 console.log("| Component | Calculation | Result |");
 console.log("|-----------|-------------|--------|");
@@ -71,21 +69,20 @@ console.log(`| Baseline GPU time | measured p50, queue excluded | ${model.defaul
 console.log(`| Effective input tokens | ${model.defaultInputTokens} × (1 − ${cachedFraction}) | ${Math.round(effInput)} |`);
 console.log(`| Token ratio | (${Math.round(effInput)}+${model.defaultOutputTokens})/(${model.defaultInputTokens}+${model.defaultOutputTokens}) | ${tokenRatio.toFixed(2)} |`);
 console.log(`| Token-adjusted time | ${model.defaultResponseTimeSeconds} × √${tokenRatio.toFixed(2)} | ${gpuTimeSec.toFixed(2)} s |`);
-console.log(`| GPU batch (Little's Law) | measured, divides GPU costs | ${gpuConc} |`);
-console.log(`| Node batch (whole request load) | divides chassis + infra | ${nodeConc} |`);
+console.log(`| Day-average concurrency (Little's Law) | fixed-cost denominator, §3.2d | ${dayAvgConc} |`);
 console.log(`| Effective intensity | ${grid.intensityGPerKwh} × ${grid.peakPeriodFactor} (day) | ${intensity.toFixed(1)} g/kWh |`);
-console.log(`| GPUs used | 31B params, H200 (141 GB) | ${gpusUsed} |`);
+console.log(`| GPUs used | 31B params, B300 (268 GB) | ${gpusUsed} |`);
 console.log(`| Incremental GPU power | (peak−idle)/8 × 0.25 | ${incrPerGpu.toFixed(0)} W |`);
 console.log(`| Idle baseline per GPU | idle/8 | ${idlePerGpu.toFixed(0)} W |`);
 
-const r = run("sweden", gpuConc, nodeConc);
+const r = run("sweden", "shared");
 const c = r.components;
-console.log(`| GPU compute CO₂ | incremental energy × ${intensity.toFixed(1)} / ${gpuConc} | ${fmt(c.gpuOperational.co2Grams)} |`);
-console.log(`| GPU idle CO₂ | idle energy × ${intensity.toFixed(1)} / ${gpuConc} | ${fmt(c.gpuIdle.co2Grams)} |`);
-console.log(`| Server CO₂ | chassis energy × ${intensity.toFixed(1)} / ${nodeConc} | ${fmt(c.serverOperational.co2Grams)} |`);
-console.log(`| Cooling overhead | (compute+idle+server) × 0.15 | ${fmt(c.datacenterOverhead.co2Grams)} |`);
-console.log(`| Embodied GPU | ${embodiedPerSec.toFixed(4)} g/s × ${gpuTimeSec.toFixed(2)} s / ${gpuConc} | ${fmt(c.embodiedGpu.co2Grams)} |`);
-console.log(`| Embodied other (DB/logging/network) | ${otherEmbodiedPerSec.toFixed(4)} g/s × ${gpuTimeSec.toFixed(2)} s / ${nodeConc} | ${fmt(c.embodiedOther.co2Grams)} |`);
+console.log(`| GPU compute CO₂ | incremental energy × ${intensity.toFixed(1)} / ${dayAvgConc} | ${fmt(c.gpuOperational.co2Grams)} |`);
+console.log(`| GPU idle CO₂ | idle energy × ${intensity.toFixed(1)} / ${dayAvgConc} | ${fmt(c.gpuIdle.co2Grams)} |`);
+console.log(`| Server CO₂ | chassis energy × ${intensity.toFixed(1)} / ${dayAvgConc} | ${fmt(c.serverOperational.co2Grams)} |`);
+console.log(`| Cooling overhead | (compute+idle+server) × (PUE−1) | ${fmt(c.datacenterOverhead.co2Grams)} |`);
+console.log(`| Embodied GPU | ${embodiedPerSec.toFixed(4)} g/s × ${gpuTimeSec.toFixed(2)} s / ${dayAvgConc} | ${fmt(c.embodiedGpu.co2Grams)} |`);
+console.log(`| Embodied other (DB/logging/network) | ${otherEmbodiedPerSec.toFixed(4)} g/s × ${gpuTimeSec.toFixed(2)} s / ${dayAvgConc} | ${fmt(c.embodiedOther.co2Grams)} |`);
 console.log(`| **Total (excl. training)** | | **${fmt(r.totalCO2Grams)}** |`);
 
 const operational = c.gpuOperational.co2Grams + c.gpuIdle.co2Grams + c.serverOperational.co2Grams + c.datacenterOverhead.co2Grams;
@@ -93,11 +90,23 @@ console.log("");
 console.log(`Operational subtotal (compute+idle+server+cooling, excl. embodied & training): **${fmt(operational)}**.`);
 console.log(`Embodied share of total: ${(((c.embodiedGpu.co2Grams + c.embodiedOther.co2Grams) / r.totalCO2Grams) * 100).toFixed(0)}%.`);
 
+console.log("\n### §6.3 deployment comparison (generated)");
+console.log("");
+console.log("Same model, request, grid and hour — only the deployment changes (§3.2c).");
+console.log("");
+console.log("| Deployment | Total CO₂e | vs shared |");
+console.log("|------------|-----------:|----------:|");
+const shared = r.totalCO2Grams;
+for (const dep of ["onprem", "shared", "hyperscaler"]) {
+  const rr = run("sweden", dep);
+  console.log(`| ${dep} | ${fmt(rr.totalCO2Grams)} | ${(rr.totalCO2Grams / shared).toFixed(2)}× |`);
+}
+
 console.log("\n### §8.2 Sweden vs US (generated)");
 console.log("");
 console.log("| Component | Sweden (8 g/kWh, PUE 1.15) | US Average (380 g/kWh, PUE 1.50) |");
 console.log("|-----------|---------------------------|----------------------------------|");
-const us = run("usa", gpuConc, nodeConc);
+const us = run("usa", "shared");
 const uc = us.components;
 const rows = [
   ["GPU compute", c.gpuOperational, uc.gpuOperational],
