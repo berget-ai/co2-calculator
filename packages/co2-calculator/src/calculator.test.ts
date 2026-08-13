@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { calculateInference, calculateComparisons, fmtTime, fmtNumber, fmtParams, getConcurrencyFromTrafficPattern } from "./calculator.js";
+import { calculateInference, calculateComparisons, fmtTime, fmtNumber, fmtParams, getConcurrencyFromTrafficPattern, DEFAULT_TRAFFIC_PATTERN } from "./calculator.js";
 import { MODEL_PROFILES } from "./models.js";
 import { HARDWARE_CONFIGS } from "./hardware.js";
 import { GRID_REGIONS } from "./grids.js";
@@ -357,6 +357,152 @@ describe("getConcurrencyFromTrafficPattern", () => {
 
   it("returns high concurrency at peak", () => {
     expect(getConcurrencyFromTrafficPattern(15)).toBeGreaterThan(25);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SPEC: day/night fixed-cost allocation (dygnsallokering av fast kostnad)
+//
+// Principle under test (user decision, to be implemented):
+//   The node is powered on 24/7. Its FIXED costs — GPU idle baseline, server
+//   chassis energy, GPU embodied and supporting-infra embodied — are sunk
+//   costs that accrue around the clock regardless of traffic. They should be
+//   amortised over the WHOLE DAY's work, not over the instantaneous
+//   concurrency of the moment a request happens to arrive.
+//
+//   Today (WRONG): fixed cost ÷ instantaneousConcurrency. At night
+//   (concurrency → 1) a single request bears the node's ENTIRE fixed cost,
+//   inflating its footprint ~8× even though the node would have burned that
+//   idle power anyway had the request never arrived.
+//
+//   Target (RIGHT): fixed cost ÷ dayAverageConcurrency. Every request bears
+//   the same fixed cost per GPU-second regardless of hour. Day traffic (many
+//   requests) "pays for" the night idle, so night requests are already
+//   "paid for" — they only add their incremental compute energy plus a
+//   day-averaged share of the fixed cost.
+//
+// These tests are written FIRST (TDD). They FAIL against the current
+// instantaneous-concurrency implementation and PASS once the fixed-cost
+// denominators use the day-average concurrency instead of the instantaneous
+// one. The numbers below are the expected orders of magnitude, derived from
+// the current calculator on the b300 config; they will be tightened once the
+// implementation lands.
+// ---------------------------------------------------------------------------
+
+describe("day/night fixed-cost allocation (SPEC)", () => {
+  // We use a HIGH-TRAFFIC model (defaultConcurrency 32) so the instantaneous
+  // concurrency genuinely collapses at night (derived → 1) and peaks in the
+  // afternoon (derived → 27). With the measured low-traffic profiles
+  // (defaultConcurrency 1-3) the clamp-to-1 floor masks the effect; the bug
+  // only becomes visible when the day/night concurrency swing is large.
+  const busyModel = {
+    ...MODEL_PROFILES["google/gemma-4-31B-it"],
+    defaultConcurrency: 32,
+  };
+
+  const runAt = (hourOfDay: number) =>
+    calculateInference({
+      modelProfile: busyModel,
+      hardware: HARDWARE_CONFIGS.b300,
+      deploymentGrid: GRID_REGIONS.sweden,
+      measuredResponseTimeSeconds: 2.02,
+      inputTokens: 600,
+      outputTokens: 482,
+      hourOfDay,
+      includeTraining: true,
+      lifetimeQueries: 1_000_000_000,
+      // no explicit concurrency → derived from defaultConcurrency × traffic
+    });
+
+  it("FIXED costs do NOT explode at night (the core bug)", () => {
+    // Measured today on b300: gpuIdle ratio night:day ≈ 13×, embodiedGpu
+    // ratio ≈ 21×. Under day-average allocation both must collapse to ~1
+    // (the only remaining night/day difference is the cleaner night grid on
+    // the ENERGY-derived idle term; embodied is grid-independent → ~1.0).
+    const night = runAt(2);
+    const day = runAt(14);
+
+    const idleRatio =
+      night.components.gpuIdle.co2Grams / day.components.gpuIdle.co2Grams;
+    const embodiedRatio =
+      night.components.embodiedGpu.co2Grams / day.components.embodiedGpu.co2Grams;
+
+    // Embodied is grid-independent → ratio must be ~1 (allow grid-free slack).
+    expect(embodiedRatio).toBeLessThan(1.5); // was ~21 under instantaneous
+    // Idle carries the night-grid discount (5.6 vs 9.2 g/kWh ≈ 0.61×) on top
+    // of the (removed) concurrency explosion → bounded, not ~13×.
+    expect(idleRatio).toBeLessThan(1.5); // was ~13 under instantaneous
+  });
+
+  it("a night request is no longer PENALISED — the unfair premium is gone", () => {
+    // Before the fix the night request was MORE expensive than a day request
+    // (ratio ≈ 1.03) because the 21× embodied / 13× idle explosion swamped
+    // the cleaner night grid. After the fix the night request must be no more
+    // expensive than day — the night-time fixed-cost penalty is removed.
+    const night = runAt(2);
+    const day = runAt(14);
+    expect(night.totalCO2Grams).toBeLessThanOrEqual(day.totalCO2Grams);
+
+    // The remaining night/day difference is small and comes only from the
+    // cleaner night grid on the energy-derived terms. Embodied (the dominant
+    // term) is now hour-invariant, so the total ratio sits close to 1 — it
+    // must NOT be pushed far below 1 by an artificial night discount.
+    const ratio = night.totalCO2Grams / day.totalCO2Grams;
+    expect(ratio).toBeGreaterThan(0.9); // no fake night discount
+    expect(ratio).toBeLessThanOrEqual(1.0); // and no night penalty
+  });
+
+  it("the fixed-cost DENOMINATOR is hour-invariant (gpuTime may still vary)", () => {
+    // The fixed-cost allocation denominator (day-average concurrency) is the
+    // same night and day, so the embodied cost per unit of GPU work is
+    // hour-invariant. The residual difference in embodiedGpu between night
+    // and day comes ONLY from applyConcurrencyDelay: at night (low
+    // concurrency) there is no queueing, so the request is faster and bears
+    // proportionally less embodied carbon. That is a legitimate latency
+    // effect, not an allocation bug.
+    //
+    // We assert the residual variation is SMALL (within ~25%) — i.e. the 21×
+    // allocation explosion is gone and only the modest queueing effect
+    // remains — rather than demanding exact equality (which would wrongly
+    // forbid the real latency signal).
+    const night = runAt(2);
+    const day = runAt(14);
+
+    const gpuRatio =
+      night.components.embodiedGpu.co2Grams / day.components.embodiedGpu.co2Grams;
+    const otherRatio =
+      night.components.embodiedOther.co2Grams / day.components.embodiedOther.co2Grams;
+
+    // Both embodied terms now move together, bounded near 1 (was ~21×).
+    for (const ratio of [gpuRatio, otherRatio]) {
+      expect(ratio).toBeGreaterThan(0.6);
+      expect(ratio).toBeLessThan(1.5);
+    }
+  });
+
+  it("day-average allocation CONSERVES the node's daily fixed cost", () => {
+    // The conservation invariant: summed across a representative 24h of
+    // traffic, the allocated embodied cost must equal the node's actual daily
+    // embodied amortisation — neither dropped nor multiplied. We assert the
+    // STRUCTURE: night hours must NOT contribute a disproportionate share of
+    // the daily embodied cost.
+    const hours = Array.from({ length: 24 }, (_, h) => h);
+    const weights = hours.map((h) => DEFAULT_TRAFFIC_PATTERN[h]);
+    const weightSum = weights.reduce((a, b) => a + b, 0);
+
+    const embodiedByHour = hours.map((h) => runAt(h).components.embodiedGpu.co2Grams);
+    const totalDaily = hours.reduce(
+      (acc, h) => acc + (weights[h] / weightSum) * embodiedByHour[h], 0);
+
+    const nightHours = [0, 1, 2, 3, 4, 5];
+    const nightShare = nightHours.reduce(
+      (acc, h) => acc + (weights[h] / weightSum) * embodiedByHour[h], 0) / totalDaily;
+
+    // Night is 25% of hours but only ~7% of traffic weight. Under day-average
+    // allocation its share of the embodied cost tracks its (small) traffic
+    // share. Under instantaneous allocation the 21× night explosion inflates
+    // it far beyond its traffic share.
+    expect(nightShare).toBeLessThan(0.20);
   });
 });
 

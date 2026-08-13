@@ -184,6 +184,54 @@ export function calculateInference(params: InferenceParams): InferenceResult {
   const nodeConcurrency =
     deployment === "onprem" ? 1 : clampConc(params.nodeConcurrency, concurrency);
 
+  // --- Day-average concurrency for FIXED-cost allocation ---
+  //
+  // The node's fixed costs (GPU idle standby, server chassis energy, GPU
+  // embodied, supporting-infra embodied) are SUNK costs: the node is powered
+  // on 24/7 and accrues them around the clock regardless of whether any
+  // request arrives. They must therefore be amortised over the WHOLE DAY's
+  // work, not over the instantaneous concurrency of the moment a request
+  // happens to land.
+  //
+  // The bug this fixes: dividing the fixed cost by the INSTANTANEOUS
+  // (time-of-day-scaled) concurrency makes a single night request (derived
+  // concurrency → 1) bear the node's ENTIRE fixed cost — up to ~21× its fair
+  // share — even though the node would have burned that idle power anyway had
+  // the request never arrived. Day traffic "pays for" the night idle, so
+  // night requests are already "paid for".
+  //
+  // The day-average concurrency IS the model's measured `defaultConcurrency`
+  // (Little's Law over a 30-day window): it is the average number of requests
+  // resident across the whole day. When the caller does not override the
+  // concurrency, we use it directly as the fixed-cost denominator — the
+  // time-of-day pattern then only modulates the grid carbon intensity (see
+  // applyTimeOfDay), which is the physically correct place for a night/day
+  // difference.
+  //
+  // Precedence for the fixed-cost denominator (highest first):
+  //   1. explicit `gpuConcurrency`/`nodeConcurrency` (the caller knows the
+  //      real batch — honour it verbatim);
+  //   2. explicit deprecated `concurrency` (the caller pinned a value — use it
+  //      for both, preserving the pre-split contract);
+  //   3. the model's measured `defaultConcurrency` (the day average) — this is
+  //      the case that fixes the night explosion, because it ignores the
+  //      time-of-day collapse.
+  const explicitConc = params.concurrency;
+  const gpuFixed =
+    params.gpuConcurrency !== undefined
+      ? gpuConcurrency
+      : explicitConc !== undefined
+        ? clampConc(explicitConc, concurrency)
+        : clampConc(modelProfile.defaultConcurrency, concurrency);
+  const nodeFixed =
+    params.nodeConcurrency !== undefined
+      ? nodeConcurrency
+      : explicitConc !== undefined
+        ? clampConc(explicitConc, concurrency)
+        : clampConc(modelProfile.defaultConcurrency, concurrency);
+  const dayAverageGpuConcurrency = deployment === "onprem" ? 1 : gpuFixed;
+  const dayAverageNodeConcurrency = deployment === "onprem" ? 1 : nodeFixed;
+
   // --- Caching (KV prefix cache) ---
   // When enabled, the model's measured cachedPromptFraction of the prompt is
   // served from the KV cache and skips the prefill phase, so only the
@@ -248,8 +296,14 @@ export function calculateInference(params: InferenceParams): InferenceResult {
   // `nodeConcurrency`, which is typically larger than `gpuConcurrency`.
   // Keeping the two denominators distinct avoids understating the GPU share —
   // see the split note where they are derived above.
-  const gpuBatch = gpuConcurrency;
-  const nodeBatch = nodeConcurrency;
+  //
+  // Both denominators use the DAY-AVERAGE concurrency (not the instantaneous
+  // time-of-day value) so the fixed cost is amortised over the whole day —
+  // see the day-average note above. The instantaneous `gpuConcurrency` is
+  // still used for the concurrency-delay (latency) term, where the moment's
+  // contention genuinely affects the response time.
+  const gpuBatch = dayAverageGpuConcurrency;
+  const nodeBatch = dayAverageNodeConcurrency;
 
   const { effectiveIntensity, isLowPeriod, factor } = applyTimeOfDay(
     deploymentGrid,
