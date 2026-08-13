@@ -42,7 +42,9 @@ const result = calculateInference({
   measuredResponseTimeSeconds: 1.2,
   inputTokens: 800,
   outputTokens: 400,
-  concurrency: 8,
+  // Who runs the hardware: "onprem" | "shared" | "hyperscaler". Determines
+  // how the fixed costs are shared and the facility PUE (see METHODOLOGY §3.2c).
+  deployment: "shared",
   hourOfDay: 14,
   includeTraining: true,
   lifetimeQueries: 100_000_000,
@@ -56,7 +58,8 @@ console.log(`Water: ${result.waterLiters} L per request`);
 
 - **14 pre-configured models** (Llama, Mistral, Gemma, GLM, Whisper, etc.)
 - **15 grid regions** with real carbon intensity data
-- **6 hardware configurations** (H100, H200, MI300X, A100, L4)
+- **7 hardware configurations** (B300, H100, H200, MI300X, A100, L4)
+- **3 deployment profiles** (on-prem, shared, hyperscaler) — who runs the hardware decides how fixed costs are shared and the facility PUE
 - **Full component breakdown**: GPU, server, cooling, embodied, training
 
 ---

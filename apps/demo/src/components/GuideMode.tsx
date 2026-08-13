@@ -158,7 +158,7 @@ export function GuideMode({
           <ul style={{ margin: 0, paddingLeft: "1.15rem", color: C.peak, lineHeight: 1.6, fontSize: "0.95rem" }}>
             <li style={{ marginBottom: "0.5rem" }}>
               The most important choice is the <strong>right model for the task</strong>. Reaching for an
-              ever-larger model by default is the wrong path: a frontier model can emit roughly <strong>12× more CO₂
+              ever-larger model by default is the wrong path: a frontier model can emit roughly <strong>9× more CO₂
               per query</strong> than a specialised one that does the same job just as well — even on a clean grid.
               We need, collectively, to learn to use the specialised models.
             </li>
@@ -271,8 +271,8 @@ export function GuideMode({
         <p style={prose.p}>
           The size of that lever is easy to underestimate. On our own infrastructure, the
           same short question answered by a large MoE frontier model (Kimi K3, 2.8T) comes out at roughly
-          <strong> 300&nbsp;mg CO₂</strong>, where a specialised model that handles the task just as well (Gemma 4
-          31B) comes out at <strong> 25&nbsp;mg</strong> — about a <strong>12×</strong> gap, on the same clean Swedish
+          <strong> 370&nbsp;mg CO₂</strong>, where a specialised model that handles the task just as well (Gemma 4
+          31B) comes out at <strong> 42&nbsp;mg</strong> — about a <strong>9×</strong> gap, on the same clean Swedish
           grid. A cleaner grid narrows the operational part of that gap, but it cannot close it: most of the
           difference is the extra hardware the larger model ties up. The frontier model is the right tool for some
           tasks — but not all of them, and reaching for it by default is a choice with a measurable cost.
@@ -288,7 +288,7 @@ export function GuideMode({
             "Request length scales sub-linearly with tokens (√token ratio) and grows slightly with concurrency (logarithmic delay above 8 concurrent users).",
             "Every fixed cost — GPU compute energy, GPU idle baseline, server, cooling and GPU embodied carbon — is divided by the number of requests genuinely sharing the GPU (the productive batch). Each request bears its own token-adjusted GPU-time share, so short requests bear less and long reasoning requests more; the total across the request mix conserves the node's full fixed cost.",
             "Time-of-day: peak ×1.15 (day) and low ×0.7 (night) are asymmetric on purpose — weighted over 24h they net to ≈+2%, so the daytime overestimate finances the night-time underestimate plus a small conservative margin. Running at night genuinely emits less CO₂ (cleaner off-peak marginal mix), ~30% lower per query.",
-            "An idle GPU is NOT in a deep sleep: our DCGM measurements show ~122 W per B300 card at 0% load (spec ~125 W). That is the node's standby draw. Each request in the breakdown below bears only its share of it — the per-GPU standby (idle ÷ 8 GPUs) divided by the concurrent requests sharing the card — so the idle line per request is tens of watts, not the full 122 W. We also add the incremental active power (25% of the idle→peak span) while computing.",
+            "An idle GPU is NOT in a deep sleep: our DCGM measurements show ~236 W per B300 card at 0% load (measured over 7 days on the production node). That is the node's standby draw, and it is part of the fixed cost amortised over the day (§3.2d). We also add the incremental active power (25% of the idle→peak span) while computing.",
             "Model parameters and usage figures are refreshed from public sources (EcoLogits, Hugging Face, OpenRouter).",
           ]}
           reasoning="Rather than inventing per-model energy figures, we lean on published model cards and independent measurement projects, then scale by the actual time a query occupies the GPU. Two models of the same size can still differ — architecture, quantisation and serving efficiency matter — so we treat per-model data as the best available estimate, not ground truth."
@@ -443,7 +443,7 @@ export function GuideMode({
             "Every fixed cost — GPU idle baseline, server chassis, cooling and GPU embodied carbon — is a sunk cost the node accrues around the clock. It is amortised over the whole day's work (the day-average concurrency), not the instantaneous concurrency of the moment a request lands: day traffic 'pays for' the night idle, so a night request is not unfairly loaded with the whole node's fixed cost.",
             "On-prem (deployment = 'onprem') forces concurrency to 1: the whole node's fixed cost lands on your queries alone, in an enterprise server room (PUE ~1.4).",
             "Hyperscaler (deployment = 'hyperscaler') models disaggregated serving: a ~2× packing factor on the fixed-cost denominator and ~20% lower GPU time per request (Splitwise), in a hyperscale facility (PUE ~1.1, Google fleet average 1.09).",
-            "An idle GPU is NOT in a deep sleep: our DCGM measurements show ~122 W per B300 card at 0% load (spec ~125 W). That standby draw is part of the fixed cost amortised over the day.",
+            "An idle GPU is NOT in a deep sleep: our DCGM measurements show ~236 W per B300 card at 0% load (measured over 7 days on the production node). That standby draw is part of the fixed cost amortised over the day.",
           ]}
           reasoning="Who runs the hardware is where the fixed costs live or die. A node's standby draw, chassis, cooling and embodied carbon are spent whether the GPU is busy or idle, so the only question that matters is how many requests they are divided across — and how efficiently the serving stack packs those requests onto the hardware. We model three deployments spanning the realistic range: a private server (concurrency 1), a shared node (day-average concurrency), and a hyperscaler's disaggregated serving (higher effective concurrency plus a more efficient serving stack and facility)."
           sources={[
