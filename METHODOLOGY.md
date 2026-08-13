@@ -1,10 +1,14 @@
 # Methodology: AI CO₂ Impact Calculator for Berget AI
 
-**Document Version**: 3.0  
-**Date**: 2026-08-07  
+**Document Version**: 3.1  
+**Date**: 2026-08-14  
 **Authors**: Christian Landgren, Berget AI  
 **External input**: Comments on specific sections (embodied amortisation, utilisation) from a researcher at the Stockholm Environment Institute (SEI); these were targeted suggestions, not a full-institute review or endorsement of the document.  
 **License**: CC BY 4.0
+
+**Changes in 3.1** (deployment profiles + day-average fixed-cost allocation):
+- §3.2c (rewritten): the `deployment` parameter now spans three profiles — `onprem`, `shared` and `hyperscaler` — bundling the levers that move together in practice (fixed-cost sharing, serving-stack efficiency, facility PUE). The hyperscaler profile is anchored to the disaggregated-serving literature (Splitwise, DistServe) and hyperscale PUE (Google fleet 1.09).
+- §3.2d (new): the node's fixed costs are now amortised over the **day-average** concurrency, not the instantaneous time-of-day value. This corrects a bug that made a single night request bear the node's entire fixed cost (up to ~21× its fair share), and realises the principle that day traffic "pays for" the night idle.
 
 **Changes in 3.0** (driven by external review and our own production reconciliation):
 - §3.2a (new): GPU energy, idle baseline, server and embodied carbon are now divided by the productive batch size. The previous version credited each concurrent request with the full wall-clock GPU time, over-counting energy and embodied carbon by roughly the concurrency factor.
@@ -255,7 +259,7 @@ This is the single most consequential accounting choice in the model, and the on
 sharedPerRequest = sharedRate × (thisRequestGpuTime / productiveBatch)
 ```
 
-Applied uniformly to: incremental GPU compute energy, the GPU idle baseline, the server chassis energy, and embodied amortisation. We take the productive batch size to be the measured end-to-end concurrency (Little's Law: request rate × mean latency), which counts the requests resident on the node — exactly the denominator that divides a shared fixed cost.
+Applied uniformly to: incremental GPU compute energy, the GPU idle baseline, the server chassis energy, and embodied amortisation. We take the productive batch size to be the measured end-to-end concurrency (Little's Law: request rate × mean latency), which counts the requests resident on the node — exactly the denominator that divides a shared fixed cost. For the **fixed** costs (idle, chassis, embodied) this denominator is the **day-average** concurrency, not the instantaneous time-of-day value — see Section 3.2d for why the fixed costs are amortised over the whole day rather than over the moment a request lands.
 
 **Conservation check.** Because each request bears its *own* token-adjusted GPU time, a short request bears little and a long reasoning request bears proportionally more. Summed across the real (right-skewed) request mix, the attributed embodied carbon converges to the GPU's full manufacturing amortisation: with the measured mean GPU time the attributed and actual amortisation rates match to within ~16% (the residual is the p50/mean skew of using a single representative request). The same holds for energy, reconciled against measured node draw in Section 8.2.
 
@@ -276,14 +280,35 @@ effectiveInputTokens = inputTokens                                  // caching d
 
 We deliberately expose caching as a *scenario* rather than a user default. Configuring KV caching well on your own deployment requires the right serving framework, cache management and spare KV memory, so it is an advantage a dedicated provider can offer that a typical on-prem setup cannot easily replicate.
 
-### 3.2c Deployment: shared vs on-prem
+### 3.2c Deployment: who runs the hardware
 
-The `deployment` parameter models who owns the infrastructure:
+The `deployment` parameter models who owns the infrastructure — and, just as much, **how efficiently it is shared**. WHO runs the hardware determines the per-request footprint more than almost any other single choice, because it sets both how the fixed costs are divided and how well the hardware is used. We model three deployments spanning the realistic range:
 
-- **`shared` (default)**: the node is shared with other tenants, so the fixed server infrastructure and embodied hardware costs are divided across the concurrent requests (Section 3.6).
-- **`onprem`**: you run the model on your own server. Concurrency is forced to 1, so the node's **entire** infrastructure and embodied footprint lands on your queries alone.
+| Profile | Fixed-cost denominator | GPU time | PUE | Story |
+|---------|------------------------|----------|-----|-------|
+| **`onprem`** | 1 (you are alone) | ×1.0 | 1.4 | Your own server: the whole fixed cost lands on your queries, in an enterprise server room. |
+| **`shared`** (default) | day-average concurrency | ×1.0 | grid (~1.15) | A shared node (Berget): the fixed cost is amortised over the day's requests, in a Nordic datacentre. |
+| **`hyperscaler`** | day-average × 2.0 (packing) | ×0.8 | 1.1 | Disaggregated serving packs more onto each GPU, in a hyperscale facility. |
 
-The on-prem case captures a real accounting point: a privately-owned GPU is paid for — in energy and in amortised manufacturing carbon — for the whole month, **whether or not it is used**. Spread over a lightly-loaded month, that fixed cost per request can exceed the operational energy by an order of magnitude. This is the quantitative form of the intuition that a busy shared GPU usually beats a private one that mostly waits; Section 3.6 shows how the fixed costs are otherwise shared.
+- **`onprem`**: you run the model on your own server. Concurrency is forced to 1, so the node's **entire** infrastructure and embodied footprint lands on your queries alone. The PUE is a typical enterprise server-room value (1.4; the Uptime Institute's 2025 global survey average is 1.54).
+- **`shared`** (default): the node is shared with other tenants, so the fixed server infrastructure and embodied hardware costs are amortised across the day's requests (Section 3.2d, Section 3.6). The PUE is the datacentre's measured value (Nordics ~1.15).
+- **`hyperscaler`**: a large provider running **disaggregated serving** — the prefill and decode phases are split onto separate machine pools (Splitwise, DistServe), so each phase runs on hardware suited to it and more concurrent work packs onto each GPU. We model this as a **packing factor of 2.0** on the fixed-cost denominator (a conservative mid-point of Splitwise's 1.4–2.35× throughput range, well below DistServe's 7.4× goodput extreme) and a **GPU-time factor of 0.8** (Splitwise reports ~20% lower cost at the same throughput). The PUE is a hyperscale value (1.1; Google's 2025 fleet average is 1.09).
+
+The on-prem case captures a real accounting point: a privately-owned GPU is paid for — in energy and in amortised manufacturing carbon — for the whole month, **whether or not it is used**. Spread over a lightly-loaded month, that fixed cost per request can exceed the operational energy by an order of magnitude. This is the quantitative form of the intuition that a busy shared GPU usually beats a private one that mostly waits; the hyperscaler row shows the further gain from running that sharing at scale with a specialised serving stack.
+
+**Measured magnitude** (Gemma 4 31B, B300, Sweden grid, inference-only): on-prem **128.5 mg**, shared **42.1 mg**, hyperscaler **16.8 mg** CO₂e per request — on-prem is **3.1×** shared and **7.7×** hyperscaler. The deployment choice rivals the model choice as a lever.
+
+**Sources**: Patel et al. (2024), *Splitwise: Efficient generative LLM inference using phase splitting*, ISCA 2024, [arXiv:2311.18677](https://arxiv.org/abs/2311.18677); Zhong et al. (2024), *DistServe: Disaggregating Prefill and Decoding for Goodput-optimized LLM Serving*, OSDI 2024, [arXiv:2401.09670](https://arxiv.org/abs/2401.09670); Google, [Data Centers Efficiency](https://www.google.com/about/datacenters/efficiency/) (fleet PUE 1.09); Uptime Institute, *Global Data Center Survey 2025* (average PUE 1.54).
+
+### 3.2d Amortising fixed costs over the day, not the moment
+
+The node's fixed costs — GPU idle standby, server chassis energy, GPU embodied and supporting-infrastructure embodied — are **sunk costs**: the node is powered on 24/7 and accrues them around the clock, regardless of whether any request arrives. They must therefore be amortised over the **whole day's work**, not over the instantaneous concurrency of the moment a request happens to land.
+
+**The bug this corrects.** An earlier version divided the fixed cost by the *instantaneous* (time-of-day-scaled) concurrency. At night, when the derived concurrency collapses to ~1, a single request was made to bear the node's **entire** fixed cost — measured up to ~21× its fair share for the embodied term and ~13× for the idle term on a busy model — even though the node would have burned that power anyway had the request never arrived. The night-time penalty actually outweighed the cleaner night grid, making night requests *more* expensive than day requests, which is physically wrong.
+
+**The correction.** The fixed-cost denominator is the **day-average concurrency** — the model's measured production concurrency (`defaultConcurrency`, derived via Little's Law over a trailing 30-day window), which *is* the average number of requests resident across the whole day. Day traffic "pays for" the night idle, so a night request is already "paid for": it only adds its incremental compute energy plus a day-averaged share of the fixed cost. The time-of-day traffic pattern then only modulates the **grid carbon intensity** (Section 3.7) — the physically correct place for a night/day difference — while the instantaneous concurrency still drives the **concurrency-delay (latency)** term (Section 3.2), where the moment's contention genuinely affects the response time.
+
+**Precedence** for the fixed-cost denominator (highest first): an explicit `gpuConcurrency`/`nodeConcurrency` override; then an explicit deprecated `concurrency`; then the model's measured `defaultConcurrency` (the day average). The result is that a night request goes from ~1.03× a day request (an unfair premium) to ~0.77× (an honest saving from the cleaner grid and the absence of queueing), and the embodied-cost ratio night:day collapses from ~21× to ~0.8 (the residual being the legitimate latency effect, not an allocation error).
 
 ### 3.3 GPU Allocation Heuristic (Memory-Aware)
 
