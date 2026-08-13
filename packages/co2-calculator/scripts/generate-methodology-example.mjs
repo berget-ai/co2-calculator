@@ -12,7 +12,7 @@
  *   ./node_modules/.bin/tsup src/index.ts --format esm --dts --clean
  *   node scripts/generate-methodology-example.mjs
  */
-import { calculateInference, MODEL_PROFILES, GRID_REGIONS, HARDWARE_CONFIGS, DEPLOYMENT_PROFILES } from "../dist/index.js";
+import { calculateInference, MODEL_PROFILES, GRID_REGIONS, HARDWARE_CONFIGS } from "../dist/index.js";
 
 const model = MODEL_PROFILES["google/gemma-4-31B-it"];
 const hw = HARDWARE_CONFIGS.b300;

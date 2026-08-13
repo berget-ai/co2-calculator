@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { C } from "./shared";
 import type { DeploymentProfile, GridRegion, ModelProfile } from "./types";
-import { HARDWARE_CONFIGS, GRID_REGIONS, calculateInference } from "@berget/co2-calculator";
+import { HARDWARE_CONFIGS, calculateInference } from "@berget/co2-calculator";
 
 interface Props {
   model: ModelProfile | undefined;

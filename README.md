@@ -58,7 +58,7 @@ console.log(`Water: ${result.waterLiters} L per request`);
 
 - **14 pre-configured models** (Llama, Mistral, Gemma, GLM, Whisper, etc.)
 - **15 grid regions** with real carbon intensity data
-- **7 hardware configurations** (B300, H100, H200, MI300X, A100, L4)
+- **7 hardware configurations** (B300, H100, H200, MI300X, A100, L4 ×4 and L4 ×2)
 - **3 deployment profiles** (on-prem, shared, hyperscaler) — who runs the hardware decides how fixed costs are shared and the facility PUE
 - **Full component breakdown**: GPU, server, cooling, embodied, training
 

@@ -504,6 +504,39 @@ describe("day/night fixed-cost allocation (SPEC)", () => {
     // it far beyond its traffic share.
     expect(nightShare).toBeLessThan(0.20);
   });
+
+  it("a model WITHOUT a measured defaultConcurrency does NOT get the night spike", () => {
+    // Regression test for the Copilot-flagged fallback bug: when a model has
+    // no defaultConcurrency, the fixed-cost denominator must fall back to the
+    // GENERIC_DEFAULT_CONCURRENCY (a day average), NOT the time-of-day-scaled
+    // instantaneous concurrency — otherwise the night spike is reintroduced.
+    const unmeasured = {
+      ...MODEL_PROFILES["google/gemma-4-31B-it"],
+      defaultConcurrency: undefined,
+    };
+    const runCustom = (hourOfDay: number) =>
+      calculateInference({
+        modelProfile: unmeasured,
+        hardware: HARDWARE_CONFIGS.b300,
+        deploymentGrid: GRID_REGIONS.sweden,
+        measuredResponseTimeSeconds: 2.02,
+        inputTokens: 600,
+        outputTokens: 482,
+        hourOfDay,
+        includeTraining: false,
+        lifetimeQueries: 1_000_000_000,
+      });
+
+    const night = runCustom(2);
+    const day = runCustom(14);
+    // The embodied allocation must stay bounded night vs day (no ~8× spike
+    // from the time-of-day collapse). The residual variation is the
+    // legitimate queueing/latency effect only.
+    const ratio =
+      night.components.embodiedGpu.co2Grams / day.components.embodiedGpu.co2Grams;
+    expect(ratio).toBeGreaterThan(0.6);
+    expect(ratio).toBeLessThan(1.5);
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -276,18 +276,22 @@ export function calculateInference(params: InferenceParams): InferenceResult {
   //      the case that fixes the night explosion, because it ignores the
   //      time-of-day collapse.
   const explicitConc = params.concurrency;
+  // Fallback for the fixed-cost denominator when the model has no measured
+  // defaultConcurrency: use the GENERIC_DEFAULT_CONCURRENCY (a day-average
+  // value), NOT the time-of-day-scaled `concurrency` — otherwise the
+  // night-time fixed-cost spike is reintroduced for unmeasured/custom models.
   const gpuFixed =
     params.gpuConcurrency !== undefined
       ? gpuConcurrency
       : explicitConc !== undefined
         ? clampConc(explicitConc, concurrency)
-        : clampConc(modelProfile.defaultConcurrency, concurrency);
+        : clampConc(modelProfile.defaultConcurrency, GENERIC_DEFAULT_CONCURRENCY);
   const nodeFixed =
     params.nodeConcurrency !== undefined
       ? nodeConcurrency
       : explicitConc !== undefined
         ? clampConc(explicitConc, concurrency)
-        : clampConc(modelProfile.defaultConcurrency, concurrency);
+        : clampConc(modelProfile.defaultConcurrency, GENERIC_DEFAULT_CONCURRENCY);
 
   // --- Deployment profile (who runs the hardware) ---
   // The packing factor captures how much further the fixed cost is spread on
