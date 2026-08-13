@@ -129,7 +129,7 @@ export function GuideMode({
               Live
             </span>
           </div>
-          <ApiResponseBlock result={result} model={model} selectedModel={state.selectedModel} highlightKey="co2" />
+          <ApiResponseBlock result={result} model={model} selectedModel={state.selectedModel} region={state.region} highlightKey="co2" />
         </div>
 
         {/* TL;DR for decision-makers */}
@@ -224,13 +224,14 @@ export function GuideMode({
       {/* ═══ §1 MODEL & USE CASE ═══ */}
       <Section id="the-model">
         <div style={prose.kicker}>§1 · The workload</div>
-        <h2 style={prose.h2}>First, choose a model and a type of usage</h2>
+        <h2 style={prose.h2}>The model you choose is the biggest lever you control</h2>
         <p style={prose.p}>
-          Every calculation needs a concrete starting point: a workload. We can't talk about "AI's footprint" in the
-          abstract — only about a specific model doing a specific job. So the example below asks you to supply one:
-          pick the use case closest to yours, then a model. A quick chat reply and a long code analysis are very
-          different jobs, and the model you choose sets the scale of the work. Watch the JSON at the top — and the
-          running total in the footer — update as you change it.
+          Of all the choices behind an AI request, the model is the one that moves the footprint most — and the one
+          most teams can change tomorrow. But to see that, we need a concrete workload: we can't talk about "AI's
+          footprint" in the abstract, only about a specific model doing a specific job. So the example below asks you
+          to supply one: pick the use case closest to yours, then a model. A quick chat reply and a long code analysis
+          are very different jobs, and the model you choose sets the scale of the work. Watch the JSON at the top —
+          and the running total in the footer — update as you change it.
         </p>
         <InteractiveFrame label="pick a model and use case">
           <CategoryModelPicker
@@ -269,7 +270,7 @@ export function GuideMode({
           />
         </InteractiveFrame>
         <p style={prose.p}>
-          This is why the model choice is the single biggest lever most teams control. On our own infrastructure, the
+          The size of that lever is easy to underestimate. On our own infrastructure, the
           same short question answered by a large MoE frontier model (Kimi K3, 2.8T) comes out at roughly
           <strong> 300&nbsp;mg CO₂</strong>, where a specialised model that handles the task just as well (Gemma 4
           31B) comes out at <strong> 25&nbsp;mg</strong> — about a <strong>12×</strong> gap, on the same clean Swedish
@@ -537,7 +538,7 @@ export function GuideMode({
         <div style={prose.kicker}>The standard we propose</div>
         <h2 style={prose.h2}>What we're asking for</h2>
         <p style={prose.p}>
-          <strong>If you provide AI:</strong> report <code>co2_grams</code> in every response — the method and the code
+          <strong>If you provide AI:</strong> report <code>usage.emissions.co2e_grams</code> in every response — the method and the code
           above are open, so use them, scrutinise them, improve them. There are drop-in integrations for Express,
           FastAPI and Prometheus in the{" "}
           <a href="https://github.com/berget-ai/co2-calculator/blob/main/ADVANCED_USAGE.md" target="_blank" rel="noopener noreferrer" style={{ color: C.moss }}>
@@ -598,17 +599,25 @@ export function GuideMode({
             <span style={{ fontWeight: 600, color: C.peak, fontSize: "1.125rem" }}>Include CO₂ in Every Response</span>
           </div>
           <p style={{ fontSize: "0.875rem", color: C.muted, margin: 0, marginBottom: "1rem" }}>
-            Just like Berget AI does — return{" "}
+            Just like Berget AI does — return an{" "}
             <code style={{ background: "rgba(0,0,0,0.3)", padding: "0.125rem 0.25rem", borderRadius: 4, fontFamily: "monospace" }}>
-              co2_grams
+              emissions
+            </code>{" "}
+            object inside{" "}
+            <code style={{ background: "rgba(0,0,0,0.3)", padding: "0.125rem 0.25rem", borderRadius: 4, fontFamily: "monospace" }}>
+              usage
+            </code>{" "}
+            with{" "}
+            <code style={{ background: "rgba(0,0,0,0.3)", padding: "0.125rem 0.25rem", borderRadius: 4, fontFamily: "monospace" }}>
+              co2e_grams
             </code>{" "}
             and{" "}
             <code style={{ background: "rgba(0,0,0,0.3)", padding: "0.125rem 0.25rem", borderRadius: 4, fontFamily: "monospace" }}>
-              gpu_compute_energy_joules
+              energy_kwh
             </code>{" "}
             in your API responses. Your users deserve to know the environmental cost of each request.
           </p>
-          <ApiResponseBlock result={result} model={model} selectedModel={state.selectedModel} highlightKey="co2" />
+          <ApiResponseBlock result={result} model={model} selectedModel={state.selectedModel} region={state.region} highlightKey="co2" />
         </div>
 
         {/* Library code */}

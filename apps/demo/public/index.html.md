@@ -94,7 +94,7 @@ Doing that reconciliation in real time is hard, though. A full month's total emi
 
 ## The standard we propose: What we're asking for
 
-**If you provide AI:** report `co2_grams` in every response — the method and the code above are open, so use them, scrutinise them, improve them. There are drop-in integrations for Express, FastAPI and Prometheus in the integration guide. **If you procure AI:** require emissions data, and the location of the servers, in your contracts. **If you build on AI:** ask your provider for it.
+**If you provide AI:** report `usage.emissions.co2e_grams` in every response — the method and the code above are open, so use them, scrutinise them, improve them. There are drop-in integrations for Express, FastAPI and Prometheus in the integration guide. **If you procure AI:** require emissions data, and the location of the servers, in your contracts. **If you build on AI:** ask your provider for it.
 
 This only works if the industry moves together — a number you can't compare across providers is just a number. So help us spread the word. And if you find a flaw in our method, tell us: the code is open precisely so it can be checked, challenged and improved. Transparency is the prerequisite; accountability is the point.
 
