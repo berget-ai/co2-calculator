@@ -60,6 +60,63 @@ describe("calculateInference", () => {
     expect(calculateInference(mistral).gpusAllocated).toBe(1); // 48GB fits in 141GB
   });
 
+  it("minGpus overrides the weight-based estimate when larger (KV-cache-bound)", () => {
+    // A model whose weights fit on 1 GPU but that sets minGpus: 8 (production
+    // concurrency-driven KV cache) must report 8, not 1.
+    const kvBound = baseParams({
+      modelProfile: {
+        ...MODEL_PROFILES["mistralai/Mistral-Small-3.2-24B-Instruct-2506"],
+        minGpus: 8,
+      },
+      hardware: HARDWARE_CONFIGS.b300,
+    });
+    expect(calculateInference(kvBound).gpusAllocated).toBe(8);
+  });
+
+  it("minGpus does not lower the weight-based estimate", () => {
+    // If the weight-based estimate already exceeds minGpus, the estimate wins.
+    const heavy = baseParams({
+      modelProfile: {
+        ...MODEL_PROFILES["mistralai/Mistral-Medium-3.5-128B"],
+        modelSizeBytes: undefined, // Force FP16 → ~268 GB → 4 GPUs on h100
+        minGpus: 1,
+      },
+      hardware: HARDWARE_CONFIGS.h100,
+    });
+    expect(calculateInference(heavy).gpusAllocated).toBe(4);
+  });
+
+  it("minGpus is clamped to the node's gpuCount", () => {
+    const over = baseParams({
+      modelProfile: {
+        ...MODEL_PROFILES["mistralai/Mistral-Small-3.2-24B-Instruct-2506"],
+        minGpus: 99,
+      },
+      hardware: HARDWARE_CONFIGS.b300, // gpuCount 8
+    });
+    expect(calculateInference(over).gpusAllocated).toBe(8);
+  });
+
+  it("minGpus is sanitised (fractional / NaN) before applying", () => {
+    const fractional = baseParams({
+      modelProfile: {
+        ...MODEL_PROFILES["mistralai/Mistral-Small-3.2-24B-Instruct-2506"],
+        minGpus: 4.9,
+      },
+      hardware: HARDWARE_CONFIGS.b300,
+    });
+    expect(calculateInference(fractional).gpusAllocated).toBe(4); // floor(4.9)
+
+    const nan = baseParams({
+      modelProfile: {
+        ...MODEL_PROFILES["mistralai/Mistral-Small-3.2-24B-Instruct-2506"],
+        minGpus: NaN,
+      },
+      hardware: HARDWARE_CONFIGS.b300,
+    });
+    expect(calculateInference(nan).gpusAllocated).toBe(1); // NaN → ignored
+  });
+
   it("allocates 6 GPUs for large models that need more memory", () => {
     // GLM-5.2 (753B) in FP8 (~1 byte/param) needs ~753GB memory
     // H200: 141GB per GPU → needs 6 GPUs

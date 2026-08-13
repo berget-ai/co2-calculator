@@ -52,7 +52,7 @@ export const HARDWARE_CONFIGS: Record<string, HardwareConfig> = {
   b300: {
     name: "NVIDIA B300 SXM6 ×8 node (HGX B300)",
     gpuCount: 8,
-    // 267.7 GiB HBM3e per GPU — measured via DCGM (FB_USED + FB_FREE =
+    // 268 GB HBM3e per GPU — measured via DCGM (FB_USED + FB_FREE =
     // 274,100 MiB) on berget-airon-gpu-001. HGX B300 total 2.1 TB / 8.
     gpuMemoryGb: 268,
     // Idle/peak measured via DCGM over 7d on the production node: idle

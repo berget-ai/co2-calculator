@@ -45,8 +45,13 @@ function gpusForModel(modelProfile: ModelProfile, hardware: HardwareConfig): num
 
   // A model's weights may fit on N cards while its concurrency-driven KV
   // cache forces more. minGpus captures that production reality (e.g. a large
-  // MoE serving many concurrent long-context requests).
-  const gpusNeeded = Math.max(weightBasedGpus, modelProfile.minGpus ?? 0);
+  // MoE serving many concurrent long-context requests). Sanitise it to a
+  // finite non-negative integer so a fractional or NaN override can't leak
+  // fractional GPUs (or NaN) into the rest of the calculation.
+  const rawMin = modelProfile.minGpus;
+  const minGpus =
+    typeof rawMin === "number" && Number.isFinite(rawMin) ? Math.max(0, Math.floor(rawMin)) : 0;
+  const gpusNeeded = Math.max(weightBasedGpus, minGpus);
 
   // Clamp to available GPUs on node
   return Math.min(gpusNeeded, hardware.gpuCount);
