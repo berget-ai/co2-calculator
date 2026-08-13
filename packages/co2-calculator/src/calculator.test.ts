@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { calculateInference, calculateComparisons, fmtTime, fmtNumber, fmtParams, getConcurrencyFromTrafficPattern, DEFAULT_TRAFFIC_PATTERN } from "./calculator.js";
+import { calculateInference, calculateComparisons, fmtTime, fmtNumber, fmtParams, getConcurrencyFromTrafficPattern, DEFAULT_TRAFFIC_PATTERN, DEPLOYMENT_PROFILES } from "./calculator.js";
 import { MODEL_PROFILES } from "./models.js";
 import { HARDWARE_CONFIGS } from "./hardware.js";
 import { GRID_REGIONS } from "./grids.js";
@@ -503,6 +503,109 @@ describe("day/night fixed-cost allocation (SPEC)", () => {
     // share. Under instantaneous allocation the 21× night explosion inflates
     // it far beyond its traffic share.
     expect(nightShare).toBeLessThan(0.20);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SPEC: deployment profiles (on-prem / shared / hyperscaler)
+//
+// WHO runs the hardware determines the per-request footprint. These tests
+// lock in the expected ordering and the mechanism behind it:
+//
+//   on-prem     — you are alone (concurrency 1), so you bear the node's whole
+//                 fixed cost, in an enterprise server room (PUE ~1.4).
+//                 → HIGHEST per-request footprint.
+//   shared      — fixed cost amortised over the day-average concurrency, in a
+//                 Nordic datacentre (grid PUE ~1.15). → MIDDLE.
+//   hyperscaler — disaggregated serving (Splitwise/DistServe) packs ~2× the
+//                 effective concurrency and cuts GPU time ~20%, in a
+//                 hyperscale facility (PUE ~1.1). → LOWEST.
+//
+// Expected ordering: onprem > shared > hyperscaler.
+// ---------------------------------------------------------------------------
+
+describe("deployment profiles (SPEC)", () => {
+  const runAs = (deployment: "onprem" | "shared" | "hyperscaler") =>
+    calculateInference({
+      modelProfile: MODEL_PROFILES["google/gemma-4-31B-it"],
+      hardware: HARDWARE_CONFIGS.b300,
+      deploymentGrid: GRID_REGIONS.sweden,
+      measuredResponseTimeSeconds: 2.02,
+      inputTokens: 600,
+      outputTokens: 482,
+      hourOfDay: 14,
+      includeTraining: false,
+      lifetimeQueries: 1_000_000_000,
+      deployment,
+    });
+
+  it("orders the footprints on-prem > shared > hyperscaler", () => {
+    const onprem = runAs("onprem");
+    const shared = runAs("shared");
+    const hyper = runAs("hyperscaler");
+
+    expect(onprem.totalCO2Grams).toBeGreaterThan(shared.totalCO2Grams);
+    expect(shared.totalCO2Grams).toBeGreaterThan(hyper.totalCO2Grams);
+  });
+
+  it("on-prem bears the whole fixed cost (concurrency 1)", () => {
+    // On-prem divides the fixed cost by 1, shared by the day-average. So the
+    // on-prem embodied cost must be ~defaultConcurrency× the shared one.
+    const onprem = runAs("onprem");
+    const shared = runAs("shared");
+    const conc = MODEL_PROFILES["google/gemma-4-31B-it"].defaultConcurrency ?? 1;
+
+    expect(onprem.components.embodiedGpu.co2Grams).toBeCloseTo(
+      shared.components.embodiedGpu.co2Grams * conc, 5);
+  });
+
+  it("hyperscaler spreads the fixed cost further (packing factor 2)", () => {
+    // The hyperscaler packing factor doubles the effective fixed-cost
+    // denominator, so its embodied-GPU cost is ~half the shared one (the
+    // residual difference is the gpuTimeFactor also shortening GPU time).
+    const shared = runAs("shared");
+    const hyper = runAs("hyperscaler");
+
+    const ratio = hyper.components.embodiedGpu.co2Grams / shared.components.embodiedGpu.co2Grams;
+    // packingFactor 2 × gpuTimeFactor 0.8 → 0.8/2 = 0.4 of the shared value.
+    expect(ratio).toBeCloseTo(0.4, 2);
+  });
+
+  it("hyperscaler cuts GPU time (gpuTimeFactor 0.8)", () => {
+    // GPU compute energy scales with GPU time, so the hyperscaler's GPU
+    // operational energy is ~0.8× the shared one (before the packing-factor
+    // division — both are divided by their respective denominators).
+    const shared = runAs("shared");
+    const hyper = runAs("hyperscaler");
+
+    const ratio =
+      hyper.components.gpuOperational.co2Grams / shared.components.gpuOperational.co2Grams;
+    // gpuTimeFactor 0.8 AND packingFactor 2 → 0.8/2 = 0.4 of the shared value.
+    expect(ratio).toBeCloseTo(0.4, 2);
+  });
+
+  it("applies deployment-specific PUE (on-prem highest)", () => {
+    // The datacentre overhead term scales with (PUE − 1): on-prem 1.4,
+    // shared ~1.15 (grid), hyperscaler 1.1. Holding the rest of the footprint
+    // roughly comparable, the on-prem overhead share is the largest.
+    const onprem = runAs("onprem");
+    const hyper = runAs("hyperscaler");
+
+    // Overhead = (energy terms) × (PUE − 1). On-prem's energy terms are the
+    // largest AND its (PUE−1)=0.4 is the largest, so its overhead dominates.
+    expect(onprem.components.datacenterOverhead.co2Grams).toBeGreaterThan(
+      hyper.components.datacenterOverhead.co2Grams);
+  });
+
+  it("DEPLOYMENT_PROFILES are exported and literature-anchored", () => {
+    // Sanity-check the profile constants match the documented sources.
+    expect(DEPLOYMENT_PROFILES.onprem.packingFactor).toBe(1);
+    expect(DEPLOYMENT_PROFILES.onprem.pueOverride).toBeCloseTo(1.4, 5);
+    expect(DEPLOYMENT_PROFILES.shared.packingFactor).toBe(1);
+    expect(DEPLOYMENT_PROFILES.shared.pueOverride).toBeUndefined();
+    expect(DEPLOYMENT_PROFILES.hyperscaler.packingFactor).toBeCloseTo(2.0, 5);
+    expect(DEPLOYMENT_PROFILES.hyperscaler.gpuTimeFactor).toBeCloseTo(0.8, 5);
+    expect(DEPLOYMENT_PROFILES.hyperscaler.pueOverride).toBeCloseTo(1.1, 5);
   });
 });
 
