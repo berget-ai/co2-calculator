@@ -29,6 +29,16 @@ export function ApiResponseBlock({ result, model, selectedModel, region, highlig
   // library's fuller InferenceResult. Cast to call toApiEmissions type-safely.
   const emissions = result ? toApiEmissions(result as unknown as LibInferenceResult, region) : null;
 
+  // Format kWh readably (no scientific notation): per-request values are tiny,
+  // so show 4 significant figures in plain decimal, e.g. 0.0001485.
+  const fmtKwh = (kwh: number): string => {
+    if (kwh === 0) return "0";
+    // Find how many leading zeros the decimal part has, then show 4 sig figs.
+    const magnitude = Math.floor(Math.log10(Math.abs(kwh)));
+    const decimals = Math.max(0, -magnitude + 3);
+    return kwh.toFixed(decimals);
+  };
+
   const row = (
     key: string,
     value: string,
@@ -105,10 +115,10 @@ export function ApiResponseBlock({ result, model, selectedModel, region, highlig
             <>
               {open("emissions", 2)}
               {row("co2e_grams", emissions.co2e_grams.toFixed(6), highlightKey === "co2", "← see §1–4", 3)}
-              {row("energy_kwh", emissions.energy_kwh.toExponential(3), highlightKey === "energy", "← operational energy — see §2, §3", 3)}
+              {row("energy_kwh", fmtKwh(emissions.energy_kwh), highlightKey === "energy", "← operational energy — see §2, §3", 3)}
               {open("operational", 3)}
               {row("co2e_grams", emissions.operational.co2e_grams.toFixed(6), false, undefined, 4)}
-              {row("energy_kwh", emissions.operational.energy_kwh.toExponential(3), false, undefined, 4)}
+              {row("energy_kwh", fmtKwh(emissions.operational.energy_kwh), false, undefined, 4)}
               {close(3)}
               {open("embodied", 3)}
               {row("co2e_grams", emissions.embodied.co2e_grams.toFixed(6), false, "← hardware amortised — see §3", 4)}

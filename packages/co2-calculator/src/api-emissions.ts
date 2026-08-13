@@ -31,13 +31,23 @@ export const CALCULATOR_VERSION = "1.0.0";
  *   reproducible.
  */
 export interface ApiEmissions {
-  /** Total CO₂-equivalent emissions for this request, in grams. */
+  /**
+   * Total CO₂-equivalent emissions for this request, in grams. This is the
+   * consumer-inference boundary: operational + embodied, with model training
+   * excluded (training is never part of this schema).
+   */
   co2e_grams: number;
-  /** Total energy consumed (operational), in kWh. */
+  /**
+   * IT energy consumed while serving the request, in kWh. This is the energy
+   * that reaches the IT equipment (GPU + idle baseline + server); it excludes
+   * facility cooling/overhead (PUE), which the calculator prices into the CO₂
+   * side as a multiplier rather than as a separate energy term.
+   */
   energy_kwh: number;
   /** Operational emissions (energy burned while serving the request). */
   operational: {
     co2e_grams: number;
+    /** Same IT-energy figure as the top level, for symmetry with co2e_grams. */
     energy_kwh: number;
   };
   /** Embodied emissions (hardware manufacturing amortised onto this request). */
@@ -81,9 +91,15 @@ export function toApiEmissions(
     c.serverOperational.co2Grams +
     c.datacenterOverhead.co2Grams;
   const embodiedCo2 = c.embodiedGpu.co2Grams + c.embodiedOther.co2Grams;
+  // The public schema is the consumer-inference boundary: operational +
+  // embodied, training always excluded. We compute the total from the parts
+  // rather than reading result.totalCO2Grams, which can include training when
+  // the caller passed includeTraining — keeping this schema self-consistent
+  // regardless of how the result was produced.
+  const totalCo2 = operationalCo2 + embodiedCo2;
 
   return {
-    co2e_grams: result.totalCO2Grams,
+    co2e_grams: totalCo2,
     energy_kwh: result.totalEnergyKwh,
     operational: {
       co2e_grams: operationalCo2,

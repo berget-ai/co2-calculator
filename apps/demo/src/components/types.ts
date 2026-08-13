@@ -52,7 +52,7 @@ export type InferenceResult = {
   waterLiters: number;
   components: InferenceComponents;
   /** Number of GPUs the selected model is spread across (memory-bound). */
-  gpusAllocated?: number;
+  gpusAllocated: number;
 };
 
 export interface CalculatorState {

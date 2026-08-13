@@ -467,7 +467,7 @@ export function GuideMode({
           So what hardware does your chosen model actually need? The binding constraint is memory: a model's weights
           (plus ~20% for the KV cache) must fit in GPU memory, and that alone decides how many cards the query has to
           occupy.{" "}
-          {(result?.gpusAllocated ?? 1) <= 1 ? (
+          {result && result.gpusAllocated <= 1 ? (
             <>
               The model you picked above fits on a <strong>single card</strong> — it doesn't need a flagship node, and
               that opens up a real saving.

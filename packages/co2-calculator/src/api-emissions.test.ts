@@ -37,7 +37,9 @@ describe("toApiEmissions", () => {
       c.datacenterOverhead.co2Grams;
     const expectedEmbodied = c.embodiedGpu.co2Grams + c.embodiedOther.co2Grams;
 
-    expect(api.co2e_grams).toBe(result.totalCO2Grams);
+    // The total is computed from the parts (consumer boundary), so it matches
+    // the calculator's total to floating-point precision rather than exactly.
+    expect(api.co2e_grams).toBeCloseTo(result.totalCO2Grams, 9);
     expect(api.energy_kwh).toBe(result.totalEnergyKwh);
     expect(api.operational.co2e_grams).toBeCloseTo(expectedOperational, 9);
     expect(api.embodied.co2e_grams).toBeCloseTo(expectedEmbodied, 9);
@@ -47,6 +49,17 @@ describe("toApiEmissions", () => {
     const result = calculateInference(baseParams());
     const api = toApiEmissions(result, "sweden", "1.0.0");
     expect(api.operational.co2e_grams + api.embodied.co2e_grams).toBeCloseTo(api.co2e_grams, 6);
+  });
+
+  it("excludes training from the total even when the result includes it", () => {
+    // includeTraining adds trainingAmortised to result.totalCO2Grams, but the
+    // public schema is the consumer-inference boundary and must not carry it.
+    const result = calculateInference(
+      baseParams({ includeTraining: true, lifetimeQueries: 1_000_000_000 })
+    );
+    const api = toApiEmissions(result, "sweden", "1.0.0");
+    expect(api.co2e_grams).toBeLessThan(result.totalCO2Grams);
+    expect(api.co2e_grams).toBeCloseTo(api.operational.co2e_grams + api.embodied.co2e_grams, 9);
   });
 
   it("records the grid region and the effective intensity used", () => {
