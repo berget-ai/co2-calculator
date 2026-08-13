@@ -49,6 +49,15 @@ export interface ModelProfile {
    * caching is disabled.
    */
   cachedPromptFraction?: number;
+  /**
+   * Minimum GPUs this model must be spread across in production, overriding
+   * the static weight-based memory estimate. Use when the real constraint is
+   * not the weights but the concurrency-driven KV cache: a model whose weights
+   * fit on N cards may still need more to hold the KV cache of many concurrent
+   * long-context requests. When set, the calculator uses
+   * max(weightBasedGpus, minGpus), clamped to the node's gpuCount.
+   */
+  minGpus?: number;
   /** Hugging Face popularity metrics */
   popularity?: {
     downloadsPerMonth: number;

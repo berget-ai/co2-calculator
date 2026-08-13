@@ -39,10 +39,15 @@ function gpusForModel(modelProfile: ModelProfile, hardware: HardwareConfig): num
     : 2.0; // Default to FP16
   
   const modelMemoryGb = (modelProfile.parameters * bytesPerParam * 1.2) / (1024 * 1024 * 1024);
-  
-  // Calculate GPUs needed based on memory
-  const gpusNeeded = Math.ceil(modelMemoryGb / hardware.gpuMemoryGb);
-  
+
+  // Calculate GPUs needed based on the static weight-based memory estimate.
+  const weightBasedGpus = Math.ceil(modelMemoryGb / hardware.gpuMemoryGb);
+
+  // A model's weights may fit on N cards while its concurrency-driven KV
+  // cache forces more. minGpus captures that production reality (e.g. a large
+  // MoE serving many concurrent long-context requests).
+  const gpusNeeded = Math.max(weightBasedGpus, modelProfile.minGpus ?? 0);
+
   // Clamp to available GPUs on node
   return Math.min(gpusNeeded, hardware.gpuCount);
 }

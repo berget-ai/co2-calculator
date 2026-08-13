@@ -102,9 +102,9 @@ export function CO2Calculator() {
   const result = useMemo(() => {
     if (!model || !grid) return null;
     const hw = {
-      ...HARDWARE_CONFIGS.h200,
-      embodiedPerGpuKg: gpuCondition === "refurbished" ? 0 : HARDWARE_CONFIGS.h200.embodiedPerGpuKg,
-      otherComputeEmbodiedKg: infraCondition === "refurbished" ? 0 : HARDWARE_CONFIGS.h200.otherComputeEmbodiedKg,
+      ...HARDWARE_CONFIGS.b300,
+      embodiedPerGpuKg: gpuCondition === "refurbished" ? 0 : HARDWARE_CONFIGS.b300.embodiedPerGpuKg,
+      otherComputeEmbodiedKg: infraCondition === "refurbished" ? 0 : HARDWARE_CONFIGS.b300.otherComputeEmbodiedKg,
     };
 
     return calculateInference({

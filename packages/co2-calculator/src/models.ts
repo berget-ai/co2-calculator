@@ -99,6 +99,11 @@ export const MODEL_PROFILES: Record<string, ModelProfile> = {
     defaultResponseTimeSeconds: 6.65, // Measured p50 GPU time, queue excluded (30d) via Prometheus sglang
     defaultConcurrency: 3, // Measured ~2.7 via Little's Law (30d)
     cachedPromptFraction: 0, // Prefix cache disabled on the SGLang B300 deployment
+    // The weights fit on ~6 B300 cards (1.4 TB INT4), but serving the
+    // production concurrency at long context needs the full 8-GPU node: the
+    // KV cache of many concurrent long requests is the binding constraint,
+    // not the weights.
+    minGpus: 8,
   },
 
   // -----------------------------------------------------------------------

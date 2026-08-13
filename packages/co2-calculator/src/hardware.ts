@@ -49,6 +49,25 @@
 import type { HardwareConfig } from "./types.js";
 
 export const HARDWARE_CONFIGS: Record<string, HardwareConfig> = {
+  b300: {
+    name: "NVIDIA B300 SXM6 ×8 node (HGX B300)",
+    gpuCount: 8,
+    // 267.7 GiB HBM3e per GPU — measured via DCGM (FB_USED + FB_FREE =
+    // 274,100 MiB) on berget-airon-gpu-001. HGX B300 total 2.1 TB / 8.
+    gpuMemoryGb: 268,
+    // Idle/peak measured via DCGM over 7d on the production node: idle
+    // ~236 W/GPU (typical; min ~180 W), peak ~1,065 W/GPU. Node = 8 GPUs.
+    nodeIdleWatts: 1_900,
+    nodePeakWatts: 8_500,
+    embodiedPerGpuKg: 1_000,
+    // Separate supporting infrastructure allocated to this node (NOT its own
+    // chassis — that is in embodiedPerGpuKg): databases, logging/storage
+    // servers and network gear. ~3× 1U servers (3,000 kg) + 2× firewalls
+    // (600 kg) + 2× switches (400 kg) ≈ 4,000 kg CO₂e.
+    otherComputeEmbodiedKg: 4_000,
+    chassisWatts: 1_500,
+    formFactor: "8-GPU Accelerator Node (HGX)",
+  },
   mi300x: {
     name: "AMD MI300X ×8 node (Supermicro AS-8125GS-TNMR2)",
     gpuCount: 8,

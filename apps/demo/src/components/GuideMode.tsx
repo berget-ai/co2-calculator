@@ -464,9 +464,9 @@ export function GuideMode({
           hardware carries zero embodied carbon, because those emissions are already spent.
         </p>
         <p style={prose.p}>
-          So what hardware does your chosen model actually need? The binding constraint is memory: a model's weights
-          (plus ~20% for the KV cache) must fit in GPU memory, and that alone decides how many cards the query has to
-          occupy.{" "}
+          So what hardware does your chosen model actually need? The binding constraint is memory: the model's
+          weights, plus the KV cache of every request being served at once, must fit in GPU memory — and that decides
+          how many cards the query has to occupy.{" "}
           {result && result.gpusAllocated <= 1 ? (
             <>
               The model you picked above fits on a <strong>single card</strong> — it doesn't need a flagship node, and
@@ -474,15 +474,16 @@ export function GuideMode({
             </>
           ) : (
             <>
-              The model you picked above needs <strong>{result?.gpusAllocated ?? "several"} cards</strong> just to
-              hold its weights — a footprint that follows it no matter where it runs.
+              The model you picked above needs <strong>{result?.gpusAllocated ?? "several"} cards</strong> — for a
+              large model, it's the weights plus the KV cache of all its concurrent requests that spread it across
+              the node. That footprint follows it no matter where it runs.
             </>
           )}
         </p>
         <p style={prose.p}>
           That matters because a smaller model can often run on <strong>older, humbler hardware.</strong> A small,
           quantised model fits on a single card; a trillion-parameter model has to be spread across several. An older
-          inference card like the NVIDIA L4 embodies only ~300 kg — a fraction of a flagship H200 — and because that
+          inference card like the NVIDIA L4 embodies only ~300 kg — a fraction of a flagship B300 — and because that
           hardware has already been in service for years, much of its manufacturing footprint is already amortised.
           Choosing a right-sized model on mature hardware can cut emissions dramatically before you've optimised
           anything else.
@@ -679,7 +680,7 @@ export function GuideMode({
 
 const result = calculateInference({
   modelProfile: MODEL_PROFILES["${state.selectedModel}"],
-  hardware: HARDWARE_CONFIGS.h200,
+  hardware: HARDWARE_CONFIGS.b300,
   deploymentGrid: GRID_REGIONS["${state.region}"],
   measuredResponseTimeSeconds: ${category.responseTime},
   inputTokens: ${model?.defaultInputTokens},

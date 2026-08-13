@@ -20,9 +20,9 @@ const REF_GPU_TIME_S = 1.83;
 const GPU_BATCH = 3;
 const NODE_BATCH = 6;
 const gpuEmbodiedPerQuery =
-  ((HARDWARE_CONFIGS.h200.embodiedPerGpuKg * 1000) / LIFETIME_ACTIVE_S) * REF_GPU_TIME_S / GPU_BATCH;
+  ((HARDWARE_CONFIGS.b300.embodiedPerGpuKg * 1000) / LIFETIME_ACTIVE_S) * REF_GPU_TIME_S / GPU_BATCH;
 const infraEmbodiedPerQuery =
-  ((HARDWARE_CONFIGS.h200.otherComputeEmbodiedKg * 1000) / LIFETIME_ACTIVE_S) * REF_GPU_TIME_S / NODE_BATCH;
+  ((HARDWARE_CONFIGS.b300.otherComputeEmbodiedKg * 1000) / LIFETIME_ACTIVE_S) * REF_GPU_TIME_S / NODE_BATCH;
 
 export function HardwarePicker({
   gpuCondition,
@@ -35,7 +35,7 @@ export function HardwarePicker({
       {/* GPU Selection */}
       <div style={{ marginBottom: "1.5rem" }}>
         <div style={{ fontSize: "0.875rem", fontWeight: 600, color: C.peak, marginBottom: "0.75rem" }}>
-          GPU (NVIDIA H200 ×8)
+          GPU (NVIDIA B300 ×8)
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
           <Card selected={gpuCondition === "new"} onClick={() => onGpuConditionChange("new")}>

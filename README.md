@@ -208,10 +208,11 @@ Sources: IEA 2024, EPA eGRID 2023, Hydro-Québec 2024.
 
 [Full list →](./packages/co2-calculator/src/grids.ts)
 
-### Hardware (6)
+### Hardware (7)
 
 | Configuration | Key | GPUs | Memory/GPU | Node Peak | Embodied/GPU |
 |--------------|-----|------|-----------|-----------|--------------|
+| NVIDIA B300 ×8 (HGX) | `b300` | 8 | 268 GB HBM3e | 8,500 W | 1,000 kg |
 | NVIDIA H100 ×8 | `h100` | 8 | 80 GB HBM3 | 6,500 W | 850 kg |
 | NVIDIA H200 ×8 | `h200` | 8 | 141 GB HBM3e | 6,500 W | 1,000 kg |
 | AMD MI300X ×8 | `mi300x` | 8 | 192 GB HBM3 | 7,000 W | 1,000 kg |

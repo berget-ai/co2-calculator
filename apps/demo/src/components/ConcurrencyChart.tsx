@@ -48,7 +48,7 @@ function computePoint(
 ): Curve {
   if (!model || !grid) return { gpuEnergy: 0, shared: 0, embodiedGpu: 0, total: 0 };
 
-  const hw = HARDWARE_CONFIGS.h200;
+  const hw = HARDWARE_CONFIGS.b300;
   const gpusUsed = gpusForModel(model, hw.gpuMemoryGb, hw.gpuCount);
   const baseTime = category.responseTime; // tokenRatio = 1 for the category default
   const gpuTimeSec = baseTime * delayFactor(c);
