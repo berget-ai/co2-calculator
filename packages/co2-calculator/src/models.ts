@@ -88,7 +88,7 @@ export const MODEL_PROFILES: Record<string, ModelProfile> = {
   },
   "moonshotai/Kimi-K3": {
     modelId: "moonshotai/Kimi-K3",
-    displayName: "Kimi K3 (2.8T MoE)",
+    displayName: "Kimi K3",
     architecture: "mixture-of-experts",
     parameters: 2_800_000_000_000, // 2.8T total params (104B active)
     modelSizeBytes: 2_800_000_000_000 * 0.5, // INT4: ~1.4TB
