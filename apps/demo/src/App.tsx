@@ -77,12 +77,13 @@ export function CO2Calculator() {
   const [infraCondition, setInfraCondition] = useState<"new" | "refurbished">("new");
   // How well the node is USED — the single physical mechanism behind the
   // deployment difference. A node bought for peak but mostly waiting (low
-  // utilization) burns its standby power and amortises its embodied carbon
-  // across few requests, so each request bears more; a hot, well-scheduled
-  // node spreads those fixed costs over many. The slider runs from a
+  // utilization) spreads its standby ENERGY (GPU idle + server chassis) over
+  // few productive hours, so each request bears more of it; a hot,
+  // well-scheduled node spreads that standby over many. (Embodied carbon is
+  // amortised over the 5-year lifetime at a fixed rate wherever the node
+  // sits, so it does not move with utilization.) The slider runs from a
   // mostly-idle own server (10%) through a well-run shared node (70%) to a
-  // hyperscale fleet (90%). This replaces the old concurrency/deployment
-  // lever with the one variable that actually drives the fixed costs.
+  // hyperscale fleet (90%).
   const [utilization, setUtilization] = useState(0.70);
   const [hourOfDay, setHourOfDay] = useState(14);
 

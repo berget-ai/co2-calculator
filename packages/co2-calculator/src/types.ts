@@ -179,26 +179,20 @@ export interface InferenceParams {
    */
   nodeConcurrency?: number;
   /**
-   * Which serving deployment the request runs on. Decides how the node's
-   * fixed costs (idle standby, chassis, embodied) are shared and how
-   * efficiently the hardware is used:
+   * A backwards-compatible way to pick a default utilization anchor when
+   * `utilization` is not provided. Each deployment maps to a utilization
+   * value (see DEPLOYMENT_PROFILES); the actual mechanism is utilization,
+   * which scales the fixed ENERGY costs (GPU idle + server chassis) by
+   * 1/utilization. Embodied carbon is amortised over the 5-year lifetime at a
+   * fixed rate regardless of where the node sits, so it is NOT affected by
+   * the deployment at a given concurrency.
    *
    * - "onprem": your own server, bought for peak but mostly waiting
-   *   (utilization ~10%). The standby draw and embodied carbon are spread
-   *   over few requests, and the PUE is a typical enterprise server-room
-   *   value (~1.4).
-   *
+   *   (utilization ~10%).
    * - "shared" (default): a well-run shared node with steady traffic
-   *   (utilization ~70%). Fixed costs are amortised over the day-average
-   *   concurrency, and the PUE is the datacentre's measured value (~1.15).
-   *
+   *   (utilization ~70%).
    * - "hyperscaler": massive demand plus sophisticated scheduling keeps the
-   *   GPUs hot (utilization ~90%). Disaggregated serving (Splitwise,
-   *   DistServe) packs more onto each GPU, the serving stack is more
-   *   efficient, and the PUE is a hyperscale value (~1.1, Google fleet 1.09).
-   *
-   * Each profile bundles a `utilization`, a `packingFactor`, a
-   * `gpuTimeFactor` and a `pueOverride` — see DEPLOYMENT_PROFILES.
+   *   GPUs hot (utilization ~90%).
    */
   deployment?: "onprem" | "shared" | "hyperscaler";
   /**

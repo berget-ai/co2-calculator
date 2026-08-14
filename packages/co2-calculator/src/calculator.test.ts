@@ -552,7 +552,8 @@ describe("day/night fixed-cost allocation (SPEC)", () => {
 //   - Embodied carbon is amortised over the 5-year lifetime at a fixed rate
 //     regardless of where the node sits, so it is utilization-INDEPENDENT at
 //     a given concurrency.
-//   - PUE falls as utilization rises (a hotter node is more energy-efficient).
+//   - The PUE stays grid/climate-driven (NOT scaled by utilization — that
+//     would double-count the energy effect already captured by 1/utilization).
 //
 // The three named profiles are just utilization anchors: on-prem 10%,
 // shared 70%, hyperscaler 90%.

@@ -430,13 +430,13 @@ export function GuideMode({
         </InteractiveFrame>
         <p style={prose.p}>
           Drag the slider. The same model, the same request, the same grid — the only thing that changes is how well
-          the hardware is used. Every fixed cost — the server's standby draw, the chassis, the cooling, and the GPU's
-          own manufacturing footprint — is spent whether the node is busy or idle, so the only question that matters
-          is how many requests it is shared across. A node bought for peak but mostly waiting (your own server, at
-          perhaps 10% utilization) spreads that fixed cost over few requests, so each one bears more. A well-run
-          shared node stays busier; a hyperscale fleet, with massive demand and sophisticated scheduling, keeps its
-          GPUs hottest of all. The hardware's embodied carbon is amortised over its five-year life wherever it sits —
-          the slider changes how many requests that cost, and the standby draw, is divided among.
+          the hardware is used. The node's standby draw and chassis are burned whether it is busy or idle, so the
+          question that matters is how many productive hours that fixed energy is divided across. A node bought for
+          peak but mostly waiting (your own server, at perhaps 10% utilization) spreads its standby energy over few
+          requests, so each one bears more. A well-run shared node stays busier; a hyperscale fleet, with massive
+          demand and sophisticated scheduling, keeps its GPUs hottest of all. The hardware's embodied carbon, by
+          contrast, is amortised over its five-year life wherever it sits — the slider moves the standby-energy
+          share, not the embodied share.
         </p>
         <MethodPanel
           assumptions={[

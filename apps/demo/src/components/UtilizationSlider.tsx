@@ -51,10 +51,12 @@ function footprintAt(
 /**
  * A single slider over the node's lifetime UTILIZATION — the one physical
  * variable behind the deployment difference. A node bought for peak but
- * mostly waiting (low utilization) burns its standby power and amortises its
- * embodied carbon across few requests, so each request bears more; a hot,
- * well-scheduled node spreads those fixed costs over many. Three labelled
- * anchors mark the named deployments; the slider itself is continuous.
+ * mostly waiting (low utilization) spreads its standby ENERGY (GPU idle +
+ * server chassis) over few productive hours, so each request bears more of
+ * it; a hot, well-scheduled node spreads that standby over many. (Embodied
+ * carbon is amortised over the 5-year lifetime at a fixed rate wherever the
+ * node sits, so it does not move with utilization.) Three labelled anchors
+ * mark the named deployments; the slider itself is continuous.
  */
 export function UtilizationSlider({
   model,
@@ -102,6 +104,7 @@ export function UtilizationSlider({
           return (
             <button
               key={a.u}
+              type="button"
               onClick={() => onUtilizationChange(a.u)}
               style={{
                 background: "none",
@@ -123,9 +126,9 @@ export function UtilizationSlider({
       </div>
 
       <div style={{ marginTop: "0.6rem", fontSize: "0.68rem", color: C.muted, lineHeight: 1.45 }}>
-        A mostly-idle node burns its standby power and amortises its embodied carbon across few requests, so each
-        request bears more. The hardware's embodied carbon is amortised over its 5-year life wherever it sits — the
-        slider changes how many requests that fixed cost, and the standby draw, is shared across.
+        A mostly-idle node spreads its standby draw (GPU idle + server chassis) over few productive hours, so each
+        request bears more of it. The hardware's embodied carbon is amortised over its 5-year life wherever it sits —
+        the slider changes how the standby energy is divided across requests, not the embodied share.
       </div>
     </div>
   );

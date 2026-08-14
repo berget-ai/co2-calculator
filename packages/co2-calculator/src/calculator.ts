@@ -257,22 +257,16 @@ export function calculateInference(params: InferenceParams): InferenceResult {
         ? clampConc(explicitConc, concurrency)
         : clampConc(modelProfile.defaultConcurrency, GENERIC_DEFAULT_CONCURRENCY);
 
-  // --- Deployment profile (who runs the hardware) ---
-  // The fixed-cost denominator is the day-average concurrency scaled by the
-  // profile's packing factor — for EVERY deployment, on-prem included. The
-  // batching mechanism (continuous batching shares the GPU across concurrent
-  // requests) works the same wherever the node sits, so the per-request
-  // embodied/concurrency share is the same at a given concurrency. What makes
-  // on-prem more expensive is NOT a smaller sharing denominator here, but the
-  // node's low UTILIZATION: it is idle most of the time, so its standby energy
-  // (and its embodied carbon, amortised over the lifetime) is spread over few
-  // productive hours. The utilization term (applied to the idle/server energy
-  // below) captures that; the concurrency denominator stays the day average.
-  // The fixed-cost denominator is the day-average concurrency — the same
-  // wherever the node sits, because continuous batching shares the GPU across
-  // concurrent requests identically. Utilization (applied to the idle/server
-  // energy below) is what makes a mostly-idle node more expensive per request,
-  // not a smaller sharing denominator.
+  // --- Fixed-cost sharing denominator (the same wherever the node sits) ---
+  // The fixed-cost denominator is the day-average concurrency, for EVERY
+  // deployment: continuous batching shares the GPU across concurrent requests
+  // identically, so the per-request embodied/concurrency share is the same at
+  // a given concurrency. Embodied carbon is amortised over the 5-year lifetime
+  // at a FIXED rate regardless of where the node sits, so it is
+  // utilization-INDEPENDENT here. What makes a mostly-idle node more expensive
+  // per request is ONLY its standby ENERGY (idle + chassis), which is spread
+  // over few productive hours — captured by the 1/utilization scaling of the
+  // idle/server terms below, NOT by this denominator.
   const dayAverageGpuConcurrency = gpuFixed;
   const dayAverageNodeConcurrency = nodeFixed;
 

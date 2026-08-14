@@ -285,7 +285,7 @@ We deliberately expose caching as a *scenario* rather than a user default. Confi
 
 ### 3.2c Utilization: how well the hardware is used
 
-The `utilization` parameter (0–1) is the fraction of the node's lifetime it is actively serving requests. It is the **single physical mechanism** behind the deployment difference: a node bought for peak but mostly waiting burns its standby power and amortises its embodied carbon across FEW requests, so each request bears more; a hot, well-scheduled node spreads those fixed costs over many. WHO runs the hardware matters only through this variable — your own server, a shared node and a hyperscaler are just points on one axis.
+The `utilization` parameter (0–1) is the fraction of the node's lifetime it is actively serving requests. It is the **single physical mechanism** behind the deployment difference: a node bought for peak but mostly waiting spreads its standby ENERGY (GPU idle + server chassis) over few productive hours, so each request bears more of it; a hot, well-scheduled node spreads that standby over many. (Embodied carbon is amortised over the 5-year lifetime at a fixed rate wherever the node sits, so it does not move with utilization.) WHO runs the hardware matters only through this variable — your own server, a shared node and a hyperscaler are just points on one axis.
 
 **How utilization enters the calculation.** Two of the fixed costs are burned around the clock whether the node is serving or not, so their per-request cost scales with **1/utilization**:
 
