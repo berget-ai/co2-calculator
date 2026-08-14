@@ -22,7 +22,7 @@ const MODEL_CATEGORIES: ModelCategories = {
     models: [
       { id: "mistralai/Mistral-Small-3.2-24B-Instruct-2506", name: "Mistral Small 24B" },
       { id: "google/gemma-4-31B-it", name: "Gemma 4 31B" },
-      { id: "moonshotai/Kimi-K3", name: "Kimi K3 2.8T MoE" },
+      { id: "moonshotai/Kimi-K3", name: "Kimi K3" },
       { id: "openai/gpt-5", name: "GPT-5" },
       { id: "anthropic/claude-sonnet-4-5", name: "Claude Sonnet 4.5" },
       { id: "google/gemini-3-pro", name: "Gemini 3 Pro" },
@@ -52,7 +52,7 @@ const MODEL_CATEGORIES: ModelCategories = {
     models: [
       { id: "google/gemma-4-31B-it", name: "Gemma 4 31B" },
       { id: "zai-org/GLM-5.2", name: "GLM 5.2 753B" },
-      { id: "moonshotai/Kimi-K3", name: "Kimi K3 2.8T MoE" },
+      { id: "moonshotai/Kimi-K3", name: "Kimi K3" },
       { id: "openai/gpt-5-pro", name: "GPT-5 Pro" },
       { id: "anthropic/claude-opus-4-5", name: "Claude Opus 4.5" },
       { id: "google/gemini-2.5-pro", name: "Gemini 2.5 Pro" },
