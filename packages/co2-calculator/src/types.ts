@@ -183,21 +183,33 @@ export interface InferenceParams {
    * fixed costs (idle standby, chassis, embodied) are shared and how
    * efficiently the hardware is used:
    *
-   * - "onprem": you run the model on your own server. Concurrency is 1, so
-   *   the entire infrastructure + embodied footprint lands on your queries
-   *   alone, and the PUE is a typical enterprise server-room value (~1.4).
+   * - "onprem": your own server, bought for peak but mostly waiting
+   *   (utilization ~10%). The standby draw and embodied carbon are spread
+   *   over few requests, and the PUE is a typical enterprise server-room
+   *   value (~1.4).
    *
-   * - "shared" (default): the node is shared with other tenants (the Berget
-   *   model). Fixed costs are amortised over the day-average concurrency, and
-   *   the PUE is the datacentre's measured value (Nordics ~1.15).
+   * - "shared" (default): a well-run shared node with steady traffic
+   *   (utilization ~70%). Fixed costs are amortised over the day-average
+   *   concurrency, and the PUE is the datacentre's measured value (~1.15).
    *
-   * - "hyperscaler": a large provider running disaggregated serving
-   *   (separate prefill and decode pools — Splitwise, DistServe). Higher
-   *   effective concurrency and better packing spread the fixed cost further,
-   *   the serving stack is more efficient (lower GPU time per request), and
-   *   the PUE is a hyperscale value (~1.1, Google fleet average 1.09).
+   * - "hyperscaler": massive demand plus sophisticated scheduling keeps the
+   *   GPUs hot (utilization ~90%). Disaggregated serving (Splitwise,
+   *   DistServe) packs more onto each GPU, the serving stack is more
+   *   efficient, and the PUE is a hyperscale value (~1.1, Google fleet 1.09).
+   *
+   * Each profile bundles a `utilization`, a `packingFactor`, a
+   * `gpuTimeFactor` and a `pueOverride` — see DEPLOYMENT_PROFILES.
    */
   deployment?: "onprem" | "shared" | "hyperscaler";
+  /**
+   * Optional override for the node's lifetime utilization (0–1): the fraction
+   * of its life it is actively serving requests. Overrides the deployment
+   * profile's value. Scales the fixed ENERGY costs (GPU idle + server
+   * chassis) by 1/utilization. Embodied carbon is amortised over the 5-year
+   * lifetime at a fixed rate regardless of where the node sits, so it is NOT
+   * affected by utilization at a given concurrency.
+   */
+  utilization?: number;
   /**
    * Whether the KV prefix cache is used. When true (default), the model's
    * measured cachedPromptFraction of the prompt skips prefill, reducing GPU

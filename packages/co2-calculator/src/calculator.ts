@@ -122,62 +122,26 @@ export function getConcurrencyFromTrafficPattern(hourOfDay: number): number {
 }
 
 // ---------------------------------------------------------------------------
-// Deployment profiles (on-prem / shared / hyperscaler)
+// Utilization — the single deployment mechanism
 //
-// WHO runs the hardware determines both how the fixed costs are shared and
-// how efficiently the hardware is used. Each profile bundles the levers that
-// move together in practice.
+// A node's per-request footprint is dominated by how WELL it is used. A node
+// bought for peak but mostly waiting (low utilization) burns its standby
+// power and amortises its embodied carbon across FEW requests, so each
+// request bears more. A hot, well-scheduled node (high utilization) spreads
+// those fixed costs over many requests. Utilization is the one physical
+// variable that captures "who runs the hardware and how well".
 // ---------------------------------------------------------------------------
 
 export type DeploymentProfile = "onprem" | "shared" | "hyperscaler";
 
-export interface DeploymentProfileSpec {
-  /**
-   * Multiplier on the day-average concurrency used to divide the fixed costs.
-   * A hyperscaler packs more concurrent requests onto the same GPU via
-   * disaggregated serving (separate prefill/decode pools), so the fixed cost
-   * is spread further. Conservative mid-point of the Splitwise 1.4–2.35×
-   * throughput range (well below DistServe's 7.4× goodput extreme).
-   */
-  packingFactor: number;
-  /**
-   * Multiplier on GPU time per request. Disaggregated serving runs each phase
-   * on hardware suited to it, cutting the GPU time a request occupies.
-   * Splitwise reports ~20% lower cost at the same throughput (≈ ×0.8).
-   */
-  gpuTimeFactor: number;
-  /**
-   * Power usage effectiveness for the facility. On-prem uses a typical
-   * enterprise server-room value; shared uses the datacentre's measured PUE
-   * (so it is left undefined and falls through to the grid); hyperscaler uses
-   * the hyperscale fleet average (Google 2025: 1.09; Uptime Institute global
-   * average 1.54).
-   */
-  pueOverride?: number;
-}
-
-export const DEPLOYMENT_PROFILES: Record<DeploymentProfile, DeploymentProfileSpec> = {
-  // Your own server: no sharing (concurrency 1, handled separately), no
-  // packing benefit, no serving-stack efficiency gain, enterprise PUE.
-  onprem: {
-    packingFactor: 1,
-    gpuTimeFactor: 1,
-    pueOverride: 1.4, // Uptime Institute global average ~1.54; small server room ~1.4
-  },
-  // Shared (Berget): the reference point. Day-average concurrency, standard
-  // GPU time, and the datacentre's measured PUE (Nordics ~1.15) from the grid.
-  shared: {
-    packingFactor: 1,
-    gpuTimeFactor: 1,
-    pueOverride: undefined, // fall through to the grid's typicalPue
-  },
-  // Hyperscaler: disaggregated serving (Splitwise/DistServe) packs ~2× the
-  // effective concurrency and cuts GPU time ~20%, in a hyperscale facility.
-  hyperscaler: {
-    packingFactor: 2.0, // Splitwise 1.4–2.35× throughput; conservative mid-point
-    gpuTimeFactor: 0.8, // Splitwise ~20% lower cost at same throughput
-    pueOverride: 1.1, // Google fleet average 1.09 (2025)
-  },
+/**
+ * Named utilization anchors on the slider, for reference and for the demo's
+ * labelled stops. The calculator itself takes a continuous `utilization`.
+ */
+export const DEPLOYMENT_PROFILES: Record<DeploymentProfile, { utilization: number }> = {
+  onprem: { utilization: 0.10 }, // bought for peak, mostly waiting
+  shared: { utilization: 0.70 }, // well-run shared node, steady traffic
+  hyperscaler: { utilization: 0.90 }, // hot, well-scheduled fleet
 };
 
 // ---------------------------------------------------------------------------
@@ -294,15 +258,23 @@ export function calculateInference(params: InferenceParams): InferenceResult {
         : clampConc(modelProfile.defaultConcurrency, GENERIC_DEFAULT_CONCURRENCY);
 
   // --- Deployment profile (who runs the hardware) ---
-  // The packing factor captures how much further the fixed cost is spread on
-  // this deployment: a hyperscaler's disaggregated serving packs more
-  // concurrent requests onto the same GPU, so each request bears a smaller
-  // share of the fixed cost. On-prem packs nothing (you are alone).
-  const profile = DEPLOYMENT_PROFILES[deployment];
-  const dayAverageGpuConcurrency =
-    deployment === "onprem" ? 1 : gpuFixed * profile.packingFactor;
-  const dayAverageNodeConcurrency =
-    deployment === "onprem" ? 1 : nodeFixed * profile.packingFactor;
+  // The fixed-cost denominator is the day-average concurrency scaled by the
+  // profile's packing factor — for EVERY deployment, on-prem included. The
+  // batching mechanism (continuous batching shares the GPU across concurrent
+  // requests) works the same wherever the node sits, so the per-request
+  // embodied/concurrency share is the same at a given concurrency. What makes
+  // on-prem more expensive is NOT a smaller sharing denominator here, but the
+  // node's low UTILIZATION: it is idle most of the time, so its standby energy
+  // (and its embodied carbon, amortised over the lifetime) is spread over few
+  // productive hours. The utilization term (applied to the idle/server energy
+  // below) captures that; the concurrency denominator stays the day average.
+  // The fixed-cost denominator is the day-average concurrency — the same
+  // wherever the node sits, because continuous batching shares the GPU across
+  // concurrent requests identically. Utilization (applied to the idle/server
+  // energy below) is what makes a mostly-idle node more expensive per request,
+  // not a smaller sharing denominator.
+  const dayAverageGpuConcurrency = gpuFixed;
+  const dayAverageNodeConcurrency = nodeFixed;
 
   // --- Caching (KV prefix cache) ---
   // When enabled, the model's measured cachedPromptFraction of the prompt is
@@ -342,10 +314,7 @@ export function calculateInference(params: InferenceParams): InferenceResult {
   // Concurrency delay models queueing on THIS model's GPU batch, so it uses
   // the GPU concurrency (not the broader node concurrency).
   const concurrencyAdjustedTime = applyConcurrencyDelay(tokenAdjustedTime, gpuConcurrency);
-  // The deployment profile's serving-stack efficiency: a hyperscaler's
-  // disaggregated serving (separate prefill/decode pools) cuts the GPU time a
-  // request occupies (Splitwise ~20% lower cost at the same throughput).
-  const gpuTimeSec = concurrencyAdjustedTime * profile.gpuTimeFactor;
+  const gpuTimeSec = concurrencyAdjustedTime;
   const gpuTimeH = gpuTimeSec / SECONDS_IN_HOUR;
 
   // --- Shared-cost denominators (split: GPU batch vs node batch) ---
@@ -454,24 +423,38 @@ export function calculateInference(params: InferenceParams): InferenceResult {
   // below). Uses this request's own GPU time, so short requests bear little
   // standby cost and long requests more; the productive-batch denominator
   // keeps the total conserved across the skewed request mix.
-  const idleEnergyKwh = (idlePerGpuWatts * gpuTimeH * gpusUsed) / gpuBatch / 1_000;
+  //
+  // The standby draw is a FIXED cost the node burns around the clock, whether
+  // or not it is serving. A node with low UTILIZATION is idle most of the
+  // time, so its standby energy is spread over few productive hours — each
+  // request therefore bears the standby draw scaled by 1/utilization (a
+  // mostly-idle on-prem node charges far more standby per request than a hot
+  // hyperscaler). This is the energy-side analogue of the embodied lifetime
+  // amortisation.
+  // The node's lifetime utilization: the fraction of its life it is actively
+  // serving. Defaults to the deployment profile's anchor; an explicit
+  // `utilization` (the demo slider) overrides it. Clamped to (0, 1].
+  const utilizationRaw = params.utilization ?? DEPLOYMENT_PROFILES[deployment].utilization;
+  const utilizationSafe = Math.max(0.01, Math.min(1, Number.isFinite(utilizationRaw) ? utilizationRaw : 0.5));
+  const idleEnergyKwh = (idlePerGpuWatts * gpuTimeH * gpusUsed) / gpuBatch / utilizationSafe / 1_000;
   const idleOperationalCO2 = idleEnergyKwh * effectiveIntensity;
 
   // --- Server Infrastructure (Section 3.6) ---
   // Server chassis power is a fixed per-node cost shared across the node's
   // whole request load (nodeConcurrency) — broader than one model's GPU batch.
-  // Energy is per-request (divided by nodeBatch), and the CO₂ follows
-  // directly from that per-request energy — keeping energyKwh, totalEnergyKwh
-  // and waterLiters consistent with the CO₂ components.
-  const serverEnergyKwh = (hardware.chassisWatts * gpuTimeH) / nodeBatch / 1_000;
+  // Like the GPU idle baseline, the chassis is powered around the clock, so
+  // its per-request cost scales with 1/utilization for the same reason.
+  const serverEnergyKwh = (hardware.chassisWatts * gpuTimeH) / nodeBatch / utilizationSafe / 1_000;
   const serverOperationalCO2 = serverEnergyKwh * effectiveIntensity;
 
-  // --- PUE overhead (deployment-specific) ---
-  // The facility's power usage effectiveness depends on WHO runs it: an
-  // on-prem server room (~1.4), a shared Nordic datacentre (the grid's
-  // measured typicalPue, ~1.15), or a hyperscale facility (~1.1, Google fleet
-  // average 1.09). The deployment profile overrides the grid default when set.
-  const pue = profile.pueOverride ?? deploymentGrid.typicalPue;
+  // --- PUE overhead (grid/climate-driven) ---
+  // The PUE is a property of the FACILITY's climate and cooling design (the
+  // grid's typicalPue): a hot climate like Texas needs mechanical cooling
+  // (~1.8), a cool Nordic one uses free-air cooling (~1.15). The utilization
+  // effect on energy is already captured by scaling the idle/server terms
+  // with 1/utilization above — scaling the PUE by utilization too would
+  // double-count it, so the PUE stays grid-driven.
+  const pue = deploymentGrid.typicalPue;
   const overheadCO2 = (gpuOperationalCO2 + idleOperationalCO2 + serverOperationalCO2) * (pue - 1);
 
   // --- Embodied GPU (amortised over projected lifetime utilization) ---

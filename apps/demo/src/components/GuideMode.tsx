@@ -3,7 +3,7 @@ import { CategoryModelPicker } from "./CategoryModelPicker";
 import { RegionPicker } from "./RegionPicker";
 import { HardwarePicker } from "./HardwarePicker";
 import { ConcurrencyTimeExplorer } from "./ConcurrencyTimeExplorer";
-import { DeploymentProfileChart } from "./DeploymentProfileChart";
+import { UtilizationSlider } from "./UtilizationSlider";
 import { DailyLoadChart } from "./DailyLoadChart";
 import { CoolingWaterChart } from "./CoolingWaterChart";
 import { LeversDonut } from "./LeversDonut";
@@ -417,38 +417,36 @@ export function GuideMode({
           and spare memory — so it tends to be exactly the advantage a dedicated provider can offer and an on-prem
           setup can't.
         </p>
-        <InteractiveFrame label="who runs the hardware — the deployment trade-off">
-          <DeploymentProfileChart
+        <InteractiveFrame label="how well is the hardware used — the utilization lever">
+          <UtilizationSlider
             model={model}
             grid={grid}
-            deployment={state.deployment}
+            utilization={state.utilization}
             gpuCondition={state.gpuCondition}
             infraCondition={state.infraCondition}
             hourOfDay={state.hourOfDay}
-            onDeploymentChange={actions.setDeployment}
+            onUtilizationChange={actions.setUtilization}
           />
         </InteractiveFrame>
         <p style={prose.p}>
-          The three bars are the same model, the same request, the same grid — the only thing that changes is who
-          runs the hardware. Every fixed cost — the server's standby draw, the chassis, the cooling, and the GPU's
+          Drag the slider. The same model, the same request, the same grid — the only thing that changes is how well
+          the hardware is used. Every fixed cost — the server's standby draw, the chassis, the cooling, and the GPU's
           own manufacturing footprint — is spent whether the node is busy or idle, so the only question that matters
-          is how many requests it is divided across. On your own server you carry all of it alone. On a shared node
-          it is amortised over the day's requests. And a hyperscaler goes further still: by splitting the prefill
-          and decode phases onto separate machine pools (disaggregated serving), it packs more concurrent work onto
-          each GPU, so each request bears a smaller share. The result is not a marginal tweak — it is the difference
-          between the tallest and the shortest bar above.
+          is how many requests it is shared across. A node bought for peak but mostly waiting (your own server, at
+          perhaps 10% utilization) spreads that fixed cost over few requests, so each one bears more. A well-run
+          shared node stays busier; a hyperscale fleet, with massive demand and sophisticated scheduling, keeps its
+          GPUs hottest of all. The hardware's embodied carbon is amortised over its five-year life wherever it sits —
+          the slider changes how many requests that cost, and the standby draw, is divided among.
         </p>
         <MethodPanel
           assumptions={[
-            "Every fixed cost — GPU idle baseline, server chassis, cooling and GPU embodied carbon — is a sunk cost the node accrues around the clock. It is amortised over the whole day's work (the day-average concurrency), not the instantaneous concurrency of the moment a request lands: day traffic 'pays for' the night idle, so a night request is not unfairly loaded with the whole node's fixed cost.",
-            "On-prem (deployment = 'onprem') forces concurrency to 1: the whole node's fixed cost lands on your queries alone, in an enterprise server room (PUE ~1.4).",
-            "Hyperscaler (deployment = 'hyperscaler') models disaggregated serving: a ~2× packing factor on the fixed-cost denominator and ~20% lower GPU time per request (Splitwise), in a hyperscale facility (PUE ~1.1, Google fleet average 1.09).",
+            "The hardware's embodied carbon is amortised over its 5-year lifetime at a fixed rate, WHEREVER the node sits — it does not depend on utilization at a given concurrency. It is shared across the day-average concurrency (the batching mechanism works the same everywhere).",
+            "The fixed ENERGY costs — the GPU idle baseline and the server chassis — are burned around the clock whether the node is serving or not, so their per-request cost scales with 1/utilization: a node idle 90% of the time charges each request ~7× more standby than one idle 30% of the time.",
+            "Utilization anchors: your own server ~10% (bought for peak, mostly waiting), a well-run shared node ~70%, a hyperscale fleet ~90%.",
             "An idle GPU is NOT in a deep sleep: our DCGM measurements show ~236 W per B300 card at 0% load (measured over 7 days on the production node). That standby draw is part of the fixed cost amortised over the day.",
           ]}
-          reasoning="Who runs the hardware is where the fixed costs live or die. A node's standby draw, chassis, cooling and embodied carbon are spent whether the GPU is busy or idle, so the only question that matters is how many requests they are divided across — and how efficiently the serving stack packs those requests onto the hardware. We model three deployments spanning the realistic range: a private server (concurrency 1), a shared node (day-average concurrency), and a hyperscaler's disaggregated serving (higher effective concurrency plus a more efficient serving stack and facility)."
+          reasoning="How well the hardware is used is where the fixed costs live or die. A node's standby draw, chassis, cooling and embodied carbon are spent whether the GPU is busy or idle, so the only question that matters is how many requests they are divided across. Utilization is the single physical variable that captures this: it scales the fixed energy costs (standby, chassis) by 1/utilization, while the embodied carbon is amortised over the 5-year lifetime at a fixed rate regardless of where the node sits. The three named deployments — your own server, a shared node, a hyperscaler — are just points on this one axis."
           sources={[
-            { label: "Patel et al. (2024) — Splitwise: Efficient generative LLM inference using phase splitting, ISCA 2024, arXiv:2311.18677", url: "https://arxiv.org/abs/2311.18677" },
-            { label: "Zhong et al. (2024) — DistServe: Disaggregating Prefill and Decoding for Goodput-optimized LLM Serving, OSDI 2024, arXiv:2401.09670", url: "https://arxiv.org/abs/2401.09670" },
             { label: "Fu et al. (2024) — LLMCO2: Advancing Accurate Carbon Footprint Prediction for LLM Inferences, arXiv:2410.02950", url: "https://arxiv.org/abs/2410.02950" },
           ]}
         />
@@ -688,7 +686,7 @@ const result = calculateInference({
   measuredResponseTimeSeconds: ${category.responseTime},
   inputTokens: ${model?.defaultInputTokens},
   outputTokens: ${model?.defaultOutputTokens},
-  deployment: "${state.deployment}",
+  utilization: ${state.utilization},
   hourOfDay: 14,
 });
 

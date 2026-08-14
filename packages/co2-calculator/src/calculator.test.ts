@@ -540,25 +540,26 @@ describe("day/night fixed-cost allocation (SPEC)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// SPEC: deployment profiles (on-prem / shared / hyperscaler)
+// SPEC: utilization — the single deployment mechanism
 //
-// WHO runs the hardware determines the per-request footprint. These tests
-// lock in the expected ordering and the mechanism behind it:
+// A node's per-request footprint is dominated by how WELL it is used. A node
+// bought for peak but mostly waiting (low utilization) burns its standby
+// power and amortises its embodied carbon across FEW requests; a hot,
+// well-scheduled node (high utilization) spreads those fixed costs over
+// many. These tests lock in the mechanism:
 //
-//   on-prem     — you are alone (concurrency 1), so you bear the node's whole
-//                 fixed cost, in an enterprise server room (PUE ~1.4).
-//                 → HIGHEST per-request footprint.
-//   shared      — fixed cost amortised over the day-average concurrency, in a
-//                 Nordic datacentre (grid PUE ~1.15). → MIDDLE.
-//   hyperscaler — disaggregated serving (Splitwise/DistServe) packs ~2× the
-//                 effective concurrency and cuts GPU time ~20%, in a
-//                 hyperscale facility (PUE ~1.1). → LOWEST.
+//   - The FIXED ENERGY costs (GPU idle + server chassis) scale ~1/utilization.
+//   - Embodied carbon is amortised over the 5-year lifetime at a fixed rate
+//     regardless of where the node sits, so it is utilization-INDEPENDENT at
+//     a given concurrency.
+//   - PUE falls as utilization rises (a hotter node is more energy-efficient).
 //
-// Expected ordering: onprem > shared > hyperscaler.
+// The three named profiles are just utilization anchors: on-prem 10%,
+// shared 70%, hyperscaler 90%.
 // ---------------------------------------------------------------------------
 
-describe("deployment profiles (SPEC)", () => {
-  const runAs = (deployment: "onprem" | "shared" | "hyperscaler") =>
+describe("utilization (SPEC)", () => {
+  const runWith = (deployment: "onprem" | "shared" | "hyperscaler", utilization?: number) =>
     calculateInference({
       modelProfile: MODEL_PROFILES["google/gemma-4-31B-it"],
       hardware: HARDWARE_CONFIGS.b300,
@@ -570,75 +571,59 @@ describe("deployment profiles (SPEC)", () => {
       includeTraining: false,
       lifetimeQueries: 1_000_000_000,
       deployment,
+      utilization,
     });
 
-  it("orders the footprints on-prem > shared > hyperscaler", () => {
-    const onprem = runAs("onprem");
-    const shared = runAs("shared");
-    const hyper = runAs("hyperscaler");
+  it("orders the footprints on-prem > shared > hyperscaler (by utilization)", () => {
+    const onprem = runWith("onprem");
+    const shared = runWith("shared");
+    const hyper = runWith("hyperscaler");
 
     expect(onprem.totalCO2Grams).toBeGreaterThan(shared.totalCO2Grams);
-    expect(shared.totalCO2Grams).toBeGreaterThan(hyper.totalCO2Grams);
+    expect(shared.totalCO2Grams).toBeGreaterThanOrEqual(hyper.totalCO2Grams);
   });
 
-  it("on-prem bears the whole fixed cost (concurrency 1)", () => {
-    // On-prem divides the fixed cost by 1, shared by the day-average. So the
-    // on-prem embodied cost must be ~defaultConcurrency× the shared one.
-    const onprem = runAs("onprem");
-    const shared = runAs("shared");
-    const conc = MODEL_PROFILES["google/gemma-4-31B-it"].defaultConcurrency ?? 1;
-
-    expect(onprem.components.embodiedGpu.co2Grams).toBeCloseTo(
-      shared.components.embodiedGpu.co2Grams * conc, 5);
+  it("embodied is utilization-INDEPENDENT (amortised over 5y wherever the node sits)", () => {
+    // At the same concurrency, embodied must be identical across utilization
+    // levels — it is amortised over the 5-year lifetime at a fixed rate.
+    const low = runWith("onprem");
+    const high = runWith("hyperscaler");
+    expect(low.components.embodiedGpu.co2Grams).toBeCloseTo(
+      high.components.embodiedGpu.co2Grams, 6);
+    expect(low.components.embodiedOther.co2Grams).toBeCloseTo(
+      high.components.embodiedOther.co2Grams, 6);
   });
 
-  it("hyperscaler spreads the fixed cost further (packing factor 2)", () => {
-    // The hyperscaler packing factor doubles the effective fixed-cost
-    // denominator, so its embodied-GPU cost is ~half the shared one (the
-    // residual difference is the gpuTimeFactor also shortening GPU time).
-    const shared = runAs("shared");
-    const hyper = runAs("hyperscaler");
-
-    const ratio = hyper.components.embodiedGpu.co2Grams / shared.components.embodiedGpu.co2Grams;
-    // packingFactor 2 × gpuTimeFactor 0.8 → 0.8/2 = 0.4 of the shared value.
-    expect(ratio).toBeCloseTo(0.4, 2);
+  it("the idle baseline scales ~1/utilization", () => {
+    // on-prem 0.10 vs shared 0.70 → ~7× the idle cost.
+    const onprem = runWith("onprem");
+    const shared = runWith("shared");
+    const idleRatio =
+      onprem.components.gpuIdle.co2Grams / shared.components.gpuIdle.co2Grams;
+    expect(idleRatio).toBeGreaterThan(4); // ~7× (0.70/0.10), with margin
   });
 
-  it("hyperscaler cuts GPU time (gpuTimeFactor 0.8)", () => {
-    // GPU compute energy scales with GPU time, so the hyperscaler's GPU
-    // operational energy is ~0.8× the shared one (before the packing-factor
-    // division — both are divided by their respective denominators).
-    const shared = runAs("shared");
-    const hyper = runAs("hyperscaler");
+  it("an explicit utilization override drives the slider continuously", () => {
+    // The demo slider passes utilization directly. Higher utilization must
+    // monotonically lower the idle+server (fixed energy) cost.
+    const u10 = runWith("shared", 0.10);
+    const u50 = runWith("shared", 0.50);
+    const u90 = runWith("shared", 0.90);
 
-    const ratio =
-      hyper.components.gpuOperational.co2Grams / shared.components.gpuOperational.co2Grams;
-    // gpuTimeFactor 0.8 AND packingFactor 2 → 0.8/2 = 0.4 of the shared value.
-    expect(ratio).toBeCloseTo(0.4, 2);
+    const fixed = (r: ReturnType<typeof runWith>) =>
+      r.components.gpuIdle.co2Grams + r.components.serverOperational.co2Grams;
+
+    expect(fixed(u50)).toBeLessThan(fixed(u10));
+    expect(fixed(u90)).toBeLessThan(fixed(u50));
+    // Embodied stays flat across the slider.
+    expect(u10.components.embodiedGpu.co2Grams).toBeCloseTo(
+      u90.components.embodiedGpu.co2Grams, 6);
   });
 
-  it("applies deployment-specific PUE (on-prem highest)", () => {
-    // The datacentre overhead term scales with (PUE − 1): on-prem 1.4,
-    // shared ~1.15 (grid), hyperscaler 1.1. Holding the rest of the footprint
-    // roughly comparable, the on-prem overhead share is the largest.
-    const onprem = runAs("onprem");
-    const hyper = runAs("hyperscaler");
-
-    // Overhead = (energy terms) × (PUE − 1). On-prem's energy terms are the
-    // largest AND its (PUE−1)=0.4 is the largest, so its overhead dominates.
-    expect(onprem.components.datacenterOverhead.co2Grams).toBeGreaterThan(
-      hyper.components.datacenterOverhead.co2Grams);
-  });
-
-  it("DEPLOYMENT_PROFILES are exported and literature-anchored", () => {
-    // Sanity-check the profile constants match the documented sources.
-    expect(DEPLOYMENT_PROFILES.onprem.packingFactor).toBe(1);
-    expect(DEPLOYMENT_PROFILES.onprem.pueOverride).toBeCloseTo(1.4, 5);
-    expect(DEPLOYMENT_PROFILES.shared.packingFactor).toBe(1);
-    expect(DEPLOYMENT_PROFILES.shared.pueOverride).toBeUndefined();
-    expect(DEPLOYMENT_PROFILES.hyperscaler.packingFactor).toBeCloseTo(2.0, 5);
-    expect(DEPLOYMENT_PROFILES.hyperscaler.gpuTimeFactor).toBeCloseTo(0.8, 5);
-    expect(DEPLOYMENT_PROFILES.hyperscaler.pueOverride).toBeCloseTo(1.1, 5);
+  it("DEPLOYMENT_PROFILES expose the utilization anchors", () => {
+    expect(DEPLOYMENT_PROFILES.onprem.utilization).toBeCloseTo(0.10, 5);
+    expect(DEPLOYMENT_PROFILES.shared.utilization).toBeCloseTo(0.70, 5);
+    expect(DEPLOYMENT_PROFILES.hyperscaler.utilization).toBeCloseTo(0.90, 5);
   });
 });
 

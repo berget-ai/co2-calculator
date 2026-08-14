@@ -1,10 +1,13 @@
 # Methodology: AI CO₂ Impact Calculator for Berget AI
 
-**Document Version**: 3.1  
+**Document Version**: 3.2  
 **Date**: 2026-08-14  
 **Authors**: Christian Landgren, Berget AI  
 **External input**: Comments on specific sections (embodied amortisation, utilisation) from a researcher at the Stockholm Environment Institute (SEI); these were targeted suggestions, not a full-institute review or endorsement of the document.  
 **License**: CC BY 4.0
+
+**Changes in 3.2** (utilization replaces deployment profiles):
+- §3.2c (rewritten): the deployment difference is now modelled by a single physical variable — **utilization** (the fraction of the node's lifetime it is actively serving). It scales the fixed *energy* costs (GPU idle + server chassis) by 1/utilization; embodied carbon stays amortised over the 5-year lifetime at a fixed rate, utilization-independent. This replaces the earlier per-profile multipliers (concurrency floor, packing factor, GPU-time discount, PUE overrides), which conflated mechanisms and made a large model's embodied cost explode unrealistically on a solo node.
 
 **Changes in 3.1** (deployment profiles + day-average fixed-cost allocation):
 - §3.2c (rewritten): the `deployment` parameter now spans three profiles — `onprem`, `shared` and `hyperscaler` — bundling the levers that move together in practice (fixed-cost sharing, serving-stack efficiency, facility PUE). The hyperscaler profile is anchored to the disaggregated-serving literature (Splitwise, DistServe) and hyperscale PUE (Google fleet 1.09).
@@ -280,25 +283,30 @@ effectiveInputTokens = inputTokens                                  // caching d
 
 We deliberately expose caching as a *scenario* rather than a user default. Configuring KV caching well on your own deployment requires the right serving framework, cache management and spare KV memory, so it is an advantage a dedicated provider can offer that a typical on-prem setup cannot easily replicate.
 
-### 3.2c Deployment: who runs the hardware
+### 3.2c Utilization: how well the hardware is used
 
-The `deployment` parameter models who owns the infrastructure — and, just as much, **how efficiently it is shared**. WHO runs the hardware determines the per-request footprint more than almost any other single choice, because it sets both how the fixed costs are divided and how well the hardware is used. We model three deployments spanning the realistic range:
+The `utilization` parameter (0–1) is the fraction of the node's lifetime it is actively serving requests. It is the **single physical mechanism** behind the deployment difference: a node bought for peak but mostly waiting burns its standby power and amortises its embodied carbon across FEW requests, so each request bears more; a hot, well-scheduled node spreads those fixed costs over many. WHO runs the hardware matters only through this variable — your own server, a shared node and a hyperscaler are just points on one axis.
 
-| Profile | Fixed-cost denominator | GPU time | PUE | Story |
-|---------|------------------------|----------|-----|-------|
-| **`onprem`** | 1 (you are alone) | ×1.0 | 1.4 | Your own server: the whole fixed cost lands on your queries, in an enterprise server room. |
-| **`shared`** (default) | day-average concurrency | ×1.0 | grid (~1.15) | A shared node (Berget): the fixed cost is amortised over the day's requests, in a Nordic datacentre. |
-| **`hyperscaler`** | day-average × 2.0 (packing) | ×0.8 | 1.1 | Disaggregated serving packs more onto each GPU, in a hyperscale facility. |
+**How utilization enters the calculation.** Two of the fixed costs are burned around the clock whether the node is serving or not, so their per-request cost scales with **1/utilization**:
 
-- **`onprem`**: you run the model on your own server. Concurrency is forced to 1, so the node's **entire** infrastructure and embodied footprint lands on your queries alone. The PUE is a typical enterprise server-room value (1.4; the Uptime Institute's 2025 global survey average is 1.54).
-- **`shared`** (default): the node is shared with other tenants, so the fixed server infrastructure and embodied hardware costs are amortised across the day's requests (Section 3.2d, Section 3.6). The PUE is the datacentre's measured value (Nordics ~1.15).
-- **`hyperscaler`**: a large provider running **disaggregated serving** — the prefill and decode phases are split onto separate machine pools (Splitwise, DistServe), so each phase runs on hardware suited to it and more concurrent work packs onto each GPU. We model this as a **packing factor of 2.0** on the fixed-cost denominator (a conservative mid-point of Splitwise's 1.4–2.35× throughput range, well below DistServe's 7.4× goodput extreme) and a **GPU-time factor of 0.8** (Splitwise reports ~20% lower cost at the same throughput). The PUE is a hyperscale value (1.1; Google's 2025 fleet average is 1.09).
+- **GPU idle baseline** (§3.5) and **server chassis energy** (§3.6): a node idle 90% of the time spreads its standby draw over ~7× fewer productive hours than one idle 30% of the time, so each request bears ~7× more standby.
+- **Embodied carbon** (§4) is different: it is amortised over the node's 5-year lifetime at a **fixed rate regardless of where the node sits** ("amortised over five years no matter what"), and shared across the day-average concurrency (§3.2d) — the continuous-batching mechanism works the same everywhere. So the per-request embodied term is **utilization-independent** at a given concurrency; utilization changes only how the *energy* fixed costs are divided.
 
-The on-prem case captures a real accounting point: a privately-owned GPU is paid for — in energy and in amortised manufacturing carbon — for the whole month, **whether or not it is used**. Spread over a lightly-loaded month, that fixed cost per request can exceed the operational energy by an order of magnitude. This is the quantitative form of the intuition that a busy shared GPU usually beats a private one that mostly waits; the hyperscaler row shows the further gain from running that sharing at scale with a specialised serving stack.
+The PUE remains a property of the facility's climate and cooling design (the grid's `typicalPue`, §3.6) — it is NOT scaled by utilization, because the utilization effect on energy is already captured by the 1/utilization scaling of the idle/server terms; scaling the PUE too would double-count it.
 
-**Measured magnitude** (Gemma 4 31B, B300, Sweden grid, inference-only): on-prem **128.5 mg**, shared **42.1 mg**, hyperscaler **16.8 mg** CO₂e per request — on-prem is **3.1×** shared and **7.7×** hyperscaler. The deployment choice rivals the model choice as a lever.
+**Utilization anchors** (the named deployments, exposed as `DEPLOYMENT_PROFILES`):
 
-**Sources**: Patel et al. (2024), *Splitwise: Efficient generative LLM inference using phase splitting*, ISCA 2024, [arXiv:2311.18677](https://arxiv.org/abs/2311.18677); Zhong et al. (2024), *DistServe: Disaggregating Prefill and Decoding for Goodput-optimized LLM Serving*, OSDI 2024, [arXiv:2401.09670](https://arxiv.org/abs/2401.09670); Google, [Data Centers Efficiency](https://www.google.com/about/datacenters/efficiency/) (fleet PUE 1.09); Uptime Institute, *Global Data Center Survey 2025* (average PUE 1.54).
+| Deployment | Utilization | Story |
+|------------|-------------|-------|
+| **`onprem`** | ~10% | Your own server, bought for peak but mostly waiting. |
+| **`shared`** (default) | ~70% | A well-run shared node (Berget) with steady traffic. |
+| **`hyperscaler`** | ~90% | A hot, well-scheduled fleet with massive demand. |
+
+The on-prem case captures a real accounting point: a privately-owned GPU is paid for — in energy and in amortised manufacturing carbon — for the whole month, **whether or not it is used**. Spread over a lightly-loaded month, that fixed cost per request can exceed the operational energy by an order of magnitude. This is the quantitative form of the intuition that a busy shared GPU usually beats a private one that mostly waits.
+
+**Measured magnitude** (Gemma 4 31B, B300, Sweden grid, inference-only): on-prem (10%) **70.0 mg**, shared (70%) **43.4 mg**, hyperscaler (90%) **42.4 mg** CO₂e per request — on-prem is **1.6×** shared. The gap is dominated by the standby-energy terms, because the embodied term (the larger share) is utilization-independent.
+
+**Earlier versions** modelled the deployment difference as discrete per-profile multipliers (a concurrency floor for on-prem, a "packing factor" and GPU-time discount for hyperscaler, and per-profile PUE overrides). That conflated several mechanisms and, worse, forced concurrency to 1 for on-prem — which made a large model's embodied cost explode unrealistically on a solo node. Utilization replaces all of it with the one physical variable that actually drives the fixed costs.
 
 ### 3.2d Amortising fixed costs over the day, not the moment
 
@@ -674,35 +682,36 @@ At 14:00 the effective grid intensity is the base CI scaled by the day factor: `
 | Token ratio | (402+482)/(600+482) | 0.82 |
 | Token-adjusted time | 2.02 × √0.82 | 1.83 s |
 | Day-average concurrency (Little's Law) | fixed-cost denominator, §3.2d | 3 |
+| Utilization | shared node, §3.2c | 0.70 |
 | Effective intensity | 8 × 1.15 (day) | 9.2 g/kWh |
 | GPUs used | 31B params, B300 (268 GB) | 1 |
 | Incremental GPU power | (peak−idle)/8 × 0.25 | 206 W |
 | Idle baseline per GPU | idle/8 | 238 W |
 | GPU compute CO₂ | incremental energy × 9.2 / 3 | 321 µg |
-| GPU idle CO₂ | idle energy × 9.2 / 3 | 369 µg |
-| Server CO₂ | chassis energy × 9.2 / 3 | 2.333 mg |
-| Cooling overhead | (compute+idle+server) × (PUE−1) | 453 µg |
+| GPU idle CO₂ | idle energy × 9.2 / 3 / 0.70 | 528 µg |
+| Server CO₂ | chassis energy × 9.2 / 3 / 0.70 | 3.333 mg |
+| Cooling overhead | (compute+idle+server) × (PUE−1) | 627 µg |
 | Embodied GPU | 0.0127 g/s × 1.83 s / 3 | 7.72 mg |
 | Embodied supporting infra | 0.0507 g/s × 1.83 s / 3 | 30.88 mg |
-| **Total (excl. training)** | | **≈ 42.1 mg** |
+| **Total (excl. training)** | | **≈ 43.4 mg** |
 
 **One day-average denominator for the fixed costs.** The fixed costs — GPU idle standby, server chassis energy, GPU embodied and the supporting-infrastructure embodied term — are sunk costs the node accrues around the clock, so they are amortised over the **day-average concurrency** (the model's measured Little's Law value, 3 for Gemma), not the instantaneous concurrency of the moment (Section 3.2d). Day traffic "pays for" the night idle, so a night request is not unfairly loaded with the whole node's fixed cost. The instantaneous concurrency still drives the concurrency-delay (latency) term, where the moment's contention genuinely matters — but here the day-average (3) is below the delay baseline of 8, so there is no extra queueing delay.
 
-**Why the server term (2.333 mg) is larger than the GPU compute + idle terms (321 + 369 µg).** It can look surprising that the chassis outweighs the accelerator on a *GPU* server. The reason is allocation: this query uses only **one** of the node's eight GPUs, so it bears the incremental + idle power of a single card (~206 W + ~238 W, divided by the day-average concurrency). But the chassis term carries the *whole node's* supporting power — the two CPUs, the DRAM, storage, fans and power supplies (~1,500 W) — because that infrastructure must be running for any request to be served at all. One GPU's worth of compute is simply much smaller than a whole node's worth of everything-else. On a node where the model used all eight GPUs, the balance would shift back toward the GPU terms.
+**Why the server term (3.333 mg) is larger than the GPU compute + idle terms (321 + 528 µg).** It can look surprising that the chassis outweighs the accelerator on a *GPU* server. The reason is allocation: this query uses only **one** of the node's eight GPUs, so it bears the incremental + idle power of a single card (~206 W + ~238 W, divided by the day-average concurrency and scaled by 1/utilization). But the chassis term carries the *whole node's* supporting power — the two CPUs, the DRAM, storage, fans and power supplies (~1,500 W) — because that infrastructure must be running for any request to be served at all. One GPU's worth of compute is simply much smaller than a whole node's worth of everything-else. On a node where the model used all eight GPUs, the balance would shift back toward the GPU terms.
 
-**Note**: Operational emissions only (compute + idle + server + cooling, excluding embodied and training) are **≈ 3.48 mg**. Embodied carbon is **~92%** of this total, dominated by the *supporting infrastructure* term (databases, logging/object-storage and network gear, Section 4.2b) — the GPU node's own manufacturing (7.72 mg) is the smaller embodied share. This supporting infrastructure is genuinely separate from the GPU node's chassis and measured power draw, is needed for the totals to reconcile against real-world consumption, and is roughly equivalent across regions, so it does not change the *relative* Sweden-vs-rest comparison.
+**Note**: Operational emissions only (compute + idle + server + cooling, excluding embodied and training) are **≈ 4.81 mg**. Embodied carbon is **~89%** of this total, dominated by the *supporting infrastructure* term (databases, logging/object-storage and network gear, Section 4.2b) — the GPU node's own manufacturing (7.72 mg) is the smaller embodied share. This supporting infrastructure is genuinely separate from the GPU node's chassis and measured power draw, is needed for the totals to reconcile against real-world consumption, and is roughly equivalent across regions, so it does not change the *relative* Sweden-vs-rest comparison.
 
-### 6.3 Deployment comparison
+### 6.3 Utilization comparison
 
-Same model, request, grid and hour — only the deployment changes (Section 3.2c). Generated from the same code.
+Same model, request, grid and hour — only the utilization changes (Section 3.2c). Generated from the same code.
 
-| Deployment | Total CO₂e | vs shared |
-|------------|-----------:|----------:|
-| on-prem | 128.5 mg | 3.05× |
-| shared (Berget) | 42.1 mg | 1.00× |
-| hyperscaler | 16.8 mg | 0.40× |
+| Deployment | Utilization | Total CO₂e | vs shared |
+|------------|-------------|-----------:|----------:|
+| on-prem | 10% | 70.0 mg | 1.61× |
+| shared (Berget) | 70% | 43.4 mg | 1.00× |
+| hyperscaler | 90% | 42.4 mg | 0.98× |
 
-The spread is dominated by the fixed costs: on-prem bears the whole node's idle + chassis + embodied alone (concurrency 1, enterprise PUE 1.4); shared amortises them over the day-average concurrency (Nordic PUE 1.15); and the hyperscaler spreads them further still via disaggregated serving (packing ×2.0, GPU time ×0.8, hyperscale PUE 1.1). On-prem is **3.1×** shared and **7.7×** hyperscaler — the deployment choice rivals the model choice as a lever.
+The spread is driven by the standby-energy terms (GPU idle + server chassis), which scale with 1/utilization: a mostly-idle on-prem node (10%) charges each request ~7× more standby than a well-run shared node (70%). The embodied term — the larger share of the total — is amortised over the 5-year lifetime at a fixed rate and is utilization-independent, so it does not widen the gap. On-prem is **1.6×** shared; shared and hyperscaler are close, because at high utilization the standby terms are already small relative to the (fixed) embodied term.
 
 ---
 
@@ -751,32 +760,32 @@ We publish the reconciliation script so the reader can re-run it against the sam
 
 ### 8.2 Berget Specific
 
-On Berget's infrastructure, Gemma 4 31B, 600 tokens in / 482 tokens out, NVIDIA B300, shared deployment, caching enabled. **Figures generated from the calculator** (`scripts/generate-methodology-example.mjs`):
+On Berget's infrastructure, Gemma 4 31B, 600 tokens in / 482 tokens out, NVIDIA B300, shared node (70% utilization), caching enabled. **Figures generated from the calculator** (`scripts/generate-methodology-example.mjs`):
 
 | Component | Sweden (8 g/kWh, PUE 1.15) | US Average (380 g/kWh, PUE 1.50) |
 |-----------|---------------------------|----------------------------------|
 | GPU compute | 321 µg | 15.24 mg |
-| GPU idle baseline | 369 µg | 17.55 mg |
-| Server | 2.333 mg | 110.82 mg |
-| Cooling overhead | 453 µg | 71.80 mg |
-| **Operational subtotal** | **≈ 3.48 mg** | **≈ 215.41 mg** |
+| GPU idle baseline | 528 µg | 25.07 mg |
+| Server | 3.333 mg | 158.31 mg |
+| Cooling overhead | 627 µg | 99.31 mg |
+| **Operational subtotal** | **≈ 4.81 mg** | **≈ 297.93 mg** |
 | Embodied GPU | 7.72 mg | 7.72 mg |
 | Embodied supporting infra | 30.88 mg | 30.88 mg |
-| **TOTAL (excl. training)** | **≈ 42.08 mg** | **≈ 254.00 mg** |
+| **TOTAL (excl. training)** | **≈ 43.41 mg** | **≈ 336.52 mg** |
 
 **Key insight**: operational emissions (the energy consumed during inference: compute + idle + server + cooling) are **~62×** lower on the Swedish grid, because they scale directly with grid carbon intensity. Embodied carbon is **independent of the grid** — it depends on hardware manufacturing, not where inference runs — so it does not change between columns. That holds for both embodied terms: the GPU node's own manufacturing (7.72 mg) and the supporting infrastructure (30.88 mg — databases, logging/storage and network gear, Section 4.2b), which is roughly equivalent wherever the service runs.
 
 For a fair comparison of **operational efficiency only** (excluding the fixed embodied cost):
-- Sweden: **≈ 3.48 mg** operational CO₂e
-- US Average: **≈ 215.41 mg** operational CO₂e
+- Sweden: **≈ 4.81 mg** operational CO₂e
+- US Average: **≈ 297.93 mg** operational CO₂e
 - **Reduction: ~62×**
 
 For **total emissions** (including embodied, excluding training):
-- Sweden: **≈ 42.08 mg** total CO₂e
-- US Average: **≈ 254.00 mg** total CO₂e
-- **Reduction: ~6.0×**
+- Sweden: **≈ 43.41 mg** total CO₂e
+- US Average: **≈ 336.52 mg** total CO₂e
+- **Reduction: ~7.8×**
 
-The two ratios answer different questions, and we report both deliberately: **~62×** is the operational (grid-driven) advantage; **~6.0×** is the all-in advantage once the grid-independent embodied cost (GPU node + supporting infrastructure) is included. Quoting only the larger number would overstate the case.
+The two ratios answer different questions, and we report both deliberately: **~62×** is the operational (grid-driven) advantage; **~7.8×** is the all-in advantage once the grid-independent embodied cost (GPU node + supporting infrastructure) is included. Quoting only the larger number would overstate the case.
 
 **Climate advantage compounds the grid advantage**: Sweden's free-air cooling (PUE 1.15 → 0.15 cooling per unit of IT work) vs US mechanical cooling (PUE 1.50 → 0.50) means ~3.3× less cooling energy, in addition to the cleaner grid.
 
