@@ -75,13 +75,16 @@ export function CO2Calculator() {
   const [region, setRegion] = useState("sweden");
   const [gpuCondition, setGpuCondition] = useState<"new" | "refurbished">("new");
   const [infraCondition, setInfraCondition] = useState<"new" | "refurbished">("new");
-  // Which serving deployment the request runs on. WHO runs the hardware —
-  // your own server, a shared node (Berget), or a hyperscaler's disaggregated
-  // serving — determines how the fixed costs are shared and how efficiently
-  // the hardware is used. This replaces the old concurrency slider: with the
-  // fixed cost amortised over the day, "how many share right now" is no
-  // longer the lever; the deployment model is.
-  const [deployment, setDeployment] = useState<"onprem" | "shared" | "hyperscaler">("shared");
+  // How well the node is USED — the single physical mechanism behind the
+  // deployment difference. A node bought for peak but mostly waiting (low
+  // utilization) spreads its standby ENERGY (GPU idle + server chassis) over
+  // few productive hours, so each request bears more of it; a hot,
+  // well-scheduled node spreads that standby over many. (Embodied carbon is
+  // amortised over the 5-year lifetime at a fixed rate wherever the node
+  // sits, so it does not move with utilization.) The slider runs from a
+  // mostly-idle own server (10%) through a well-run shared node (70%) to a
+  // hyperscale fleet (90%).
+  const [utilization, setUtilization] = useState(0.70);
   const [hourOfDay, setHourOfDay] = useState(14);
 
   // Fetch dynamic model data from EcoLogits and OpenRouter
@@ -116,15 +119,16 @@ export function CO2Calculator() {
       measuredResponseTimeSeconds: model.defaultResponseTimeSeconds,
       inputTokens: model.defaultInputTokens,
       outputTokens: model.defaultOutputTokens,
-      // The deployment profile drives the shared-cost denominators: on-prem
-      // forces concurrency 1, shared uses the day-average, and hyperscaler
-      // packs more onto each GPU via disaggregated serving.
-      deployment,
+      // Utilization drives the fixed energy costs (idle + server chassis) via
+      // 1/utilization. Embodied is amortised over the 5-year lifetime at a
+      // fixed rate and shared over the day-average concurrency, wherever the
+      // node sits.
+      utilization,
       hourOfDay,
       includeTraining: INCLUDE_TRAINING,
       lifetimeQueries: LIFETIME_QUERIES,
     }) as InferenceResult;
-  }, [model, grid, gpuCondition, infraCondition, category, deployment, hourOfDay]);
+  }, [model, grid, gpuCondition, infraCondition, category, utilization, hourOfDay]);
 
   const handleCategoryChange = (key: string) => {
     setModelCategory(key);
@@ -139,7 +143,7 @@ export function CO2Calculator() {
   // Shared state/actions/derived bundles
   const state: CalculatorState = {
     modelCategory, selectedModel, region,
-    gpuCondition, infraCondition, deployment, hourOfDay,
+    gpuCondition, infraCondition, utilization, hourOfDay,
   };
 
   const actions: CalculatorActions = {
@@ -148,7 +152,7 @@ export function CO2Calculator() {
     setRegion,
     setGpuCondition,
     setInfraCondition,
-    setDeployment,
+    setUtilization,
     setHourOfDay,
   };
 

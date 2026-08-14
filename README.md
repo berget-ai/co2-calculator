@@ -42,9 +42,11 @@ const result = calculateInference({
   measuredResponseTimeSeconds: 1.2,
   inputTokens: 800,
   outputTokens: 400,
-  // Who runs the hardware: "onprem" | "shared" | "hyperscaler". Determines
-  // how the fixed costs are shared and the facility PUE (see METHODOLOGY §3.2c).
-  deployment: "shared",
+  // How well the node is used (0–1): the fraction of its life it is actively
+  // serving. Scales the fixed energy costs (idle + chassis) by 1/utilization.
+  // Anchors: your own server ~0.10, shared ~0.70, hyperscaler ~0.90
+  // (see METHODOLOGY §3.2c).
+  utilization: 0.70,
   hourOfDay: 14,
   includeTraining: true,
   lifetimeQueries: 100_000_000,
@@ -59,7 +61,7 @@ console.log(`Water: ${result.waterLiters} L per request`);
 - **14 pre-configured models** (Llama, Mistral, Gemma, GLM, Whisper, etc.)
 - **15 grid regions** with real carbon intensity data
 - **7 hardware configurations** (B300, H100, H200, MI300X, A100, L4 ×4 and L4 ×2)
-- **3 deployment profiles** (on-prem, shared, hyperscaler) — who runs the hardware decides how fixed costs are shared and the facility PUE
+- **Utilization modelling** — how well the node is used drives the fixed energy costs (idle + chassis); embodied carbon is amortised over the 5-year lifetime wherever the node sits
 - **Full component breakdown**: GPU, server, cooling, embodied, training
 
 ---
