@@ -93,11 +93,9 @@ export function GuideMode({
           We open source our CO₂ emissions — and so should you.
         </h1>
         <p style={{ ...prose.p, fontSize: "1.125rem" }}>
-          There's real confusion about AI's emissions — and the reason is a lack of transparency. That responsibility
-          doesn't sit with the person typing a prompt; it sits with the companies that choose where to run their
-          servers, and the buyers who procure AI without asking. At Berget AI we've committed to full transparency
-          about ours: every response reports its own CO₂. Now we're releasing our methods and code as open source, so
-          the rest of the industry can do the same.
+          At Berget AI, every response reports its own CO₂. Here is the full method — how big a request's footprint
+          really is, what drives it, and how much it varies — computed live from the same open-source code we run in
+          production.
         </p>
 
         {/* A communicative illustration of the live footprint — designed to be
@@ -630,6 +628,14 @@ export function GuideMode({
             <Globe size={24} strokeWidth={1.5} style={{ color: C.moss }} />
             <span style={{ fontWeight: 600, color: C.peak, fontSize: "1.125rem" }}>Include CO₂ in Every Response</span>
           </div>
+          <p style={{ fontSize: "0.9rem", color: C.cloud, lineHeight: 1.6, margin: 0, marginBottom: "1rem" }}>
+            Now that you've seen how the numbers work, the natural question is: what do we do about it? A good first
+            step is simply to make the figures easy to compare — request by request. There's real confusion about
+            AI's emissions, and the reason is a lack of transparency: almost no provider publishes the number. That
+            responsibility doesn't sit with the person typing a prompt; it sits with the companies that choose where
+            to run their servers, and the buyers who procure AI without asking. So we now urge the industry to openly
+            show emissions per request — to make it easy for everyone to compare.
+          </p>
           <p style={{ fontSize: "0.875rem", color: C.muted, margin: 0, marginBottom: "1rem" }}>
             Just like Berget AI does — return an{" "}
             <code style={{ background: "rgba(0,0,0,0.3)", padding: "0.125rem 0.25rem", borderRadius: 4, fontFamily: "monospace" }}>

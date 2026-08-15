@@ -1,6 +1,6 @@
 # We open source our CO₂ emissions — and so should you
 
-There's real confusion about AI's emissions — and the reason is a lack of transparency. That responsibility doesn't sit with the person typing a prompt; it sits with the companies that choose where to run their servers, and the buyers who procure AI without asking. At Berget AI we've committed to full transparency about ours: every response reports its own CO₂. Now we're releasing our methods and code as open source, so the rest of the industry can do the same.
+At Berget AI, every response reports its own CO₂. Here is the full method — how big a request's footprint really is, what drives it, and how much it varies — computed live from the same open-source code we run in production.
 
 **In short — if you buy or build on AI:**
 
@@ -103,6 +103,8 @@ Doing that reconciliation in real time is hard, though. A full month's total emi
 ---
 
 ## The standard we propose: What we're asking for
+
+Now that you've seen how the numbers work, the natural question is: what do we do about it? A good first step is simply to make the figures easy to compare — request by request. There's real confusion about AI's emissions, and the reason is a lack of transparency: almost no provider publishes the number. That responsibility doesn't sit with the person typing a prompt; it sits with the companies that choose where to run their servers, and the buyers who procure AI without asking. So we now urge the industry to openly show emissions per request — to make it easy for everyone to compare.
 
 **If you provide AI:** report `usage.emissions.co2e_grams` in every response — the method and the code above are open, so use them, scrutinise them, improve them. There are drop-in integrations for Express, FastAPI and Prometheus in the integration guide. **If you procure AI:** require emissions data, and the location of the servers, in your contracts. **If you build on AI:** ask your provider for it.
 
