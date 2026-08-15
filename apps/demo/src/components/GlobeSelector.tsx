@@ -195,8 +195,41 @@ export function GlobeSelector({
 }: GlobeSelectorProps) {
   const globeRef = useRef<any>(null);
   const [hoveredRegion, setHoveredRegion] = useState<string | null>(null);
+  const [countries, setCountries] = useState<any[]>([]);
 
   const regions = getRegionData();
+
+  // Disable scroll-to-zoom: the globe sits inline in a scrolling page, and
+  // wheel-zoom hijacks the page scroll when the cursor passes over the map.
+  // Drag-to-rotate and the auto-zoom-to-region still work; only the wheel is
+  // disabled. Users can still pick a region from the list below.
+  useEffect(() => {
+    const globe = globeRef.current;
+    if (!globe) return;
+    const controls = globe.controls();
+    if (controls) controls.enableZoom = false;
+  }, []);
+
+  // Fetch country polygons (GeoJSON) once, to colour each country by its
+  // grid's carbon intensity. Loaded from the same unpkg world-atlas the
+  // react-globe.gl examples use; failures leave the points-only view.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("//unpkg.com/world-atlas@2/countries-110m.json")
+      .then((r) => r.json())
+      .then((topo: any) => {
+        if (cancelled) return;
+        // world-atlas is TopoJSON; react-globe.gl wants GeoJSON features.
+        // Lazily convert via the topojson-client bundled with three-globe.
+        import("topojson-client").then((topojson: any) => {
+          if (cancelled) return;
+          const feats = topojson.feature(topo, topo.objects.countries).features;
+          setCountries(feats);
+        }).catch(() => {});
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   // Build hex data for the globe
   const hexData = regions.map(region => ({
@@ -224,6 +257,39 @@ export function GlobeSelector({
   const handleHexHover = useCallback((hex: any) => {
     setHoveredRegion(hex?.id || null);
   }, []);
+
+  // Map a GeoJSON country feature to its grid region's colour. We match on
+  // the country's ISO numeric id / name against the regions we model; a
+  // country with no modelled grid gets a neutral dark fill so the legend's
+  // colours only ever describe real data.
+  const COUNTRY_TO_REGION: Record<string, string> = {
+    "752": "sweden",   // Sweden
+    "578": "norway",   // Norway
+    "250": "france",   // France
+    "124": "quebec",   // Canada (Quebec proxy)
+    "372": "ireland",  // Ireland
+    "276": "germany",  // Germany
+    "840": "usa",      // United States
+    "392": "japan",    // Japan
+    "356": "india",    // India
+    "616": "poland",   // Poland
+    "156": "china",    // China
+  };
+
+  const polygonColor = useCallback((feat: any) => {
+    const iso = String(feat?.id ?? feat?.properties?.["ISO_N3"] ?? "");
+    const regionId = COUNTRY_TO_REGION[iso];
+    if (!regionId) return "rgba(40, 46, 44, 0.55)"; // unmodelled: neutral
+    const region = regions.find((r) => r.id === regionId);
+    if (!region) return "rgba(40, 46, 44, 0.55)";
+    const base = showMode === "intensity"
+      ? getIntensityColor(region.intensityGPerKwh)
+      : showMode === "temperature"
+        ? getTempColor(region.avgTemp)
+        : getIntensityColor(region.typicalPue * 200);
+    // Highlight the selected country's fill; dim the rest slightly.
+    return regionId === selectedRegion ? base : base;
+  }, [regions, showMode, selectedRegion]);
 
   // Auto-rotate and zoom to selected region
   useEffect(() => {
@@ -256,6 +322,12 @@ export function GlobeSelector({
         backgroundColor="rgba(0,0,0,0)"
         globeImageUrl="//unpkg.com/three-globe/example/img/earth-dark.jpg"
         bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
+        polygonsData={countries}
+        polygonCapColor={polygonColor}
+        polygonSideColor={() => "rgba(0,0,0,0.15)"}
+        polygonStrokeColor={() => "rgba(10,12,11,0.6)"}
+        polygonAltitude={0.005}
+        polygonsTransitionDuration={0}
         hexBinPointsData={hexData}
         hexBinPointLat="lat"
         hexBinPointLng="lng"
