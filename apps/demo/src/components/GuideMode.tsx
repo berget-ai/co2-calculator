@@ -2,7 +2,7 @@ import { Code, Globe, Wrench } from "lucide-react";
 import { CategoryModelPicker } from "./CategoryModelPicker";
 import { RegionPicker } from "./RegionPicker";
 import { HardwarePicker } from "./HardwarePicker";
-import { ConcurrencyTimeExplorer } from "./ConcurrencyTimeExplorer";
+
 import { UtilizationSlider } from "./UtilizationSlider";
 import { DailyLoadChart } from "./DailyLoadChart";
 import { CoolingWaterChart } from "./CoolingWaterChart";
@@ -253,16 +253,9 @@ export function GuideMode({
           Size sets the floor: a model must fit in GPU memory (weights, plus ~20% for the KV cache), so a trillion-parameter
           model occupies several GPUs at once while a small quantised one fits on a single card. Context length and cache
           then stretch or shrink the time: long prompts mean more tokens and a growing KV cache, while a cached prefix
-          lets the model skip most of that work. And how many other queries share the node decides how the fixed cost
-          of the servers is split — though as §3 shows, that sharing is set by who runs the hardware, not by the moment.
-          Try it — here's roughly how long your request occupies the GPU, and how queueing stretches it under load.
+          lets the model skip most of that work. And how the node's fixed cost is shared is set by how well it is used
+          over its life (§3) and by the time of day (§4) — not by how many happen to be querying it at the moment.
         </p>
-        <InteractiveFrame label="request length & queueing">
-          <ConcurrencyTimeExplorer
-            category={category}
-            model={model}
-          />
-        </InteractiveFrame>
         <p style={prose.p}>
           The size of that lever is easy to underestimate. On our own infrastructure, the
           same short question answered by a large MoE frontier model (Kimi K3, 2.8T) comes out at roughly

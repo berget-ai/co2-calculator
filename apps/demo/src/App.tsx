@@ -11,27 +11,12 @@ import { C, COMPONENT_COLORS, formatCO2 } from "./components/shared";
 import { ApiResponseBlock } from "./components/ApiResponseBlock";
 import { GuideMode } from "./components/GuideMode";
 import { StickyBars } from "./components/StickyChipBar";
-import { MessageSquare, Sparkles } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import type { CalculatorActions, CalculatorDerived, CalculatorState, ModelCategories, InferenceResult } from "./components/types";
 
 const MODEL_CATEGORIES: ModelCategories = {
-  popular: {
-    label: "Popular Models",
-    description: "Most used models across providers",
-    icon: Sparkles,
-    models: [
-      { id: "mistralai/Mistral-Small-3.2-24B-Instruct-2506", name: "Mistral Small 24B" },
-      { id: "google/gemma-4-31B-it", name: "Gemma 4 31B" },
-      { id: "moonshotai/Kimi-K3", name: "Kimi K3" },
-      { id: "openai/gpt-5", name: "GPT-5" },
-      { id: "anthropic/claude-sonnet-4-5", name: "Claude Sonnet 4.5" },
-      { id: "google/gemini-3-pro", name: "Gemini 3 Pro" },
-    ],
-    defaultModel: "google/gemma-4-31B-it",
-    responseTime: 0.8,
-  },
   chat: {
-    label: "Chat & Conversations",
+    label: "Chat",
     description: "Customer support, Q&A, writing assistance",
     icon: MessageSquare,
     models: [
@@ -42,12 +27,12 @@ const MODEL_CATEGORIES: ModelCategories = {
       { id: "google/gemini-3-pro", name: "Gemini 3 Pro" },
       { id: "mistralai/Mistral-Medium-3.5-128B", name: "Mistral Medium 128B" },
     ],
-    defaultModel: "mistralai/Mistral-Small-3.2-24B-Instruct-2506",
+    defaultModel: "google/gemma-4-31B-it",
     responseTime: 0.8,
   },
   code: {
-    label: "Code & Analysis",
-    description: "Software development, complex reasoning, research",
+    label: "Code & Agents",
+    description: "Software development, complex reasoning, agents, research",
     icon: Code,
     models: [
       { id: "google/gemma-4-31B-it", name: "Gemma 4 31B" },
@@ -84,7 +69,7 @@ const OPEN_PRESET = { region: "sweden", utilization: 0.70, gpuCondition: "new" a
 const CLOSED_PRESET = { region: "texas", utilization: 0.90, gpuCondition: "new" as const, infraCondition: "new" as const };
 
 export function CO2Calculator() {
-  const [modelCategory, setModelCategory] = useState("popular");
+  const [modelCategory, setModelCategory] = useState("chat");
   const [selectedModel, setSelectedModel] = useState("google/gemma-4-31B-it");
   const [region, setRegion] = useState("sweden");
   const [gpuCondition, setGpuCondition] = useState<"new" | "refurbished">("new");

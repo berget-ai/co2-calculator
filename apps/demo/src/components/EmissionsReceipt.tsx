@@ -13,10 +13,11 @@ interface Props {
 
 /**
  * A communicative "receipt" illustration of the emissions every response
- * carries — designed to be read at a glance by journalists and
- * non-specialists, NOT as raw API data. The gradient background and the
- * single large figure signal that this is an illustration of the idea; the
- * full JSON schema is one tap away for engineers who want the detail.
+ * carries. The actual JSON the API returns sits in the BACKGROUND — tilted,
+ * faded, and partially masked — so a technical reader sees at a glance that
+ * this is real JSON output, while a journalist or project lead just reads the
+ * single headline figure on top. It is an illustration of the idea, not a
+ * wall of data; the full schema is one tap away for engineers.
  */
 export function EmissionsReceipt({ result, model, selectedModel, region }: Props) {
   const [showJson, setShowJson] = useState(false);
@@ -27,18 +28,62 @@ export function EmissionsReceipt({ result, model, selectedModel, region }: Props
   const co2Display = co2Mg >= 100 ? `${co2Mg.toFixed(0)} mg` : co2Mg >= 1 ? `${co2Mg.toFixed(1)} mg` : `${co2Mg.toFixed(2)} mg`;
   const modelName = model?.displayName ?? selectedModel;
 
+  // The real JSON the API returns — rendered small, tilted and faded behind
+  // the headline so it reads as texture ("this is genuinely JSON") rather
+  // than as something you are meant to parse.
+  const jsonLines = [
+    `"usage": {`,
+    `  "emissions": {`,
+    `    "co2e_grams": ${emissions.co2e_grams.toFixed(6)},`,
+    `    "energy_kwh": ${emissions.energy_kwh},`,
+    `    "operational": { "co2e_grams": ${emissions.operational.co2e_grams.toFixed(6)} },`,
+    `    "embodied": { "co2e_grams": ${emissions.embodied.co2e_grams.toFixed(6)} },`,
+    `    "grid": { "region": "${emissions.grid.region}",`,
+    `      "carbon_intensity_gco2e_per_kwh": ${emissions.grid.carbon_intensity_gco2e_per_kwh} },`,
+    `    "methodology": "${emissions.methodology}",`,
+    `    "methodology_version": "${emissions.methodology_version}"`,
+    `  }`,
+    `}`,
+  ];
+
   return (
     <div
       style={{
+        position: "relative",
         borderRadius: 14,
         overflow: "hidden",
-        // A soft green gradient — deliberately "designed", not a terminal, so
-        // it reads as an illustration of the concept rather than raw data.
-        background: `linear-gradient(135deg, rgba(96,165,128,0.16) 0%, rgba(20,40,32,0.55) 55%, rgba(10,22,18,0.7) 100%)`,
+        background: `linear-gradient(135deg, rgba(96,165,128,0.18) 0%, rgba(20,40,32,0.6) 55%, rgba(10,22,18,0.78) 100%)`,
         border: `1px solid ${C.borderMoss}`,
       }}
     >
-      <div style={{ padding: "1.5rem 1.5rem 1.25rem" }}>
+      {/* Tilted JSON backdrop — visible but clearly decorative */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          top: "-8%",
+          right: "-6%",
+          width: "75%",
+          transform: "rotate(-7deg)",
+          transformOrigin: "top right",
+          opacity: 0.16,
+          pointerEvents: "none",
+          fontFamily: "var(--berget-font-mono, 'DM Mono', monospace)",
+          fontSize: "0.62rem",
+          lineHeight: 1.7,
+          color: C.moss,
+          whiteSpace: "pre",
+          // Fade the text out toward the bottom-left so the headline stays
+          // perfectly legible on top of it.
+          maskImage: "linear-gradient(115deg, rgba(0,0,0,0.9) 30%, rgba(0,0,0,0.25) 70%, transparent 100%)",
+          WebkitMaskImage: "linear-gradient(115deg, rgba(0,0,0,0.9) 30%, rgba(0,0,0,0.25) 70%, transparent 100%)",
+        }}
+      >
+        {jsonLines.join("\n")}
+      </div>
+
+      {/* Foreground content */}
+      <div style={{ position: "relative", padding: "1.5rem 1.5rem 1.25rem" }}>
         <div
           style={{
             fontSize: "0.68rem",
@@ -84,6 +129,7 @@ export function EmissionsReceipt({ result, model, selectedModel, region }: Props
         type="button"
         onClick={() => setShowJson((s) => !s)}
         style={{
+          position: "relative",
           display: "block",
           width: "100%",
           textAlign: "left",
@@ -102,6 +148,7 @@ export function EmissionsReceipt({ result, model, selectedModel, region }: Props
       {showJson && (
         <pre
           style={{
+            position: "relative",
             margin: 0,
             padding: "1rem 1.5rem",
             background: "rgba(0,0,0,0.5)",
@@ -113,17 +160,7 @@ export function EmissionsReceipt({ result, model, selectedModel, region }: Props
             borderTop: `1px solid ${C.borderMoss}`,
           }}
         >
-{`"usage": {
-  "emissions": {
-    "co2e_grams": ${emissions.co2e_grams.toFixed(6)},
-    "energy_kwh": ${emissions.energy_kwh},
-    "operational": { "co2e_grams": ${emissions.operational.co2e_grams.toFixed(6)} },
-    "embodied":    { "co2e_grams": ${emissions.embodied.co2e_grams.toFixed(6)} },
-    "grid": { "region": "${emissions.grid.region}", "carbon_intensity_gco2e_per_kwh": ${emissions.grid.carbon_intensity_gco2e_per_kwh} },
-    "methodology": "${emissions.methodology}",
-    "methodology_version": "${emissions.methodology_version}"
-  }
-}`}
+{jsonLines.join("\n")}
         </pre>
       )}
     </div>
