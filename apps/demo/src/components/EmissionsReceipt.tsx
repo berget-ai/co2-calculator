@@ -30,21 +30,23 @@ export function EmissionsReceipt({ result, model, selectedModel, region }: Props
 
   // The real JSON the API returns — rendered small, tilted and faded behind
   // the headline so it reads as texture ("this is genuinely JSON") rather
-  // than as something you are meant to parse.
-  const jsonLines = [
-    `"usage": {`,
-    `  "emissions": {`,
-    `    "co2e_grams": ${emissions.co2e_grams.toFixed(6)},`,
-    `    "energy_kwh": ${emissions.energy_kwh},`,
-    `    "operational": { "co2e_grams": ${emissions.operational.co2e_grams.toFixed(6)} },`,
-    `    "embodied": { "co2e_grams": ${emissions.embodied.co2e_grams.toFixed(6)} },`,
-    `    "grid": { "region": "${emissions.grid.region}",`,
-    `      "carbon_intensity_gco2e_per_kwh": ${emissions.grid.carbon_intensity_gco2e_per_kwh} },`,
-    `    "methodology": "${emissions.methodology}",`,
-    `    "methodology_version": "${emissions.methodology_version}"`,
-    `  }`,
-    `}`,
+  // than as something you are meant to parse. The headline `co2e_grams` line
+  // is highlighted so it shines through the fade.
+  const jsonLines: { text: string; highlight?: boolean }[] = [
+    { text: `"usage": {` },
+    { text: `  "emissions": {` },
+    { text: `    "co2e_grams": ${emissions.co2e_grams.toFixed(6)},`, highlight: true },
+    { text: `    "energy_kwh": ${emissions.energy_kwh},` },
+    { text: `    "operational": { "co2e_grams": ${emissions.operational.co2e_grams.toFixed(6)} },` },
+    { text: `    "embodied": { "co2e_grams": ${emissions.embodied.co2e_grams.toFixed(6)} },` },
+    { text: `    "grid": { "region": "${emissions.grid.region}",` },
+    { text: `      "carbon_intensity_gco2e_per_kwh": ${emissions.grid.carbon_intensity_gco2e_per_kwh} },` },
+    { text: `    "methodology": "${emissions.methodology}",` },
+    { text: `    "methodology_version": "${emissions.methodology_version}"` },
+    { text: `  }` },
+    { text: `}` },
   ];
+  const jsonText = jsonLines.map((l) => l.text).join("\n");
 
   return (
     <div
@@ -56,30 +58,46 @@ export function EmissionsReceipt({ result, model, selectedModel, region }: Props
         border: `1px solid ${C.borderMoss}`,
       }}
     >
-      {/* Tilted JSON backdrop — visible but clearly decorative */}
+      {/* Tilted JSON backdrop — pushed further right, visible but decorative */}
       <div
         aria-hidden="true"
         style={{
           position: "absolute",
-          top: "-8%",
-          right: "-6%",
-          width: "75%",
+          top: "-10%",
+          right: "-14%",
+          width: "72%",
           transform: "rotate(-7deg)",
           transformOrigin: "top right",
-          opacity: 0.16,
           pointerEvents: "none",
           fontFamily: "var(--berget-font-mono, 'DM Mono', monospace)",
           fontSize: "0.62rem",
           lineHeight: 1.7,
-          color: C.moss,
           whiteSpace: "pre",
           // Fade the text out toward the bottom-left so the headline stays
           // perfectly legible on top of it.
-          maskImage: "linear-gradient(115deg, rgba(0,0,0,0.9) 30%, rgba(0,0,0,0.25) 70%, transparent 100%)",
-          WebkitMaskImage: "linear-gradient(115deg, rgba(0,0,0,0.9) 30%, rgba(0,0,0,0.25) 70%, transparent 100%)",
+          maskImage: "linear-gradient(115deg, rgba(0,0,0,0.95) 40%, rgba(0,0,0,0.3) 75%, transparent 100%)",
+          WebkitMaskImage: "linear-gradient(115deg, rgba(0,0,0,0.95) 40%, rgba(0,0,0,0.3) 75%, transparent 100%)",
         }}
       >
-        {jsonLines.join("\n")}
+        {jsonLines.map((line, i) =>
+          line.highlight ? (
+            <div
+              key={i}
+              style={{
+                color: C.peak,
+                opacity: 0.85,
+                fontWeight: 700,
+                textShadow: "0 0 8px rgba(224,242,233,0.4)",
+              }}
+            >
+              {line.text}
+            </div>
+          ) : (
+            <div key={i} style={{ color: C.moss, opacity: 0.16 }}>
+              {line.text}
+            </div>
+          )
+        )}
       </div>
 
       {/* Foreground content */}
@@ -160,7 +178,7 @@ export function EmissionsReceipt({ result, model, selectedModel, region }: Props
             borderTop: `1px solid ${C.borderMoss}`,
           }}
         >
-{jsonLines.join("\n")}
+{jsonText}
         </pre>
       )}
     </div>
