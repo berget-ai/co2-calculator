@@ -1,4 +1,4 @@
-import { Code, Globe, Wrench } from "lucide-react";
+import { Code, Globe } from "lucide-react";
 import { CategoryModelPicker } from "./CategoryModelPicker";
 import { RegionPicker } from "./RegionPicker";
 import { HardwarePicker } from "./HardwarePicker";
@@ -10,6 +10,7 @@ import { LeversDonut } from "./LeversDonut";
 import { ResultsPanel } from "./ResultsPanel";
 import { ApiResponseBlock } from "./ApiResponseBlock";
 import { EmissionsReceipt } from "./EmissionsReceipt";
+import { DeveloperSection } from "./DeveloperSection";
 import { MethodPanel } from "./MethodPanel";
 import { C, prose } from "./shared";
 import type { CalculatorActions, CalculatorDerived, CalculatorState } from "./types";
@@ -649,38 +650,16 @@ export function GuideMode({
           <ApiResponseBlock result={result} model={model} selectedModel={state.selectedModel} region={state.region} highlightKey="co2" />
         </div>
 
-        {/* Library code */}
-        <div style={{ background: C.ghost, borderRadius: 12, padding: "1rem", border: `1px solid ${C.border}`, marginBottom: "1.5rem" }}>
-          <div style={{ fontSize: "0.875rem", color: C.peak, fontWeight: 600, marginBottom: "0.5rem" }}>
-            <Wrench size={16} strokeWidth={1.5} style={{ marginRight: "0.5rem" }} /> Use this library
-          </div>
-          <pre
-            style={{
-              margin: 0,
-              padding: "0.75rem",
-              background: "rgba(0,0,0,0.5)",
-              borderRadius: 6,
-              fontSize: "0.75rem",
-              overflow: "auto",
-              color: C.cloud,
-            }}
-          >
-{`import { calculateInference } from "@berget/co2-calculator";
-
-const result = calculateInference({
-  modelProfile: MODEL_PROFILES["${state.selectedModel}"],
-  hardware: HARDWARE_CONFIGS.b300,
-  deploymentGrid: GRID_REGIONS["${state.region}"],
-  measuredResponseTimeSeconds: ${category.responseTime},
-  inputTokens: ${model?.defaultInputTokens},
-  outputTokens: ${model?.defaultOutputTokens},
-  utilization: ${state.utilization},
-  hourOfDay: 14,
-});
-
-// Total: ${result ? (result.totalCO2Grams < 1 ? (result.totalCO2Grams * 1000).toFixed(1) + " mg" : result.totalCO2Grams.toFixed(1) + " g") : "—"} CO₂e per request`}
-          </pre>
-        </div>
+        {/* Library code — developer section with Python/JS picker + advanced usage */}
+        <DeveloperSection
+          selectedModel={state.selectedModel}
+          region={state.region}
+          utilization={state.utilization}
+          responseTime={category.responseTime}
+          inputTokens={model?.defaultInputTokens}
+          outputTokens={model?.defaultOutputTokens}
+          totalDisplay={result ? (result.totalCO2Grams < 1 ? (result.totalCO2Grams * 1000).toFixed(1) + " mg" : result.totalCO2Grams.toFixed(1) + " g") : "—"}
+        />
 
         {/* Links */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
