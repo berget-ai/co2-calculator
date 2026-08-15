@@ -121,17 +121,24 @@ export function ResultsPanel({ result, model, grid }: Props) {
             result.components.serverOperational.co2Grams +
             result.components.datacenterOverhead.co2Grams;
 
-          // Contrast against a fossil-heavier reference grid (Germany, 280
-          // g/kWh — see grids.ts). This is only meaningful when the selected
-          // region is actually cleaner; if the user is already on a dirtier
-          // grid we say so instead of claiming a reduction.
-          const GERMANY_INTENSITY = 280;
-          const currentIntensity = grid?.intensityGPerKwh ?? 8;
-          const contrastRatio = GERMANY_INTENSITY / currentIntensity;
+          // Contrast against the OTHER side of the open/closed divide. A
+          // Berget-served open-weight model runs on Sweden's clean grid (8
+          // g/kWh); a closed frontier model runs on a US hyperscaler grid
+          // (Texas, 420 g/kWh). Contrasting the two shows the grid lever in
+          // the direction that matters for the selected scenario. The
+          // multiplier applies only to the operational (energy) part, since
+          // embodied hardware emissions are location-independent.
+          const SWEDEN = { name: "Sweden", intensity: 8 };
+          const TEXAS = { name: "Texas (a US hyperscaler)", intensity: 420 };
+          const currentIntensity = grid?.intensityGPerKwh ?? SWEDEN.intensity;
+          // Contrast against the dirtier of the two reference grids unless we
+          // are already on it — then contrast against the cleaner one.
+          const contrast = currentIntensity <= SWEDEN.intensity ? TEXAS : SWEDEN;
+          const contrastRatio = contrast.intensity / currentIntensity;
           const isCleanerThanContrast = contrastRatio > 1;
-          const operationalOnGermany = operational * contrastRatio;
+          const operationalOnContrast = operational * contrastRatio;
           const contrastMultiple =
-            operational > 0 ? (operationalOnGermany / operational).toFixed(1).replace(/\.0$/, "") : "—";
+            operational > 0 ? (operationalOnContrast / operational).toFixed(1).replace(/\.0$/, "") : "—";
 
           return (
             <div>
@@ -145,14 +152,15 @@ export function ResultsPanel({ result, model, grid }: Props) {
               </div>
 
               {(() => {
-                // Show the footprint as a ROW of coffee cups — one cup per 60
-                // seconds of microwaving (a full cup takes ~a minute) — so the
-                // quantity is visually absolute: 120 s renders twice as many cups
-                // as 60 s. A relative bar (the old design, scaled to a fixed max)
-                // made every result fill a similar-looking fraction of a track,
-                // hiding the real difference in magnitude. A partial cup shows
-                // the remainder, so 90 s reads as one full cup and a half.
-                const SECONDS_PER_CUP = 60;
+                // Show the footprint as a ROW of coffee cups — one cup per 120
+                // seconds of microwaving (a full cup of water takes ~2 minutes
+                // in an 800W microwave) — so the quantity is visually absolute:
+                // 240 s renders twice as many cups as 120 s. A relative bar (the
+                // old design, scaled to a fixed max) made every result fill a
+                // similar-looking fraction of a track, hiding the real
+                // difference in magnitude. A partial cup shows the remainder, so
+                // 180 s reads as one full cup and a half.
+                const SECONDS_PER_CUP = 120;
                 const cups = seconds / SECONDS_PER_CUP;
                 const fullCups = Math.floor(cups);
                 const partial = cups - fullCups; // 0..1 fill of the last cup
@@ -217,15 +225,15 @@ export function ResultsPanel({ result, model, grid }: Props) {
                 {isCleanerThanContrast ? (
                   <>
                     <strong style={{ color: C.peak }}>Context:</strong> this grid ({grid?.name ?? "selected region"},{" "}
-                    {currentIntensity} g/kWh) is cleaner than Germany's ({GERMANY_INTENSITY} g/kWh). The{" "}
-                    <em>energy</em> part of this request would emit ~{contrastMultiple}× more on the German grid — the
-                    hardware part is the same anywhere.
+                    {currentIntensity} g/kWh) is cleaner than {contrast.name} ({contrast.intensity} g/kWh). The{" "}
+                    <em>energy</em> part of this request would emit ~{contrastMultiple}× more there — the hardware
+                    part is the same anywhere.
                   </>
                 ) : (
                   <>
                     <strong style={{ color: C.peak }}>Context:</strong> this grid ({grid?.name ?? "selected region"},{" "}
-                    {currentIntensity} g/kWh) is no cleaner than Germany's ({GERMANY_INTENSITY} g/kWh), so moving it to
-                    a cleaner grid is the available saving here. The hardware part is the same anywhere.
+                    {currentIntensity} g/kWh) is no cleaner than {contrast.name} ({contrast.intensity} g/kWh), so
+                    moving it to a cleaner grid is the available saving here. The hardware part is the same anywhere.
                   </>
                 )}
               </div>

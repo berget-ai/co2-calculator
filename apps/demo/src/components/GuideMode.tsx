@@ -9,6 +9,7 @@ import { CoolingWaterChart } from "./CoolingWaterChart";
 import { LeversDonut } from "./LeversDonut";
 import { ResultsPanel } from "./ResultsPanel";
 import { ApiResponseBlock } from "./ApiResponseBlock";
+import { EmissionsReceipt } from "./EmissionsReceipt";
 import { MethodPanel } from "./MethodPanel";
 import { C, prose } from "./shared";
 import type { CalculatorActions, CalculatorDerived, CalculatorState } from "./types";
@@ -98,17 +99,11 @@ export function GuideMode({
           the rest of the industry can do the same.
         </p>
 
-        {/* The live JSON */}
-        <div
-          style={{
-            border: `1px solid ${C.borderMoss}`,
-            borderRadius: 12,
-            padding: "1.25rem",
-            marginTop: "1.75rem",
-            background: C.ghost,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }}>
+        {/* A communicative illustration of the live footprint — designed to be
+            read at a glance by non-specialists, with the raw schema one tap
+            away for engineers. */}
+        <div style={{ marginTop: "1.75rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.6rem" }}>
             <Code size={16} strokeWidth={1.5} style={{ color: C.moss }} />
             <span style={{ fontSize: "0.875rem", fontWeight: 600, color: C.peak }}>
               Every Berget AI response carries its footprint
@@ -129,7 +124,7 @@ export function GuideMode({
               Live
             </span>
           </div>
-          <ApiResponseBlock result={result} model={model} selectedModel={state.selectedModel} region={state.region} highlightKey="co2" />
+          <EmissionsReceipt result={result} model={model} selectedModel={state.selectedModel} region={state.region} />
         </div>
 
         {/* TL;DR for decision-makers */}
