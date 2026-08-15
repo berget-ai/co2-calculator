@@ -106,7 +106,7 @@ export function GuideMode({
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.6rem" }}>
             <Code size={16} strokeWidth={1.5} style={{ color: C.moss }} />
             <span style={{ fontSize: "0.875rem", fontWeight: 600, color: C.peak }}>
-              Every Berget AI response carries its footprint
+              Every AI response should report its CO₂ footprint
             </span>
             <span
               style={{
@@ -339,7 +339,7 @@ export function GuideMode({
 
         {/* ── Cooling sub-section ── */}
         <h3 style={{ fontSize: "1.2rem", fontWeight: 700, color: C.peak, marginTop: "3rem", marginBottom: "0.75rem" }}>
-          Cooling and water usage
+          Why does location make such a difference?
         </h3>
         <p style={prose.p}>
           Servers don't just consume power for computation — they consume power to get rid of the heat that computation
