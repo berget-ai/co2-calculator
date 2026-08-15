@@ -1,12 +1,12 @@
 # We open source our CO₂ emissions — and so should you
 
-There's real confusion about AI's emissions — and the reason is a lack of transparency. That responsibility doesn't sit with the person typing a prompt; it sits with the companies that choose where to run their servers, and the buyers who procure AI without asking. At Berget AI we've committed to full transparency about ours: every response reports its own CO₂. Now we're releasing our methods and code as open source, so the rest of the industry can do the same.
+At Berget AI, every response reports its own CO₂. Here is the full method — how big a request's footprint really is, what drives it, and how much it varies — computed live from the same open-source code we run in production.
 
 **In short — if you buy or build on AI:**
 
-- **The most important choice is the right model for the task.** Reaching for an ever-larger model by default is the wrong path: a frontier model can emit roughly **9× more CO₂ per query** than a specialised one that does the same job just as well — even on a clean grid. We need, collectively, to learn to use the specialised models.
-- **Choosing well is impossible without transparency.** Teams building AI services need the numbers to evaluate the right model for each task on CO₂ — which is why our call to the industry is to include CO₂ in every response, like tokens.
-- **The same request can also emit 50× more CO₂ for the energy it burns, depending on where the servers sit** — and almost no provider publishes the number. Below: the full method, from first principles.
+- **To reduce your AI emissions there are a few things to consider. The most significant one is also the easiest: choose a smaller model.** A frontier model can emit roughly **9× more CO₂ per query** than a specialised one that does the same job just as well — even on a clean grid.
+- **The next step is to be aware of where your data is processed** — where the datacentre sits. Grids differ, and the further north the servers sit, the colder the climate and the better the access to clean energy. Running your workload in a Texas datacentre — gas turbines emitting CO₂ both to power the servers and to remove the heat — consumes more energy and water, and emits more CO₂, than the same workload in the north of Europe.
+- **Choosing well is impossible without transparency** — and almost no provider publishes the number. That is why our call to the industry is to include CO₂ in every response, like tokens. Below: the full method, from first principles.
 
 When you procure AI, a handful of choices decide almost all of the footprint: where the servers run, which model you use, whether you share the hardware or run your own, how well its cache is tuned, and whether the hardware is new or refurbished. The model you choose and the grid it runs on dwarf everything else.
 
@@ -103,6 +103,8 @@ Doing that reconciliation in real time is hard, though. A full month's total emi
 ---
 
 ## The standard we propose: What we're asking for
+
+Now that you've seen how the numbers work, the natural question is: what do we do about it? A good first step is simply to make the figures easy to compare — request by request. There's real confusion about AI's emissions, and the reason is a lack of transparency: almost no provider publishes the number. That responsibility doesn't sit with the person typing a prompt; it sits with the companies that choose where to run their servers, and the buyers who procure AI without asking. So we now urge the industry to openly show emissions per request — to make it easy for everyone to compare.
 
 **If you provide AI:** report `usage.emissions.co2e_grams` in every response — the method and the code above are open, so use them, scrutinise them, improve them. There are drop-in integrations for Express, FastAPI and Prometheus in the integration guide. **If you procure AI:** require emissions data, and the location of the servers, in your contracts. **If you build on AI:** ask your provider for it.
 

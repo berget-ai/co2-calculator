@@ -11,27 +11,12 @@ import { C, COMPONENT_COLORS, formatCO2 } from "./components/shared";
 import { ApiResponseBlock } from "./components/ApiResponseBlock";
 import { GuideMode } from "./components/GuideMode";
 import { StickyBars } from "./components/StickyChipBar";
-import { MessageSquare, Sparkles } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import type { CalculatorActions, CalculatorDerived, CalculatorState, ModelCategories, InferenceResult } from "./components/types";
 
 const MODEL_CATEGORIES: ModelCategories = {
-  popular: {
-    label: "Popular Models",
-    description: "Most used models across providers",
-    icon: Sparkles,
-    models: [
-      { id: "mistralai/Mistral-Small-3.2-24B-Instruct-2506", name: "Mistral Small 24B" },
-      { id: "google/gemma-4-31B-it", name: "Gemma 4 31B" },
-      { id: "moonshotai/Kimi-K3", name: "Kimi K3" },
-      { id: "openai/gpt-5", name: "GPT-5" },
-      { id: "anthropic/claude-sonnet-4-5", name: "Claude Sonnet 4.5" },
-      { id: "google/gemini-3-pro", name: "Gemini 3 Pro" },
-    ],
-    defaultModel: "google/gemma-4-31B-it",
-    responseTime: 0.8,
-  },
   chat: {
-    label: "Chat & Conversations",
+    label: "Chat",
     description: "Customer support, Q&A, writing assistance",
     icon: MessageSquare,
     models: [
@@ -42,12 +27,12 @@ const MODEL_CATEGORIES: ModelCategories = {
       { id: "google/gemini-3-pro", name: "Gemini 3 Pro" },
       { id: "mistralai/Mistral-Medium-3.5-128B", name: "Mistral Medium 128B" },
     ],
-    defaultModel: "mistralai/Mistral-Small-3.2-24B-Instruct-2506",
+    defaultModel: "google/gemma-4-31B-it",
     responseTime: 0.8,
   },
   code: {
-    label: "Code & Analysis",
-    description: "Software development, complex reasoning, research",
+    label: "Code & Agents",
+    description: "Software development, complex reasoning, agents, research",
     icon: Code,
     models: [
       { id: "google/gemma-4-31B-it", name: "Gemma 4 31B" },
@@ -69,12 +54,29 @@ const MODEL_CATEGORIES: ModelCategories = {
 const INCLUDE_TRAINING = false;
 const LIFETIME_QUERIES = 0; // unused when training is excluded
 
+// Closed frontier models (OpenAI, Anthropic, Google Gemini) are not served by
+// Berget — they run on the provider's own hyperscale infrastructure in the US,
+// on brand-new hardware bought for the frontier race. Open-weight models (the
+// Berget offering) run on Berget's Swedish B300 nodes with refurbished
+// supporting infrastructure. Selecting a model presets the scenario to match
+// — unless the user has already made an explicit choice, which we respect.
+const CLOSED_MODEL_PREFIXES = ["openai/", "anthropic/", "google/gemini"];
+const isClosedModel = (id: string) => CLOSED_MODEL_PREFIXES.some((p) => id.startsWith(p));
+
+// The two scenarios a model can preset. Open-weight (Berget) vs closed
+// frontier (US hyperscaler).
+const OPEN_PRESET = { region: "sweden", utilization: 0.70, gpuCondition: "new" as const, infraCondition: "refurbished" as const };
+const CLOSED_PRESET = { region: "texas", utilization: 0.90, gpuCondition: "new" as const, infraCondition: "new" as const };
+
 export function CO2Calculator() {
-  const [modelCategory, setModelCategory] = useState("popular");
+  const [modelCategory, setModelCategory] = useState("chat");
   const [selectedModel, setSelectedModel] = useState("google/gemma-4-31B-it");
   const [region, setRegion] = useState("sweden");
   const [gpuCondition, setGpuCondition] = useState<"new" | "refurbished">("new");
-  const [infraCondition, setInfraCondition] = useState<"new" | "refurbished">("new");
+  // Berget's model: the supporting infrastructure (databases, logging, network
+  // gear) is refurbished — that is the default a Berget-served open-weight
+  // model runs on. A closed frontier provider buys everything new.
+  const [infraCondition, setInfraCondition] = useState<"new" | "refurbished">("refurbished");
   // How well the node is USED — the single physical mechanism behind the
   // deployment difference. A node bought for peak but mostly waiting (low
   // utilization) spreads its standby ENERGY (GPU idle + server chassis) over
@@ -86,6 +88,17 @@ export function CO2Calculator() {
   // hyperscale fleet (90%).
   const [utilization, setUtilization] = useState(0.70);
   const [hourOfDay, setHourOfDay] = useState(14);
+
+  // Track which scenario controls the user has set EXPLICITLY. Selecting a
+  // model presets region/utilization/hardware to match where that model
+  // actually runs (Berget's Swedish nodes vs a US hyperscaler) — but only for
+  // the controls the user has NOT touched. Once the user sets one themselves,
+  // their choice wins and the model no longer overrides it.
+  const [touched, setTouched] = useState<{ region: boolean; utilization: boolean; hardware: boolean }>({
+    region: false,
+    utilization: false,
+    hardware: false,
+  });
 
   // Fetch dynamic model data from EcoLogits and OpenRouter
   const { data: fetchedModelData, loading: modelsLoading, error: modelsError, refresh: refreshModels } = useModelData();
@@ -133,12 +146,34 @@ export function CO2Calculator() {
   const handleCategoryChange = (key: string) => {
     setModelCategory(key);
     const cat = MODEL_CATEGORIES[key];
-    setSelectedModel(cat.defaultModel);
+    applyModelPreset(cat.defaultModel);
+  };
+
+  // Selecting a model presets the scenario to where that model actually runs
+  // — Berget's Swedish nodes for open-weight models, a US hyperscaler for
+  // closed frontier models — but only for the controls the user has not set
+  // explicitly.
+  const applyModelPreset = (id: string) => {
+    setSelectedModel(id);
+    const preset = isClosedModel(id) ? CLOSED_PRESET : OPEN_PRESET;
+    if (!touched.region) setRegion(preset.region);
+    if (!touched.utilization) setUtilization(preset.utilization);
+    if (!touched.hardware) {
+      setGpuCondition(preset.gpuCondition);
+      setInfraCondition(preset.infraCondition);
+    }
   };
 
   const handleModelSelect = (id: string) => {
-    setSelectedModel(id);
+    applyModelPreset(id);
   };
+
+  // Explicit user choices mark the control as touched, so the model preset no
+  // longer overrides it.
+  const handleRegion = (v: string) => { setTouched((t) => ({ ...t, region: true })); setRegion(v); };
+  const handleUtilization = (v: number) => { setTouched((t) => ({ ...t, utilization: true })); setUtilization(v); };
+  const handleGpuCondition = (v: "new" | "refurbished") => { setTouched((t) => ({ ...t, hardware: true })); setGpuCondition(v); };
+  const handleInfraCondition = (v: "new" | "refurbished") => { setTouched((t) => ({ ...t, hardware: true })); setInfraCondition(v); };
 
   // Shared state/actions/derived bundles
   const state: CalculatorState = {
@@ -149,10 +184,10 @@ export function CO2Calculator() {
   const actions: CalculatorActions = {
     setModelCategory: handleCategoryChange,
     setSelectedModel: handleModelSelect,
-    setRegion,
-    setGpuCondition,
-    setInfraCondition,
-    setUtilization,
+    setRegion: handleRegion,
+    setGpuCondition: handleGpuCondition,
+    setInfraCondition: handleInfraCondition,
+    setUtilization: handleUtilization,
     setHourOfDay,
   };
 

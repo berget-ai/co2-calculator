@@ -1,14 +1,16 @@
-import { Code, Globe, Wrench } from "lucide-react";
+import { Code, Globe } from "lucide-react";
 import { CategoryModelPicker } from "./CategoryModelPicker";
 import { RegionPicker } from "./RegionPicker";
 import { HardwarePicker } from "./HardwarePicker";
-import { ConcurrencyTimeExplorer } from "./ConcurrencyTimeExplorer";
+
 import { UtilizationSlider } from "./UtilizationSlider";
 import { DailyLoadChart } from "./DailyLoadChart";
 import { CoolingWaterChart } from "./CoolingWaterChart";
 import { LeversDonut } from "./LeversDonut";
 import { ResultsPanel } from "./ResultsPanel";
 import { ApiResponseBlock } from "./ApiResponseBlock";
+import { EmissionsReceipt } from "./EmissionsReceipt";
+import { DeveloperSection } from "./DeveloperSection";
 import { MethodPanel } from "./MethodPanel";
 import { C, prose } from "./shared";
 import type { CalculatorActions, CalculatorDerived, CalculatorState } from "./types";
@@ -91,31 +93,23 @@ export function GuideMode({
           We open source our CO₂ emissions — and so should you.
         </h1>
         <p style={{ ...prose.p, fontSize: "1.125rem" }}>
-          There's real confusion about AI's emissions — and the reason is a lack of transparency. That responsibility
-          doesn't sit with the person typing a prompt; it sits with the companies that choose where to run their
-          servers, and the buyers who procure AI without asking. At Berget AI we've committed to full transparency
-          about ours: every response reports its own CO₂. Now we're releasing our methods and code as open source, so
-          the rest of the industry can do the same.
+          At Berget AI, every response reports its own CO₂. Here is the full method — how big a request's footprint
+          really is, what drives it, and how much it varies — computed live from the same open-source code we run in
+          production.
         </p>
 
-        {/* The live JSON */}
-        <div
-          style={{
-            border: `1px solid ${C.borderMoss}`,
-            borderRadius: 12,
-            padding: "1.25rem",
-            marginTop: "1.75rem",
-            background: C.ghost,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }}>
-            <Code size={16} strokeWidth={1.5} style={{ color: C.moss }} />
-            <span style={{ fontSize: "0.875rem", fontWeight: 600, color: C.peak }}>
-              Every Berget AI response carries its footprint
+        {/* A communicative illustration of the live footprint — designed to be
+            read at a glance by non-specialists, with the raw schema one tap
+            away for engineers. */}
+        <div style={{ marginTop: "1.75rem" }}>
+          <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "0.4rem 0.5rem", marginBottom: "0.6rem" }}>
+            <Code size={16} strokeWidth={1.5} style={{ color: C.moss, flexShrink: 0 }} />
+            <span style={{ fontSize: "0.875rem", fontWeight: 600, color: C.peak, flex: "1 1 auto", minWidth: 0 }}>
+              Every AI response should report its CO₂ footprint
             </span>
             <span
               style={{
-                marginLeft: "auto",
+                flexShrink: 0,
                 fontSize: "0.65rem",
                 padding: "0.15rem 0.5rem",
                 borderRadius: 4,
@@ -129,7 +123,7 @@ export function GuideMode({
               Live
             </span>
           </div>
-          <ApiResponseBlock result={result} model={model} selectedModel={state.selectedModel} region={state.region} highlightKey="co2" />
+          <EmissionsReceipt result={result} model={model} selectedModel={state.selectedModel} region={state.region} />
         </div>
 
         {/* TL;DR for decision-makers */}
@@ -157,19 +151,21 @@ export function GuideMode({
           </div>
           <ul style={{ margin: 0, paddingLeft: "1.15rem", color: C.peak, lineHeight: 1.6, fontSize: "0.95rem" }}>
             <li style={{ marginBottom: "0.5rem" }}>
-              The most important choice is the <strong>right model for the task</strong>. Reaching for an
-              ever-larger model by default is the wrong path: a frontier model can emit roughly <strong>9× more CO₂
+              To reduce your AI emissions there are a few things to consider. The most significant one is also the
+              easiest: <strong>choose a smaller model</strong>. A frontier model can emit roughly <strong>9× more CO₂
               per query</strong> than a specialised one that does the same job just as well — even on a clean grid.
-              We need, collectively, to learn to use the specialised models.
             </li>
             <li style={{ marginBottom: "0.5rem" }}>
-              Choosing well is impossible without transparency. Teams building AI services need the numbers to
-              evaluate the right model for each task on CO₂ — which is why our call to the industry is to include
-              CO₂ in every response, like tokens.
+              The next step is to be aware of <strong>where your data is processed</strong> — where the datacentre
+              sits. Grids differ, and the further north the servers sit, the colder the climate and the better the
+              access to clean energy. Running your workload in a Texas datacentre — gas turbines emitting CO₂ both to
+              power the servers and to remove the heat — consumes more energy and water, and emits more CO₂, than the
+              same workload in the north of Europe.
             </li>
             <li>
-              The same request can also emit 50× more CO₂ for the energy it burns, depending on where the servers sit
-              — and almost no provider publishes the number. Below: the full method, from first principles.
+              Choosing well is impossible without transparency — and almost no provider publishes the number. That is
+              why our call to the industry is to include CO₂ in every response, like tokens. Below: the full method,
+              from first principles.
             </li>
           </ul>
         </div>
@@ -258,16 +254,9 @@ export function GuideMode({
           Size sets the floor: a model must fit in GPU memory (weights, plus ~20% for the KV cache), so a trillion-parameter
           model occupies several GPUs at once while a small quantised one fits on a single card. Context length and cache
           then stretch or shrink the time: long prompts mean more tokens and a growing KV cache, while a cached prefix
-          lets the model skip most of that work. And how many other queries share the node decides how the fixed cost
-          of the servers is split — though as §3 shows, that sharing is set by who runs the hardware, not by the moment.
-          Try it — here's roughly how long your request occupies the GPU, and how queueing stretches it under load.
+          lets the model skip most of that work. And how the node's fixed cost is shared is set by how well it is used
+          over its life (§3) and by the time of day (§4) — not by how many happen to be querying it at the moment.
         </p>
-        <InteractiveFrame label="request length & queueing">
-          <ConcurrencyTimeExplorer
-            category={category}
-            model={model}
-          />
-        </InteractiveFrame>
         <p style={prose.p}>
           The size of that lever is easy to underestimate. On our own infrastructure, the
           same short question answered by a large MoE frontier model (Kimi K3, 2.8T) comes out at roughly
@@ -351,7 +340,7 @@ export function GuideMode({
 
         {/* ── Cooling sub-section ── */}
         <h3 style={{ fontSize: "1.2rem", fontWeight: 700, color: C.peak, marginTop: "3rem", marginBottom: "0.75rem" }}>
-          Cooling and water usage
+          Why does location make such a difference?
         </h3>
         <p style={prose.p}>
           Servers don't just consume power for computation — they consume power to get rid of the heat that computation
@@ -639,6 +628,14 @@ export function GuideMode({
             <Globe size={24} strokeWidth={1.5} style={{ color: C.moss }} />
             <span style={{ fontWeight: 600, color: C.peak, fontSize: "1.125rem" }}>Include CO₂ in Every Response</span>
           </div>
+          <p style={{ fontSize: "0.9rem", color: C.cloud, lineHeight: 1.6, margin: 0, marginBottom: "1rem" }}>
+            Now that you've seen how the numbers work, the natural question is: what do we do about it? A good first
+            step is simply to make the figures easy to compare — request by request. There's real confusion about
+            AI's emissions, and the reason is a lack of transparency: almost no provider publishes the number. That
+            responsibility doesn't sit with the person typing a prompt; it sits with the companies that choose where
+            to run their servers, and the buyers who procure AI without asking. So we now urge the industry to openly
+            show emissions per request — to make it easy for everyone to compare.
+          </p>
           <p style={{ fontSize: "0.875rem", color: C.muted, margin: 0, marginBottom: "1rem" }}>
             Just like Berget AI does — return an{" "}
             <code style={{ background: "rgba(0,0,0,0.3)", padding: "0.125rem 0.25rem", borderRadius: 4, fontFamily: "monospace" }}>
@@ -661,38 +658,16 @@ export function GuideMode({
           <ApiResponseBlock result={result} model={model} selectedModel={state.selectedModel} region={state.region} highlightKey="co2" />
         </div>
 
-        {/* Library code */}
-        <div style={{ background: C.ghost, borderRadius: 12, padding: "1rem", border: `1px solid ${C.border}`, marginBottom: "1.5rem" }}>
-          <div style={{ fontSize: "0.875rem", color: C.peak, fontWeight: 600, marginBottom: "0.5rem" }}>
-            <Wrench size={16} strokeWidth={1.5} style={{ marginRight: "0.5rem" }} /> Use this library
-          </div>
-          <pre
-            style={{
-              margin: 0,
-              padding: "0.75rem",
-              background: "rgba(0,0,0,0.5)",
-              borderRadius: 6,
-              fontSize: "0.75rem",
-              overflow: "auto",
-              color: C.cloud,
-            }}
-          >
-{`import { calculateInference } from "@berget/co2-calculator";
-
-const result = calculateInference({
-  modelProfile: MODEL_PROFILES["${state.selectedModel}"],
-  hardware: HARDWARE_CONFIGS.b300,
-  deploymentGrid: GRID_REGIONS["${state.region}"],
-  measuredResponseTimeSeconds: ${category.responseTime},
-  inputTokens: ${model?.defaultInputTokens},
-  outputTokens: ${model?.defaultOutputTokens},
-  utilization: ${state.utilization},
-  hourOfDay: 14,
-});
-
-// Total: ${result ? (result.totalCO2Grams < 1 ? (result.totalCO2Grams * 1000).toFixed(1) + " mg" : result.totalCO2Grams.toFixed(1) + " g") : "—"} CO₂e per request`}
-          </pre>
-        </div>
+        {/* Library code — developer section with Python/JS picker + advanced usage */}
+        <DeveloperSection
+          selectedModel={state.selectedModel}
+          region={state.region}
+          utilization={state.utilization}
+          responseTime={category.responseTime}
+          inputTokens={model?.defaultInputTokens}
+          outputTokens={model?.defaultOutputTokens}
+          totalDisplay={result ? (result.totalCO2Grams < 1 ? (result.totalCO2Grams * 1000).toFixed(1) + " mg" : result.totalCO2Grams.toFixed(1) + " g") : "—"}
+        />
 
         {/* Links */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
