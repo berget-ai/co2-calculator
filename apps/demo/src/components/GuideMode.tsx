@@ -104,14 +104,14 @@ export function GuideMode({
             read at a glance by non-specialists, with the raw schema one tap
             away for engineers. */}
         <div style={{ marginTop: "1.75rem" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.6rem" }}>
-            <Code size={16} strokeWidth={1.5} style={{ color: C.moss }} />
-            <span style={{ fontSize: "0.875rem", fontWeight: 600, color: C.peak }}>
+          <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "0.4rem 0.5rem", marginBottom: "0.6rem" }}>
+            <Code size={16} strokeWidth={1.5} style={{ color: C.moss, flexShrink: 0 }} />
+            <span style={{ fontSize: "0.875rem", fontWeight: 600, color: C.peak, flex: "1 1 auto", minWidth: 0 }}>
               Every AI response should report its CO₂ footprint
             </span>
             <span
               style={{
-                marginLeft: "auto",
+                flexShrink: 0,
                 fontSize: "0.65rem",
                 padding: "0.15rem 0.5rem",
                 borderRadius: 4,

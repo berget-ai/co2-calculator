@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { C } from "./shared";
+import { useIsMobile } from "./useMediaQuery";
 import { toApiEmissions } from "@berget/co2-calculator";
 import type { InferenceResult as LibInferenceResult } from "@berget/co2-calculator";
 import type { InferenceResult, ModelProfile } from "./types";
@@ -21,6 +22,7 @@ interface Props {
  */
 export function EmissionsReceipt({ result, model, selectedModel, region }: Props) {
   const [showJson, setShowJson] = useState(false);
+  const isMobile = useIsMobile();
   const emissions = result ? toApiEmissions(result as unknown as LibInferenceResult, region) : null;
   if (!emissions) return null;
 
@@ -58,7 +60,9 @@ export function EmissionsReceipt({ result, model, selectedModel, region }: Props
         border: `1px solid ${C.borderMoss}`,
       }}
     >
-      {/* Tilted JSON backdrop — pushed further right, visible but decorative */}
+      {/* Tilted JSON backdrop — pushed further right, visible but decorative.
+          Hidden on mobile, where it only collides with the headline. */}
+      {!isMobile && (
       <div
         aria-hidden="true"
         style={{
@@ -99,6 +103,7 @@ export function EmissionsReceipt({ result, model, selectedModel, region }: Props
           )
         )}
       </div>
+      )}
 
       {/* Foreground content */}
       <div style={{ position: "relative", padding: "1.5rem 1.5rem 1.25rem" }}>
@@ -117,13 +122,13 @@ export function EmissionsReceipt({ result, model, selectedModel, region }: Props
 
         {/* The single headline figure */}
         <div style={{ display: "flex", alignItems: "baseline", gap: "0.6rem", flexWrap: "wrap" }}>
-          <span style={{ fontSize: "2.6rem", fontWeight: 800, color: C.peak, letterSpacing: "-0.02em", lineHeight: 1 }}>
+          <span style={{ fontSize: isMobile ? "2rem" : "2.6rem", fontWeight: 800, color: C.peak, letterSpacing: "-0.02em", lineHeight: 1 }}>
             {co2Display}
           </span>
-          <span style={{ fontSize: "1rem", color: C.cloud, fontWeight: 500 }}>CO₂e per response</span>
+          <span style={{ fontSize: isMobile ? "0.9rem" : "1rem", color: C.cloud, fontWeight: 500 }}>CO₂e per response</span>
         </div>
 
-        <div style={{ marginTop: "0.85rem", fontSize: "0.85rem", color: C.cloud, lineHeight: 1.55 }}>
+        <div style={{ marginTop: "0.85rem", fontSize: isMobile ? "0.8rem" : "0.85rem", color: C.cloud, lineHeight: 1.55 }}>
           <span style={{ color: C.moss, fontWeight: 600 }}>{modelName}</span>
           {" · "}
           {emissions.grid.region}
@@ -132,7 +137,7 @@ export function EmissionsReceipt({ result, model, selectedModel, region }: Props
         </div>
 
         {/* A minimal two-way split — the only structure a layperson needs */}
-        <div style={{ display: "flex", gap: "1.25rem", marginTop: "1rem", fontSize: "0.78rem", color: C.muted }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: isMobile ? "0.5rem 1rem" : "1.25rem", marginTop: "1rem", fontSize: "0.78rem", color: C.muted }}>
           <span>
             <span style={{ color: C.cloud, fontWeight: 600 }}>{(emissions.operational.co2e_grams * 1000).toFixed(1)} mg</span> energy
           </span>
