@@ -4,9 +4,9 @@ There's real confusion about AI's emissions — and the reason is a lack of tran
 
 **In short — if you buy or build on AI:**
 
-- **The most important choice is the right model for the task.** Reaching for an ever-larger model by default is the wrong path: a frontier model can emit roughly **9× more CO₂ per query** than a specialised one that does the same job just as well — even on a clean grid. We need, collectively, to learn to use the specialised models.
-- **Choosing well is impossible without transparency.** Teams building AI services need the numbers to evaluate the right model for each task on CO₂ — which is why our call to the industry is to include CO₂ in every response, like tokens.
-- **The same request can also emit 50× more CO₂ for the energy it burns, depending on where the servers sit** — and almost no provider publishes the number. Below: the full method, from first principles.
+- **To reduce your AI emissions there are a few things to consider. The most significant one is also the easiest: choose a smaller model.** A frontier model can emit roughly **9× more CO₂ per query** than a specialised one that does the same job just as well — even on a clean grid.
+- **The next step is to be aware of where your data is processed** — where the datacentre sits. Grids differ, and the further north the servers sit, the colder the climate and the better the access to clean energy. Running your workload in a Texas datacentre — gas turbines emitting CO₂ both to power the servers and to remove the heat — consumes more energy and water, and emits more CO₂, than the same workload in the north of Europe.
+- **Choosing well is impossible without transparency** — and almost no provider publishes the number. That is why our call to the industry is to include CO₂ in every response, like tokens. Below: the full method, from first principles.
 
 When you procure AI, a handful of choices decide almost all of the footprint: where the servers run, which model you use, whether you share the hardware or run your own, how well its cache is tuned, and whether the hardware is new or refurbished. The model you choose and the grid it runs on dwarf everything else.
 

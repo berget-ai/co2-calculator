@@ -153,19 +153,21 @@ export function GuideMode({
           </div>
           <ul style={{ margin: 0, paddingLeft: "1.15rem", color: C.peak, lineHeight: 1.6, fontSize: "0.95rem" }}>
             <li style={{ marginBottom: "0.5rem" }}>
-              The most important choice is the <strong>right model for the task</strong>. Reaching for an
-              ever-larger model by default is the wrong path: a frontier model can emit roughly <strong>9× more CO₂
+              To reduce your AI emissions there are a few things to consider. The most significant one is also the
+              easiest: <strong>choose a smaller model</strong>. A frontier model can emit roughly <strong>9× more CO₂
               per query</strong> than a specialised one that does the same job just as well — even on a clean grid.
-              We need, collectively, to learn to use the specialised models.
             </li>
             <li style={{ marginBottom: "0.5rem" }}>
-              Choosing well is impossible without transparency. Teams building AI services need the numbers to
-              evaluate the right model for each task on CO₂ — which is why our call to the industry is to include
-              CO₂ in every response, like tokens.
+              The next step is to be aware of <strong>where your data is processed</strong> — where the datacentre
+              sits. Grids differ, and the further north the servers sit, the colder the climate and the better the
+              access to clean energy. Running your workload in a Texas datacentre — gas turbines emitting CO₂ both to
+              power the servers and to remove the heat — consumes more energy and water, and emits more CO₂, than the
+              same workload in the north of Europe.
             </li>
             <li>
-              The same request can also emit 50× more CO₂ for the energy it burns, depending on where the servers sit
-              — and almost no provider publishes the number. Below: the full method, from first principles.
+              Choosing well is impossible without transparency — and almost no provider publishes the number. That is
+              why our call to the industry is to include CO₂ in every response, like tokens. Below: the full method,
+              from first principles.
             </li>
           </ul>
         </div>
