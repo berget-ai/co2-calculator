@@ -1,5 +1,6 @@
 import { useMemo, useRef } from "react";
 import { C, Card } from "./shared";
+import { useIsMobile } from "./useMediaQuery";
 import { DEFAULT_TRAFFIC_PATTERN } from "@berget/co2-calculator";
 
 interface Props {
@@ -25,14 +26,18 @@ export function DailyLoadChart({
   lowPeriodFactor = 0.7,
   peakPeriodFactor = 1.15,
 }: Props) {
+  const isMobile = useIsMobile();
+  // Taller viewBox on mobile so bars, line and labels stay legible when the
+  // SVG is scaled down to a narrow screen; larger fonts throughout.
   const W = 560;
-  const H = 200;
-  const padL = 40;
-  const padR = 44;
+  const H = isMobile ? 240 : 200;
+  const padL = isMobile ? 30 : 40;
+  const padR = isMobile ? 40 : 44;
   const padT = 16;
   const padB = 28;
   const innerW = W - padL - padR;
   const innerH = H - padT - padB;
+  const fontAxis = isMobile ? 12 : 9;
   const svgRef = useRef<SVGSVGElement | null>(null);
   const dragging = useRef(false);
 
@@ -98,7 +103,9 @@ export function DailyLoadChart({
           ) : null
         )}
 
-        {/* Usage bars */}
+        {/* Usage bars — day vs night made unmistakable: day bars are light
+            stone, night bars are solid green, so the day/night split reads at
+            a glance even on a small screen. */}
         {hours.map((h) => (
           <rect
             key={h.hour}
@@ -106,7 +113,7 @@ export function DailyLoadChart({
             y={yW(h.weight)}
             width={bw - 2}
             height={padT + innerH - yW(h.weight)}
-            fill={h.hour === hourOfDay ? "#E5DDD5" : h.isLow ? "rgba(96,165,128,0.5)" : "rgba(229,221,213,0.35)"}
+            fill={h.hour === hourOfDay ? "#E5DDD5" : h.isLow ? "rgba(96,165,128,0.85)" : "rgba(229,221,213,0.5)"}
             rx={1.5}
           />
         ))}
@@ -129,21 +136,21 @@ export function DailyLoadChart({
         />
         <circle cx={x(hourOfDay) + bw / 2} cy={yF(curFactor)} r="5" fill="#D4A574" stroke="#0A0A0A" strokeWidth="2" />
 
-        {/* X axis labels */}
-        {[0, 6, 12, 18, 23].map((h) => (
-          <text key={h} x={x(h) + bw / 2} y={padT + innerH + 16} fill="rgba(255,255,255,0.45)" fontSize="9" textAnchor="middle">
+        {/* X axis labels — fewer on mobile so they don't collide */}
+        {(isMobile ? [0, 12, 23] : [0, 6, 12, 18, 23]).map((h) => (
+          <text key={h} x={x(h) + bw / 2} y={padT + innerH + 18} fill="rgba(255,255,255,0.6)" fontSize={fontAxis} textAnchor="middle">
             {String(h).padStart(2, "0")}:00
           </text>
         ))}
 
         {/* Left axis: usage */}
-        <text x={padL - 6} y={padT + 4} fill="rgba(255,255,255,0.45)" fontSize="9" textAnchor="end">high</text>
-        <text x={padL - 6} y={padT + innerH} fill="rgba(255,255,255,0.45)" fontSize="9" textAnchor="end">low</text>
+        <text x={padL - 6} y={padT + 4} fill="rgba(255,255,255,0.6)" fontSize={fontAxis} textAnchor="end">high</text>
+        <text x={padL - 6} y={padT + innerH} fill="rgba(255,255,255,0.6)" fontSize={fontAxis} textAnchor="end">low</text>
 
         {/* Right axis: factor */}
-        <text x={padL + innerW + 6} y={yF(peakPeriodFactor) + 3} fill="#D4A574" fontSize="9">×{peakPeriodFactor}</text>
-        <text x={padL + innerW + 6} y={yF(1) + 3} fill="rgba(255,255,255,0.45)" fontSize="9">×1.0</text>
-        <text x={padL + innerW + 6} y={yF(lowPeriodFactor) + 3} fill={C.moss} fontSize="9">×{lowPeriodFactor}</text>
+        <text x={padL + innerW + 6} y={yF(peakPeriodFactor) + 4} fill="#D4A574" fontSize={fontAxis}>×{peakPeriodFactor}</text>
+        <text x={padL + innerW + 6} y={yF(1) + 4} fill="rgba(255,255,255,0.6)" fontSize={fontAxis}>×1.0</text>
+        <text x={padL + innerW + 6} y={yF(lowPeriodFactor) + 4} fill={C.moss} fontSize={fontAxis}>×{lowPeriodFactor}</text>
       </svg>
 
       {/* Time-of-day slider */}
@@ -170,19 +177,24 @@ export function DailyLoadChart({
         </div>
       </Card>
 
+      {/* A plain-language read of the graph — the point in one sentence, so it
+          lands even if the chart itself is hard to parse on a small screen. */}
+      <div style={{ marginTop: "0.85rem", fontSize: "0.8rem", color: C.cloud, lineHeight: 1.5 }}>
+        Bars show how busy the grid is each hour; the line shows the CO₂ cost of electricity at that hour. Night is
+        quieter <em>and</em> cleaner — so a request then emits about{" "}
+        <strong style={{ color: C.moss }}>{Math.round((1 - lowPeriodFactor) * 100)}% less CO₂</strong>.
+      </div>
+
       {/* Legend */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem", marginTop: "0.75rem", fontSize: "0.7rem", color: C.muted, alignItems: "center" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem 1rem", marginTop: "0.6rem", fontSize: "0.7rem", color: C.muted, alignItems: "center" }}>
         <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <span style={{ width: 12, height: 10, background: "rgba(229,221,213,0.35)", display: "inline-block", borderRadius: 2 }} /> usage (day)
+          <span style={{ width: 12, height: 10, background: "rgba(229,221,213,0.5)", display: "inline-block", borderRadius: 2 }} /> usage (day)
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <span style={{ width: 12, height: 10, background: "rgba(96,165,128,0.5)", display: "inline-block", borderRadius: 2 }} /> usage (night)
+          <span style={{ width: 12, height: 10, background: "rgba(96,165,128,0.85)", display: "inline-block", borderRadius: 2 }} /> usage (night)
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <span style={{ width: 14, height: 3, background: "#D4A574", display: "inline-block", borderRadius: 2 }} /> CO₂ factor
-        </span>
-        <span style={{ marginLeft: "auto" }}>
-          night calls ≈ {Math.round((1 - lowPeriodFactor) * 100)}% lower CO₂
         </span>
       </div>
     </div>
