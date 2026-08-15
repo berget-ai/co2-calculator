@@ -78,9 +78,10 @@ export function EmissionsReceipt({ result, model, selectedModel, region }: Props
           lineHeight: 1.7,
           whiteSpace: "pre",
           // Fade the text out toward the bottom-left so the headline stays
-          // perfectly legible on top of it.
-          maskImage: "linear-gradient(115deg, rgba(0,0,0,0.95) 40%, rgba(0,0,0,0.3) 75%, transparent 100%)",
-          WebkitMaskImage: "linear-gradient(115deg, rgba(0,0,0,0.95) 40%, rgba(0,0,0,0.3) 75%, transparent 100%)",
+          // legible on top of it — but keep the JSON clearly visible as a
+          // backdrop, not just a whisper.
+          maskImage: "linear-gradient(115deg, rgba(0,0,0,1) 45%, rgba(0,0,0,0.55) 78%, rgba(0,0,0,0.1) 100%)",
+          WebkitMaskImage: "linear-gradient(115deg, rgba(0,0,0,1) 45%, rgba(0,0,0,0.55) 78%, rgba(0,0,0,0.1) 100%)",
         }}
       >
         {jsonLines.map((line, i) =>
@@ -89,15 +90,15 @@ export function EmissionsReceipt({ result, model, selectedModel, region }: Props
               key={i}
               style={{
                 color: C.peak,
-                opacity: 0.85,
+                opacity: 0.95,
                 fontWeight: 700,
-                textShadow: "0 0 8px rgba(224,242,233,0.4)",
+                textShadow: "0 0 10px rgba(224,242,233,0.55)",
               }}
             >
               {line.text}
             </div>
           ) : (
-            <div key={i} style={{ color: C.moss, opacity: 0.16 }}>
+            <div key={i} style={{ color: C.moss, opacity: 0.34 }}>
               {line.text}
             </div>
           )
