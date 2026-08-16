@@ -294,11 +294,11 @@ function EmissionsFooter({ result }: { result: InferenceResult | null }) {
   // Coffee comparison, using the SAME anchor as the ResultsPanel so the cup
   // count matches exactly: an 800W microwave priced at Sweden's day-adjusted
   // 14:00 intensity (8 × 1.15 = 9.2 g/kWh) → grams CO₂ per second of
-  // microwaving. One cup = 60 s of microwaving (a full cup takes ~a minute).
+  // microwaving. One cup = 120 s of microwaving (a full cup takes ~2 minutes).
   const SWEDEN_INTENSITY_DAY = 8 * 1.15; // g/kWh, clean baseline at 14:00
   const coffeeCO2PerSecond = (0.8 / 3600) * SWEDEN_INTENSITY_DAY;
   const coffeeSeconds = total / coffeeCO2PerSecond;
-  const SECONDS_PER_CUP = 60;
+  const SECONDS_PER_CUP = 120;
   const coffeeCups = coffeeSeconds / SECONDS_PER_CUP;
 
   return (
@@ -316,9 +316,11 @@ function EmissionsFooter({ result }: { result: InferenceResult | null }) {
       }}
     >
       <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 1rem" }}>
-        {/* Progress bar with labels */}
+        {/* Progress bar — a single row, with the label and value inside the
+            coloured bar itself where they fit (better visibility than text
+            floating above/below the bar). */}
         <div style={{ marginBottom: "0.75rem" }}>
-          <div style={{ display: "flex", height: 20, marginBottom: 4 }}>
+          <div style={{ display: "flex", height: 22, borderRadius: 5, overflow: "hidden", background: "rgba(26, 26, 26, 0.6)" }}>
             {components.map((comp) => {
               const width = (comp.value / total) * 100;
               return (
@@ -326,59 +328,31 @@ function EmissionsFooter({ result }: { result: InferenceResult | null }) {
                   key={comp.key}
                   style={{
                     width: `${width}%`,
+                    background: comp.color,
+                    transition: "all 0.5s ease",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    fontSize: "0.65rem",
-                    color: comp.color,
-                    fontWeight: 500,
-                    whiteSpace: "nowrap",
                     overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    opacity: width > 5 ? 1 : 0,
-                    transition: "opacity 0.3s ease",
                   }}
-                >
-                  {width > 8 ? comp.label : ""}
-                </div>
-              );
-            })}
-          </div>
-
-          <div style={{ display: "flex", height: 8, borderRadius: 4, overflow: "hidden", background: "rgba(26, 26, 26, 0.6)" }}>
-            {components.map((comp) => {
-              const width = (comp.value / total) * 100;
-              return (
-                <div
-                  key={comp.key}
-                  style={{ width: `${width}%`, background: comp.color, transition: "all 0.5s ease" }}
                   title={`${comp.label}: ${formatCO2(comp.value)}`}
-                />
-              );
-            })}
-          </div>
-
-          <div style={{ display: "flex", height: 16, marginTop: 4 }}>
-            {components.map((comp) => {
-              const width = (comp.value / total) * 100;
-              return (
-                <div
-                  key={comp.key}
-                  style={{
-                    width: `${width}%`,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: "0.65rem",
-                    color: "rgba(255,255,255,0.5)",
-                    fontFamily: "var(--berget-font-mono, 'DM Mono', monospace)",
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    opacity: width > 5 ? 1 : 0,
-                    transition: "opacity 0.3s ease",
-                  }}
                 >
-                  {width > 8 ? formatCO2(comp.value) : ""}
+                  {width > 12 && (
+                    <span
+                      style={{
+                        fontSize: "0.62rem",
+                        fontWeight: 600,
+                        color: "rgba(10,12,11,0.85)",
+                        fontFamily: "var(--berget-font-mono, 'DM Mono', monospace)",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        padding: "0 0.25rem",
+                      }}
+                    >
+                      {comp.label} {formatCO2(comp.value)}
+                    </span>
+                  )}
                 </div>
               );
             })}
@@ -434,9 +408,6 @@ function EmissionsFooter({ result }: { result: InferenceResult | null }) {
               {(result.waterLiters * 1000).toFixed(2)} ml
             </div>
           )}
-          <div style={{ flex: 1, fontSize: "0.75rem", color: C.muted, textAlign: "right" }}>
-            updates live as you read ↓
-          </div>
         </div>
       </div>
     </footer>
