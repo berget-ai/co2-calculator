@@ -94,8 +94,11 @@ export function CategoryModelPicker({
                 background: selectedModel === m.id ? C.mossDim : "transparent",
                 color: selectedModel === m.id ? C.moss : C.cloud,
                 cursor: "pointer",
-                fontSize: "0.875rem",
+                fontSize: "0.75rem",
                 textAlign: "left",
+                display: "flex",
+                alignItems: "center",
+                minHeight: "2.25rem",
               }}
             >
               {m.name}
