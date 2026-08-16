@@ -76,7 +76,13 @@ export function CategoryModelPicker({
             </button>
           )}
         </div>
-        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+            gap: "0.5rem",
+          }}
+        >
           {category.models.map((m) => (
             <button
               key={m.id}
@@ -89,6 +95,7 @@ export function CategoryModelPicker({
                 color: selectedModel === m.id ? C.moss : C.cloud,
                 cursor: "pointer",
                 fontSize: "0.875rem",
+                textAlign: "left",
               }}
             >
               {m.name}

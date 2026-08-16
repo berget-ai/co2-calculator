@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import Globe from "react-globe.gl";
 import { GRID_REGIONS } from "@berget/co2-calculator";
+import { useIsMobile } from "./useMediaQuery";
 
 // Geo coordinates for all grid regions
 const REGION_COORDS: Record<string, { lat: number; lng: number }> = {
@@ -188,16 +189,32 @@ interface GlobeSelectorProps {
   showMode?: "intensity" | "temperature" | "pue";
 }
 
-export function GlobeSelector({ 
-  selectedRegion, 
+export function GlobeSelector({
+  selectedRegion,
   onRegionSelect,
-  showMode = "intensity" 
+  showMode = "intensity"
 }: GlobeSelectorProps) {
   const globeRef = useRef<any>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [hoveredRegion, setHoveredRegion] = useState<string | null>(null);
   const [countries, setCountries] = useState<any[]>([]);
+  // Responsive width: the globe canvas must match its container, otherwise on
+  // a narrow (mobile) screen the 800px canvas overflows and the globe appears
+  // pushed off-centre. Measure the container and keep the canvas in sync.
+  const [width, setWidth] = useState(800);
+  const isMobile = useIsMobile();
 
   const regions = getRegionData();
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const update = () => setWidth(el.clientWidth || 800);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // Disable scroll-to-zoom: the globe sits inline in a scrolling page, and
   // wheel-zoom hijacks the page scroll when the cursor passes over the map.
@@ -314,10 +331,10 @@ export function GlobeSelector({
   const displayRegion = hoveredRegionData || selectedRegionData;
 
   return (
-    <div style={{ position: "relative", width: "100%", height: 420 }}>
+    <div ref={containerRef} style={{ position: "relative", width: "100%", height: 420, overflow: "hidden" }}>
       <Globe
         ref={globeRef}
-        width={800}
+        width={width}
         height={420}
         backgroundColor="rgba(0,0,0,0)"
         globeImageUrl="//unpkg.com/three-globe/example/img/earth-dark.jpg"
@@ -443,8 +460,18 @@ export function GlobeSelector({
         </div>
       )}
 
-      {/* Legend - compact */}
-      <div style={{
+      {/* Legend — vertical top-right on desktop; a compact horizontal strip
+          at the bottom on mobile, where a tall box would cover the globe. */}
+      <div style={isMobile ? {
+        position: "absolute",
+        bottom: 12,
+        left: 12,
+        background: "rgba(10, 10, 10, 0.85)",
+        backdropFilter: "blur(10px)",
+        borderRadius: 8,
+        padding: "0.4rem 0.6rem",
+        border: "1px solid rgba(229, 221, 213, 0.05)",
+      } : {
         position: "absolute",
         top: 12,
         right: 12,
@@ -454,10 +481,12 @@ export function GlobeSelector({
         padding: "0.5rem 0.75rem",
         border: "1px solid rgba(229, 221, 213, 0.05)",
       }}>
-        <div style={{ fontSize: "0.65rem", color: "rgba(255,255,255,0.5)", marginBottom: "0.35rem", fontWeight: 500 }}>
-          {showMode === "intensity" ? "Carbon Intensity" : showMode === "temperature" ? "Temperature" : "PUE"}
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+        {!isMobile && (
+          <div style={{ fontSize: "0.65rem", color: "rgba(255,255,255,0.5)", marginBottom: "0.35rem", fontWeight: 500 }}>
+            {showMode === "intensity" ? "Carbon Intensity" : showMode === "temperature" ? "Temperature" : "PUE"}
+          </div>
+        )}
+        <div style={{ display: "flex", flexDirection: isMobile ? "row" : "column", gap: isMobile ? "0.5rem" : "0.2rem", flexWrap: "wrap" }}>
           {showMode === "intensity" && (
             <>
               <LegendItem color="#60A580" label="< 50" />
