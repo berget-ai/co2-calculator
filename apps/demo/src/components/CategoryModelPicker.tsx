@@ -76,11 +76,16 @@ export function CategoryModelPicker({
             </button>
           )}
         </div>
+        {/* A single horizontally-scrolling row of model chips — swipe sideways
+            on mobile rather than wrapping to several rows. */}
         <div
           style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+            display: "flex",
+            flexWrap: "nowrap",
+            overflowX: "auto",
             gap: "0.5rem",
+            paddingBottom: "0.25rem",
+            WebkitOverflowScrolling: "touch",
           }}
         >
           {category.models.map((m) => (
@@ -99,6 +104,8 @@ export function CategoryModelPicker({
                 display: "flex",
                 alignItems: "center",
                 minHeight: "2.25rem",
+                whiteSpace: "nowrap",
+                flexShrink: 0,
               }}
             >
               {m.name}

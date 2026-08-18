@@ -7,6 +7,7 @@ import {
   GRID_REGIONS,
 } from "@berget/co2-calculator";
 import { useModelData, mergeModelData } from "./hooks/useModelData";
+import { useIsMobile } from "./components/useMediaQuery";
 import { C, COMPONENT_COLORS, formatCO2 } from "./components/shared";
 import { ApiResponseBlock } from "./components/ApiResponseBlock";
 import { GuideMode } from "./components/GuideMode";
@@ -279,6 +280,7 @@ export function CO2Calculator() {
 
 // ─── Live Emissions Footer ───
 function EmissionsFooter({ result }: { result: InferenceResult | null }) {
+  const isMobile = useIsMobile();
   if (!result) return null;
 
   const components = [
@@ -374,22 +376,26 @@ function EmissionsFooter({ result }: { result: InferenceResult | null }) {
             {formatCO2(total)}{" "}
             <span style={{ fontSize: "0.7rem", fontWeight: 500, color: C.muted }}>CO₂e</span>
           </div>
-          {/* Coffee comparison — the most intuitive anchor we have */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.35rem",
-              fontSize: "0.75rem",
-              color: C.cloud,
-              whiteSpace: "nowrap",
-              fontFamily: "var(--berget-font-mono, 'DM Mono', monospace)",
-            }}
-            title="Same energy as microwaving a cup of coffee (800W, Swedish grid)"
-          >
-            <Coffee size={13} strokeWidth={1.5} style={{ color: C.muted, flexShrink: 0 }} />
-            {coffeeCups < 0.1 ? "<0.1" : coffeeCups.toFixed(1)} cups
-          </div>
+          {/* Coffee comparison — the most intuitive anchor we have. Hidden on
+              mobile, where the footer is already dense and the cup count is
+              one piece of information too many. */}
+          {!isMobile && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.35rem",
+                fontSize: "0.75rem",
+                color: C.cloud,
+                whiteSpace: "nowrap",
+                fontFamily: "var(--berget-font-mono, 'DM Mono', monospace)",
+              }}
+              title="Same energy as microwaving a cup of coffee (800W, Swedish grid)"
+            >
+              <Coffee size={13} strokeWidth={1.5} style={{ color: C.muted, flexShrink: 0 }} />
+              {coffeeCups < 0.1 ? "<0.1" : coffeeCups.toFixed(1)} cups
+            </div>
+          )}
           {/* Water usage — only shown when the region actually consumes water */}
           {result.waterLiters > 0 && (
             <div
