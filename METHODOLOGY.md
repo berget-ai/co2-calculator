@@ -832,6 +832,13 @@ or node counts (platform privacy). The ratio identifies how much of the
 per-request GPU-shard time is shared across concurrent requests and acts as
 the calibration factor for concurrency-aware accounting.
 
+Coverage today is **GPU energy only** (DCGM/AMD counters). Server chassis,
+node idle, storage, networking and cooling are still modelled from design
+values (per-node idle/chassis watts, regional PUE) and are reported by the
+check as multipliers over GPU energy, with the measured-vs-design gap made
+explicit. Instrumenting host power (Redfish/iLO) and PDU metering is on the
+roadmap so the ancillary side can be reality-checked exactly like GPUs.
+
 ## 9. Limitations & Uncertainties
 
 1. **Training data**: Extrapolated values may vary ±50% from actuals. Disclosed data preferred where available.

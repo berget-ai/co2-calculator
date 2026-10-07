@@ -65,7 +65,8 @@ console.log("  as ratios only elsewhere.");
 // ── 2. Per-request estimates (lib, measured response times) ───────────────
 const lib = await import(new URL("../dist/index.js", import.meta.url));
 let estMeasuredRatioBase = null;
-console.log(`\n== Per-request GPU energy estimate (window ${W}) ==`);
+console.log(`
+== Per-request GPU energy estimate (window ${W}) ==`);
 for (const s of SERVED) {
   const profile = lib.MODEL_PROFILES[s.profile];
   if (!profile) {
@@ -98,6 +99,30 @@ for (const s of SERVED) {
   // expressed as a ratio only (both absolute values are platform-private).
   if (!estMeasuredRatioBase) estMeasuredRatioBase = { requests, perReq, s };
 }
+
+// ── 2b. Other equipment (ancillary): measured vs design-modelled ─────────
+// GPU meters cover the accelerators only. Racks also contain server chassis,
+// storage, networking and cooling — today these are DESIGN-modelled in the
+// calculator (per-node idle + chassis watts, regional PUE), not yet metered.
+// Report them as multipliers over GPU energy (no absolute scale), plus the
+// instrumentation gap.
+const b300 = lib.HARDWARE_CONFIGS.b300;
+const pue = lib.GRID_REGIONS.sweden.typicalPue ?? 1.2; // representative regional PUE used by the model
+const gpuInstant = await q(`avg by (modelName) (avg_over_time(DCGM_FI_DEV_POWER_USAGE[${W}]))`);
+const draws = gpuInstant.map((r) => +r.value[1]).filter((v) => v > 0).sort((a, b) => a - b);
+const busyMedian = draws.length ? draws[Math.floor(draws.length / 2)] : null;
+console.log("\n== Beyond the accelerators (ancillary equipment) ==");
+console.log("  Metered today: GPU energy only (NVIDIA DCGM + AMD counters).");
+if (busyMedian) {
+  console.log(`  Cross-check: median instantaneous GPU draw across the window was ${busyMedian.toFixed(0)} W/GPU (DCGM power metric);`);
+  console.log(`    (sustained fleet average incl. idle is lower — idle periods pull the mean down).`);
+}
+console.log(`  Design multipliers applied by the calculator (per GPU kWh):`);
+console.log(`    + server chassis + node idle: modelled per-node as ${b300.nodeIdleWatts} W idle + ${b300.chassisWatts} W chassis`);
+console.log(`    + cooling / PUE: × ${pue.toFixed(2)} (regional PUE)`);
+console.log(`  TODO(instrumentation): host power via Redfish/iLO exporter + PDU metering,`);
+console.log(`    then fold chassis/network/storage/cooling into the measured side of this check.`);
+console.log(`    Current ancillary figures are design values, NOT yet reality-checked.`);
 
 // ── 3. Measured vs estimated ratio (the honest headline) ──────────────────
 // Weighted check across the dominant serving class: total measured energy of
