@@ -12,9 +12,9 @@ This site is a client-rendered React app, so its prose is not in the served HTML
 
 ## Code & data
 
-- [Calculator source (packages/co2-calculator)](https://github.com/berget-ai/co2-calculator): the TypeScript library published to npm as `@berget/co2-calculator`.
-- [Models, hardware, grids](https://github.com/berget-ai/co2-calculator/tree/main/packages/co2-calculator/src): the per-model, per-hardware and per-grid inputs the figures are computed from.
-- [Calibration script](https://github.com/berget-ai/co2-calculator/blob/main/packages/co2-calculator/scripts/calibrate-from-prometheus.mjs): how the per-model GPU-time figures are measured from production Prometheus (not estimated).
+- [Calculator source (packages/co2-calculations)](https://github.com/berget-ai/co2-calculator): the TypeScript library published to npm as `@bergetai/co2-calculations`.
+- [Models, hardware, grids](https://github.com/berget-ai/co2-calculator/tree/main/packages/co2-calculations/src): the per-model, per-hardware and per-grid inputs the figures are computed from.
+- [Calibration script](https://github.com/berget-ai/co2-calculator/blob/main/packages/co2-calculations/scripts/calibrate-from-prometheus.mjs): how the per-model GPU-time figures are measured from production Prometheus (not estimated).
 
 ## Optional
 
