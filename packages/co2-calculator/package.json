@@ -1,5 +1,5 @@
 {
-  "name": "@bergetai/co2-calculations",
+  "name": "@bergetai/co2-calculator",
   "version": "1.0.0",
   "description": "Production-calibrated CO\u2082 emissions calculator for AI inference",
   "type": "module",

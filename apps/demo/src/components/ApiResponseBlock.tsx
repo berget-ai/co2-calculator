@@ -1,6 +1,6 @@
 import { C } from "./shared";
-import { toApiEmissions } from "@bergetai/co2-calculations";
-import type { InferenceResult as LibInferenceResult } from "@bergetai/co2-calculations";
+import { toApiEmissions } from "@bergetai/co2-calculator";
+import type { InferenceResult as LibInferenceResult } from "@bergetai/co2-calculator";
 import type { InferenceResult, ModelProfile } from "./types";
 
 interface Props {

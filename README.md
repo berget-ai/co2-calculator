@@ -27,13 +27,13 @@ Most AI providers don't show customers the carbon cost of inference. This librar
 ### Install
 
 ```bash
-npm install @bergetai/co2-calculations
+npm install @bergetai/co2-calculator
 ```
 
 ### Basic Usage
 
 ```typescript
-import { calculateInference, MODEL_PROFILES, HARDWARE_CONFIGS, GRID_REGIONS } from "@bergetai/co2-calculations";
+import { calculateInference, MODEL_PROFILES, HARDWARE_CONFIGS, GRID_REGIONS } from "@bergetai/co2-calculator";
 
 const result = calculateInference({
   modelProfile: MODEL_PROFILES["meta-llama/Llama-3.1-8B-Instruct"],
@@ -81,7 +81,7 @@ Every provider has different hardware, locations, and models. See **[ADVANCED_US
 ### Example: Custom Provider Setup
 
 ```typescript
-import { calculateInference, type HardwareConfig, type GridRegion } from "@bergetai/co2-calculations";
+import { calculateInference, type HardwareConfig, type GridRegion } from "@bergetai/co2-calculator";
 
 // Your infrastructure
 const myHardware: HardwareConfig = {
@@ -187,7 +187,7 @@ See **[METHODOLOGY.md](./METHODOLOGY.md)** for full details.
 | KB Whisper Large (Swedish) | 1.55B | 3.1 GB (FP16) | 400 kg | KBLab fine-tune |
 | NB Whisper Large (Norwegian) | 1.55B | 3.1 GB (FP16) | 400 kg | NbAiLab fine-tune |
 
-[Full list →](./packages/co2-calculations/src/models.ts)
+[Full list →](./packages/co2-calculator/src/models.ts)
 
 ### Grid Regions (15)
 
@@ -211,7 +211,7 @@ See **[METHODOLOGY.md](./METHODOLOGY.md)** for full details.
 
 Sources: IEA 2024, EPA eGRID 2023, Hydro-Québec 2024.
 
-[Full list →](./packages/co2-calculations/src/grids.ts)
+[Full list →](./packages/co2-calculator/src/grids.ts)
 
 ### Hardware (7)
 
@@ -227,7 +227,7 @@ Sources: IEA 2024, EPA eGRID 2023, Hydro-Québec 2024.
 
 Embodied carbon estimates have ±30–50% uncertainty (NVIDIA/AMD do not publish per-GPU LCAs). The H100 value is anchored to the [NVIDIA HGX H100 PCF](https://www.nvidia.com/en-us/sustainability/) (1,312 kg CO₂e for the full 8-GPU baseboard).
 
-[Full list →](./packages/co2-calculations/src/hardware.ts)
+[Full list →](./packages/co2-calculator/src/hardware.ts)
 
 ---
 

@@ -59,9 +59,9 @@ export function DeveloperSection({
 }: Props) {
   const [lang, setLang] = useState<Lang>("js");
 
-  const jsQuick = `npm install @bergetai/co2-calculations
+  const jsQuick = `npm install @bergetai/co2-calculator
 
-import { calculateInference, MODEL_PROFILES, HARDWARE_CONFIGS, GRID_REGIONS } from "@bergetai/co2-calculations";
+import { calculateInference, MODEL_PROFILES, HARDWARE_CONFIGS, GRID_REGIONS } from "@bergetai/co2-calculator";
 
 const result = calculateInference({
   modelProfile: MODEL_PROFILES["${selectedModel}"],
@@ -98,7 +98,7 @@ print(result.total_co2_grams, "g CO₂e")
 print(result.components)   # full per-component breakdown`;
 
   const jsAdvanced = `// Report the footprint on every API response (the schema in §1).
-import { toApiEmissions } from "@bergetai/co2-calculations";
+import { toApiEmissions } from "@bergetai/co2-calculator";
 
 app.post("/v1/chat/completions", async (req, res) => {
   const out = await runYourModel(req.body);          // your serving stack

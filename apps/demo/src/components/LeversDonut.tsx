@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { C } from "./shared";
-import { calculateInference, MODEL_PROFILES, HARDWARE_CONFIGS, GRID_REGIONS } from "@bergetai/co2-calculations";
+import { calculateInference, MODEL_PROFILES, HARDWARE_CONFIGS, GRID_REGIONS } from "@bergetai/co2-calculator";
 
 /**
  * "Your levers" donut — shows, for each procurement choice, the span between

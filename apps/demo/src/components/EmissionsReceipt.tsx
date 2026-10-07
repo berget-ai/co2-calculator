@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { C } from "./shared";
 import { useIsMobile } from "./useMediaQuery";
-import { toApiEmissions } from "@bergetai/co2-calculations";
-import type { InferenceResult as LibInferenceResult } from "@bergetai/co2-calculations";
+import { toApiEmissions } from "@bergetai/co2-calculator";
+import type { InferenceResult as LibInferenceResult } from "@bergetai/co2-calculator";
 import type { InferenceResult, ModelProfile } from "./types";
 
 interface Props {
