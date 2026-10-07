@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { GRID_REGIONS } from "@berget/co2-calculator";
+import { GRID_REGIONS } from "@bergetai/co2-calculator";
 import { C } from "./shared";
 
 // Lazy load GlobeSelector to avoid loading Three.js on initial page load

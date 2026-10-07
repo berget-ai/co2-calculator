@@ -9,7 +9,7 @@ COPY packages/co2-calculator/package.json ./packages/co2-calculator/
 COPY apps/demo/package.json ./apps/demo/
 
 # Install pnpm
-RUN npm install -g pnpm
+RUN npm install -g pnpm@10.30.3
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
@@ -19,7 +19,7 @@ COPY packages/co2-calculator/ ./packages/co2-calculator/
 COPY apps/demo/ ./apps/demo/
 
 # Build packages and app
-RUN pnpm --filter @berget/co2-calculator build
+RUN pnpm --filter @bergetai/co2-calculator build
 RUN pnpm --filter @berget/co2-calculator-demo build
 
 # Production stage - nginx

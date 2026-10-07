@@ -27,13 +27,13 @@ Most AI providers don't show customers the carbon cost of inference. This librar
 ### Install
 
 ```bash
-npm install @berget/co2-calculator
+npm install @bergetai/co2-calculator
 ```
 
 ### Basic Usage
 
 ```typescript
-import { calculateInference, MODEL_PROFILES, HARDWARE_CONFIGS, GRID_REGIONS } from "@berget/co2-calculator";
+import { calculateInference, MODEL_PROFILES, HARDWARE_CONFIGS, GRID_REGIONS } from "@bergetai/co2-calculator";
 
 const result = calculateInference({
   modelProfile: MODEL_PROFILES["meta-llama/Llama-3.1-8B-Instruct"],
@@ -81,7 +81,7 @@ Every provider has different hardware, locations, and models. See **[ADVANCED_US
 ### Example: Custom Provider Setup
 
 ```typescript
-import { calculateInference, type HardwareConfig, type GridRegion } from "@berget/co2-calculator";
+import { calculateInference, type HardwareConfig, type GridRegion } from "@bergetai/co2-calculator";
 
 // Your infrastructure
 const myHardware: HardwareConfig = {

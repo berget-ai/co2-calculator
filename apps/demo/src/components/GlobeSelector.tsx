@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import Globe from "react-globe.gl";
-import { GRID_REGIONS } from "@berget/co2-calculator";
+import { GRID_REGIONS } from "@bergetai/co2-calculator";
 import { useIsMobile } from "./useMediaQuery";
 
 // Geo coordinates for all grid regions

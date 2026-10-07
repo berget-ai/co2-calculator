@@ -63,7 +63,7 @@ importers:
 
   apps/demo:
     dependencies:
-      '@berget/co2-calculator':
+      '@bergetai/co2-calculator':
         specifier: workspace:*
         version: link:../../packages/co2-calculator
       '@radix-ui/react-checkbox':

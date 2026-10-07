@@ -15,7 +15,7 @@ improve the data or the method are the most valuable kind.
 
 This is a pnpm monorepo:
 
-- `packages/co2-calculator` — the calculator library (published to npm as `@berget/co2-calculator`)
+- `packages/co2-calculator` — the calculator library (published to npm as `@bergetai/co2-calculator`)
 - `apps/demo` — the live site at co2.berget.ai (Vite + React)
 - `METHODOLOGY.md` — the method document the numbers are derived from
 

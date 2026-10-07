@@ -1,6 +1,6 @@
 import { C } from "./shared";
 import type { GridRegion, ModelProfile } from "./types";
-import { HARDWARE_CONFIGS, calculateInference } from "@berget/co2-calculator";
+import { HARDWARE_CONFIGS, calculateInference } from "@bergetai/co2-calculator";
 
 interface Props {
   model: ModelProfile | undefined;

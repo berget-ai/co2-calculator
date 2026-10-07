@@ -118,4 +118,4 @@ This only works if the industry moves together — a number you can't compare ac
 
 ---
 
-*This is the prose of the interactive guide at [co2.berget.ai](https://co2.berget.ai), reproduced as Markdown for LLM readers and reviewers (the site itself is client-rendered). The interactive version lets you change the model, region, sharing, hardware and time of day and watch every figure recompute live. Method: [METHODOLOGY.md](https://github.com/berget-ai/co2-calculator/blob/main/METHODOLOGY.md). Code: [@berget/co2-calculator](https://github.com/berget-ai/co2-calculator).*
+*This is the prose of the interactive guide at [co2.berget.ai](https://co2.berget.ai), reproduced as Markdown for LLM readers and reviewers (the site itself is client-rendered). The interactive version lets you change the model, region, sharing, hardware and time of day and watch every figure recompute live. Method: [METHODOLOGY.md](https://github.com/berget-ai/co2-calculator/blob/main/METHODOLOGY.md). Code: [@bergetai/co2-calculator](https://github.com/berget-ai/co2-calculator).*

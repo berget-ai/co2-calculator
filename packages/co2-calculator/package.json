@@ -1,7 +1,7 @@
 {
-  "name": "@berget/co2-calculator",
+  "name": "@bergetai/co2-calculator",
   "version": "1.0.0",
-  "description": "Production-calibrated CO₂ emissions calculator for AI inference",
+  "description": "Production-calibrated CO\u2082 emissions calculator for AI inference",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -45,5 +45,8 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/berget-ai/co2-calculator.git"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

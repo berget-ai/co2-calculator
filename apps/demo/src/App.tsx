@@ -5,7 +5,7 @@ import {
   MODEL_PROFILES,
   HARDWARE_CONFIGS,
   GRID_REGIONS,
-} from "@berget/co2-calculator";
+} from "@bergetai/co2-calculator";
 import { useModelData, mergeModelData } from "./hooks/useModelData";
 import { useIsMobile } from "./components/useMediaQuery";
 import { C, COMPONENT_COLORS, formatCO2 } from "./components/shared";
