@@ -632,3 +632,58 @@ describe("utilization (SPEC)", () => {
 // - Section 3.1: GPU time allocation
 // - Section 3.3: Utilization based on model size
 // - Section 3.4: Server overhead per node
+
+describe("grid carbon accounting: avg vs marginal (SEI 2026)", () => {
+  const marginalGermany = {
+    ...GRID_REGIONS.germany,
+    marginal: {
+      gPerKwh: 620,
+      hourly: Array.from({ length: 24 }, (_, h) => (h < 6 ? 2000 : 600)),
+      source: "SEI internal estimate (test fixture)",
+      year: 2026,
+    },
+  };
+
+  it("defaults to 'both' and leaves the average result untouched when no marginal data exists", () => {
+    const res = calculateInference(baseParams()); // sweden: no marginal
+    expect(res.accounting.method).toBe("average");
+    expect(res.accounting.marginalAvailable).toBe(false);
+    expect(res.marginal).toBeUndefined();
+    // byte-compat: same as before this feature for the average part
+    const avgOnly = calculateInference(baseParams({ gridAccounting: "average" }));
+    expect(avgOnly.totalCO2Grams).toBe(res.totalCO2Grams);
+  });
+
+  it("attaches the marginal total when a sourced factor exists", () => {
+    const res = calculateInference(baseParams({ deploymentGrid: marginalGermany }));
+    expect(res.accounting.marginalAvailable).toBe(true);
+    expect(res.accounting.method).toBe("average"); // primary row stays the average
+    expect(res.marginal).toBeDefined();
+    // 620 g/kWh marginal >> 380 g/kWh average → marginal grams must be higher
+    expect(res.marginal!.totalCO2Grams).toBeGreaterThan(res.totalCO2Grams);
+    expect(res.marginal!.source).toBe("SEI internal estimate (test fixture)");
+    expect(res.marginal!.effectiveIntensityGPerKwh).toBeGreaterThan(res.effectiveIntensityGPerKwh);
+  });
+
+  it("honours the hourly marginal profile per hour of day", () => {
+    const night = calculateInference(baseParams({ deploymentGrid: marginalGermany, hourOfDay: 2 }));
+    const day = calculateInference(baseParams({ deploymentGrid: marginalGermany, hourOfDay: 14 }));
+    expect(night.marginal!.hourlyGPerKwhApplied).toBe(2000);
+    expect(day.marginal!.hourlyGPerKwhApplied).toBe(600);
+    expect(night.marginal!.totalCO2Grams).toBeGreaterThan(day.marginal!.totalCO2Grams);
+  });
+
+  it("returns only the marginal result when gridAccounting: 'marginal'", () => {
+    const res = calculateInference(baseParams({ deploymentGrid: marginalGermany, gridAccounting: "marginal" }));
+    expect(res.accounting.method).toBe("marginal");
+    // main total IS the marginal total, and provenance is still attached
+    expect(res.totalCO2Grams).toEqual(res.marginal!.totalCO2Grams);
+    expect(res.marginal!.source).toBe("SEI internal estimate (test fixture)");
+  });
+
+  it("falls back to average with a stated reason when marginal requested but data missing", () => {
+    const res = calculateInference(baseParams({ deploymentGrid: GRID_REGIONS.sweden, gridAccounting: "marginal" }));
+    expect(res.accounting.method).toBe("average");
+    expect(res.accounting.marginalFallbackReason).toBe("marginal-data-missing");
+  });
+});

@@ -308,6 +308,56 @@ export function GuideMode({
         </InteractiveFrame>
         {/* Sentinel: when the region chip row scrolls out of view, a sticky clone pins to the top */}
         <div id="region-row-sentinel" style={{ height: 1 }} aria-hidden="true" />
+        <InteractiveFrame label="grid accounting method">
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+            {(
+              [
+                { key: "average", label: "Average grid (baseline)", hint: "Grid-wide mix — IEA / eGRID." },
+                { key: "marginal", label: "Marginal impact (best practice)", hint: "What an extra kWh causes — coal fired, gas capacity built." },
+              ] as const
+            ).map((opt) => (
+              <button
+                key={opt.key}
+                type="button"
+                disabled={opt.key === "marginal" && !derived.grid?.marginal}
+                title={opt.key === "marginal" && !derived.grid?.marginal ? "Marginal factor not yet sourced for this region (SEI collaboration in progress)" : opt.hint}
+                onClick={() => actions.setAccounting(opt.key)}
+                style={{
+                  padding: "0.45rem 0.8rem",
+                  borderRadius: "999px",
+                  border: `1px solid ${state.accounting === opt.key ? C.moss : C.border}`,
+                  background: state.accounting === opt.key ? "rgba(96,165,128,0.12)" : "transparent",
+                  color: state.accounting === opt.key ? C.peak : C.muted,
+                  cursor: opt.key === "marginal" && !derived.grid?.marginal ? "not-allowed" : "pointer",
+                  opacity: opt.key === "marginal" && !derived.grid?.marginal ? 0.45 : 1,
+                  fontSize: "0.8rem",
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <p style={{ ...prose.p, fontSize: "0.8rem", marginTop: "0.6rem", marginBottom: 0 }}>
+            {derived.grid?.marginal ? (
+              <>
+                Average: <strong>{result?.totalCO2Grams !== undefined ? result.totalCO2Grams.toFixed(3) : "—"} g CO₂e</strong> · Marginal impact:{" "}
+                <strong style={{ color: C.peak }}>
+                  {result?.marginal ? `${result.marginal.totalCO2Grams.toFixed(3)} g CO₂e` : "—"}
+                </strong>{" "}
+                <span style={{ color: C.muted }}>
+                  ({derived.grid?.marginal.source}, {derived.grid?.marginal.year})
+                </span>
+              </>
+            ) : (
+              <span style={{ color: C.muted }}>
+                Marginal impact factors are being sourced with SEI (best practice: what the grid does{" "}
+                <em>because of</em> this data centre — e.g. more coal fired in Germany, more gas capacity built in
+                Virginia). Until then the average grid factor is shown; for US deployments the sub-national grids
+                (PJM, ERCOT, CAISO) are already available and serve as the conservative estimate.
+              </span>
+            )}
+          </p>
+        </InteractiveFrame>
         <p style={prose.p}>
           One more subtlety: <strong>when</strong> the query runs matters too. A grid's carbon intensity isn't constant
           over the day — a typical day is busy around midday and quiet at night, and demand and the available

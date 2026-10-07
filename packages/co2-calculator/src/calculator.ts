@@ -148,7 +148,75 @@ export const DEPLOYMENT_PROFILES: Record<DeploymentProfile, { utilization: numbe
 // Main calculation
 // ---------------------------------------------------------------------------
 
+/**
+ * Dual grid accounting (SEI best-practice review, 2026-10):
+ *  - `average` (baseline): grid-wide mix — IEA/eGRID.
+ *  - `marginal`: what an additional kWh *causes* (dispatched fossil / built
+ *    capacity). Requires a sourced `grid.marginal` factor.
+ *  - `both` (default): returns the average result with the marginal total
+ *    attached, so UIs can show both numbers instead of either-or.
+ *
+ * When `gridAccounting: 'marginal'` is requested but the region has no
+ * sourced factor, the result falls back to `average` and the reason is
+ * reported in `result.accounting.marginalFallbackReason`.
+ */
 export function calculateInference(params: InferenceParams): InferenceResult {
+  const grid = params.deploymentGrid;
+  const method = params.gridAccounting ?? 'both';
+  const marginalFactor = grid.marginal;
+
+  // Core pass — always computed on the average factor (the baseline).
+  const coreParams: InferenceParams = { ...params, gridAccounting: 'average' };
+  const averageResult = calculateInferenceCore(coreParams);
+
+  const accountingBase = {
+    marginalAvailable: Boolean(marginalFactor),
+  };
+
+  // Caller wants average only — or asked for marginal but we have no data.
+  if (method === 'average' || !marginalFactor) {
+    return {
+      ...averageResult,
+      accounting: method === 'marginal' && !marginalFactor
+        ? { method: 'average', marginalFallbackReason: 'marginal-data-missing', ...accountingBase }
+        : { method: 'average', ...accountingBase },
+    };
+  }
+
+  // Marginal pass — same physics, different carbon intensity. Substituting
+  // `intensityGPerKwh` routes the substitution through the single place
+  // grid intensity enters the math (applyTimeOfDay). Hourly marginal
+  // profiles replace the flat factor for the request's hour.
+  const hourOfDay = averageResult.timing.hourOfDay;
+  const gPerKwhApplied = marginalFactor.hourly?.[Math.max(0, Math.min(23, hourOfDay))] ?? marginalFactor.gPerKwh;
+  const marginalGrid: GridRegion = { ...grid, intensityGPerKwh: gPerKwhApplied };
+  const marginalResult = calculateInferenceCore({ ...coreParams, deploymentGrid: marginalGrid });
+
+  const marginalMeta = {
+    totalCO2Grams: marginalResult.totalCO2Grams,
+    effectiveIntensityGPerKwh: marginalResult.effectiveIntensityGPerKwh,
+    hourlyGPerKwhApplied: marginalFactor.hourly ? gPerKwhApplied : undefined,
+    source: marginalFactor.source,
+    year: marginalFactor.year,
+  };
+
+  if (method === 'marginal') {
+    return {
+      ...marginalResult,
+      accounting: { method: 'marginal', ...accountingBase },
+      marginal: marginalMeta,
+    };
+  }
+
+  // 'both' (default)
+  return {
+    ...averageResult,
+    accounting: { method: 'average', ...accountingBase },
+    marginal: marginalMeta,
+  };
+}
+
+function calculateInferenceCore(params: InferenceParams): InferenceResult {
   const {
     modelProfile,
     hardware,
@@ -466,7 +534,7 @@ export function calculateInference(params: InferenceParams): InferenceResult {
   // where activeSecondsPerQuery accounts for the GPU being "reserved" for this
   // query's share of lifetime capacity.
   //
-  // Reference: SEI review (Babis, 2026) — "The simplest tweak seems to be
+  // Reference: SEI review (2026) — "The simplest tweak seems to be
   // dividing total embodied emissions by projected lifetime utilization in
   // GPU-seconds"
   const PROJECTED_LIFETIME_UTILIZATION = 0.50; // 50% active over 5 years

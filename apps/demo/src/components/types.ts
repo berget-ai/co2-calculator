@@ -36,6 +36,21 @@ export type ModelProfilesMap = Record<string, ModelProfile | undefined>;
 export type GridRegion = {
   name: string;
   intensityGPerKwh: number;
+  /** SEI best practice: what an additional kWh causes (sourced per region). */
+  marginal?: {
+    gPerKwh: number;
+    hourly?: number[];
+    source: string;
+    year: number;
+  };
+  /** ISO 3166-1 alpha-2 country code, e.g. "SE", "US". */
+  countryCode?: string;
+  /** Grid boundary granularity (e.g. "Texas (ERCOT)" is sub-national). */
+  boundary?: {
+    level: "country" | "sub-national" | "global";
+    country?: string;
+    market?: string;
+  };
 };
 
 export type InferenceComponents = {
@@ -53,12 +68,27 @@ export type InferenceResult = {
   components: InferenceComponents;
   /** Number of GPUs the selected model is spread across (memory-bound). */
   gpusAllocated: number;
+  /** Grid accounting metadata + marginal-impact result (see lib types). */
+  accounting?: {
+    method: "average" | "marginal";
+    marginalAvailable: boolean;
+    marginalFallbackReason?: "marginal-data-missing";
+  };
+  marginal?: {
+    totalCO2Grams: number;
+    effectiveIntensityGPerKwh: number;
+    hourlyGPerKwhApplied?: number;
+    source: string;
+    year: number;
+  };
 };
 
 export interface CalculatorState {
   modelCategory: string;
   selectedModel: string;
   region: string;
+  /** Grid carbon accounting method (SEI best practice: marginal > average). */
+  accounting: "average" | "marginal";
   gpuCondition: "new" | "refurbished";
   infraCondition: "new" | "refurbished";
   utilization: number;
@@ -69,6 +99,7 @@ export interface CalculatorActions {
   setModelCategory: (v: string) => void;
   setSelectedModel: (v: string) => void;
   setRegion: (v: string) => void;
+  setAccounting: (v: "average" | "marginal") => void;
   setGpuCondition: (v: "new" | "refurbished") => void;
   setInfraCondition: (v: "new" | "refurbished") => void;
   setUtilization: (v: number) => void;
