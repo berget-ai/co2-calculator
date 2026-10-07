@@ -1,7 +1,7 @@
 import { useMemo, useRef } from "react";
 import { C, Card } from "./shared";
 import { useIsMobile } from "./useMediaQuery";
-import { DEFAULT_TRAFFIC_PATTERN } from "@berget/co2-calculator";
+import { DEFAULT_TRAFFIC_PATTERN } from "@bergetai/co2-calculations";
 
 interface Props {
   hourOfDay: number;

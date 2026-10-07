@@ -1,5 +1,5 @@
 import { Sparkles, Recycle, Database, Network } from "lucide-react";
-import { HARDWARE_CONFIGS } from "@berget/co2-calculator";
+import { HARDWARE_CONFIGS } from "@bergetai/co2-calculations";
 import { C, Card, formatCO2 } from "./shared";
 
 interface Props {
