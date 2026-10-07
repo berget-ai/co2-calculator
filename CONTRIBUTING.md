@@ -25,10 +25,10 @@ This is a pnpm monorepo:
 pnpm install
 
 # Run the library tests
-cd packages/co2-calculator && pnpm test
+cd packages/co2-calculations && pnpm test
 
 # Build the library
-cd packages/co2-calculator && pnpm build
+cd packages/co2-calculations && pnpm build
 
 # Run the demo site locally
 cd apps/demo && pnpm dev
@@ -40,7 +40,7 @@ cd apps/demo && pnpm dev
   `src/hardware.ts` or `src/grids.ts`, cite where it comes from (a datasheet, an
   LCA report, a measurement). Editorial estimates are labelled as such.
 - **Keep doc and code in lock-step.** Several METHODOLOGY.md tables are generated
-  from the code — see `packages/co2-calculator/scripts/generate-methodology-example.mjs`.
+  from the code — see `packages/co2-calculations/scripts/generate-methodology-example.mjs`.
   If you change the calculator, regenerate them.
 - **Validate the demo build.** The true gate for site changes is:
   `cd apps/demo && ./node_modules/.bin/vite build`

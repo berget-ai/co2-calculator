@@ -5,7 +5,7 @@ WORKDIR /app
 
 # Copy workspace files
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY packages/co2-calculator/package.json ./packages/co2-calculator/
+COPY packages/co2-calculations/package.json ./packages/co2-calculations/
 COPY apps/demo/package.json ./apps/demo/
 
 # Install pnpm
@@ -15,7 +15,7 @@ RUN npm install -g pnpm
 RUN pnpm install --frozen-lockfile
 
 # Copy source code
-COPY packages/co2-calculator/ ./packages/co2-calculator/
+COPY packages/co2-calculations/ ./packages/co2-calculations/
 COPY apps/demo/ ./apps/demo/
 
 # Build packages and app
