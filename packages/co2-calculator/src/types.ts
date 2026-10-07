@@ -106,13 +106,55 @@ export interface TimeOfDayHour {
   demanWeight: number;
 }
 
+export interface MarginalIntensity {
+  /** Marginal impact factor in g CO₂e / kWh for an *additional* kWh of demand. */
+  gPerKwh: number;
+  /** Optional 24-hour marginal profile (g CO₂e/kWh per hour of day, 0–23).
+   *  When absent, `gPerKwh` applies to all hours. The demand-curve based
+   *  low/peak factors still apply on top. */
+  hourly?: number[];
+  /** Data source, e.g. "SEI internal estimate 2026" or "Babis 2026 (PJM)". */
+  source: string;
+  /** Year the factor refers to. */
+  year: number;
+}
+
+export interface GridBoundary {
+  level: 'country' | 'sub-national' | 'global';
+  /** ISO 3166-1 alpha-2 code the grid operates in (e.g. "US" for ERCOT).
+   *  Largely redundant with the region's `countryCode` — kept for templates
+   *  and external data exchange. */
+  country?: string;
+  /** For sub-national entries: the parent market/ISO designation (e.g. "PJM", "ERCOT"). */
+  market?: string;
+  /**
+   * SEI guidance: when a deployment's exact grid boundary is unknown, use the
+   * sub-national boundary that yields the most conservative (highest) estimate.
+   */
+  conservativeFallback?: boolean;
+}
+
 export interface GridRegion {
   /** Short name, e.g. "Sweden" */
   name: string;
   /** Longer description for display */
   fullLabel: string;
-  /** Average carbon intensity in g CO₂e / kWh */
+  /** Average carbon intensity in g CO₂e / kWh (grid-wide mix, e.g. IEA/eGRID).
+   *  Baseline accounting method; see `marginal` for the best-practice
+   *  marginal impact factor. */
   intensityGPerKwh: number;
+  /**
+   * Marginal impact factor (SEI best practice, 2026 review): the emissions
+   * *caused* by an additional kWh of demand — the dispatchable fossil plant
+   * that runs, or the capacity that gets built, because of this data centre.
+   * Average emission factors alone do NOT hold operators accountable for
+   * that causal effect. Optional until sourced per region.
+   */
+  marginal?: MarginalIntensity;
+  /** Grid boundary granularity of this entry (e.g. "Texas (ERCOT)" is sub-national). */
+  boundary?: GridBoundary;
+  /** ISO 3166-1 alpha-2 country code (e.g. "SE", "US"). Useful for rollups. */
+  countryCode?: string;
   /** Time-of-day demand curve (24 entries) */
   demandCurve: number[];
   /** Low-period adjustment factor */
@@ -148,6 +190,16 @@ export interface InferenceParams {
   deploymentGrid: GridRegion;
   /** Grid to use for energy-equivalent comparisons (optional) */
   referenceGrid?: GridRegion;
+  /**
+   * Grid carbon accounting method (SEI 2026 best-practice review):
+   *  - 'average': grid-wide mix (baseline; what we have published so far)
+   *  - 'marginal': marginal impact factor — what the data centre *causes*.
+   *    Requires `deploymentGrid.marginal` to be populated.
+   *  - 'both' (default): compute the average result and, when the region has
+   *    a sourced marginal factor, attach the marginal total alongside —
+   *    show both, not either-or.
+   */
+  gridAccounting?: 'average' | 'marginal' | 'both';
   measuredResponseTimeSeconds: number;
   inputTokens: number;
   outputTokens: number;
@@ -262,6 +314,41 @@ export interface InferenceResult {
   deploymentGrid: {
     name: string;
     intensityGPerKwh: number;
+    /** Marginal impact factor of the region, when sourced (summary for display). */
+    marginal?: {
+      gPerKwh: number;
+      source: string;
+      year: number;
+    };
+    /** Grid boundary summary for display. */
+    boundary?: GridBoundary;
+  };
+  /**
+   * Grid carbon accounting metadata for this result. Set by the public
+   * `calculateInference` wrapper for every return path.
+   */
+  accounting?: {
+    /** Which method produced `totalCO2Grams`. */
+    method: 'average' | 'marginal';
+    /** True when the region has a sourced marginal impact factor. */
+    marginalAvailable: boolean;
+    /** Set when the caller asked for marginal but no factor exists — the
+     *  result silently falls back to average; callers should surface this. */
+    marginalFallbackReason?: 'marginal-data-missing';
+  };
+  /**
+   * Marginal-impact result (present when `gridAccounting` is 'both' — the
+   * default — and the region has a sourced marginal factor).
+   */
+  marginal?: {
+    /** Total per-query CO₂ in grams under marginal accounting. */
+    totalCO2Grams: number;
+    /** Effective (time-of-day adjusted) marginal intensity applied. */
+    effectiveIntensityGPerKwh: number;
+    /** Hourly marginal factor applied for this query's hour, when profiled. */
+    hourlyGPerKwhApplied?: number;
+    source: string;
+    year: number;
   };
   /** Water usage for cooling (liters per query) */
   waterLiters: number;

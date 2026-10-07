@@ -166,6 +166,35 @@ Where:
   - `peakPeriodFactor` (e.g., 1.15 for Sweden) — applied during peak demand hours when fossil peaker plants may be dispatched
 - `lowPeriodThreshold` = the demand weight (0-1 scale) below which the low period factor applies. A threshold of 0.20 means hours with demand < 20% of peak (typically 00:00-05:00) use the low factor.
 
+### 2.1 Grid accounting: average vs marginal (SEI best practice)
+
+**SEI review (October 2026)** — which the calculator fully adopts — points out that
+*average* emission factors hide the causal effect of a data centre: an added kWh demand does nothing to the
+reported mix average, but in behaviour it means *more coal fired in Germany* and in Virginia *more natural-gas
+capacity getting built*. Best practice in GHG accounting is therefore **marginal impact accounting**, not averages.
+
+The calculator supports **dual accounting** — both methods, shown side by side:
+
+| Method | Definition | Role |
+|--------|-----------|------|
+| **Average** (baseline) | Grid-wide mix intensity — IEA 2024 / EPA eGRID 2023 / Hydro-Québec 2024 | Comparable, transparent, conservative where marginal data is missing |
+| **Marginal impact** (best practice) | What an *additional* kWh *causes*: the dispatchable fossil plant that runs, or the capacity that gets built because of the data centre | Causal accountability; varies by hour (fossil units dispatched at night in Germany, etc.) |
+
+Data model (per region):
+- `intensityGPerKwh` — the average factor (unchanged)
+- `marginal.gPerKwh`, optional `marginal.hourly` (24 h profile, g/kWh, indexed by hour of day), `source`, `year`
+- `boundary` — `country` / `sub-national` / `global` (e.g. `texas` = ERCOT, `useast` = PJM). Per SEI guidance, a
+  US-wide marginal number is **nonsense** — marginal factors must be given for sub-national boundaries, and when
+  a deployment's exact grid is unknown, the **most conservative** applicable sub-national boundary is used.
+  Regions carrying no sourced marginal factor are marked explicitly and the UI shows the average with a note.
+
+API: `calculateInference({ gridAccounting: 'average' | 'marginal' | 'both' })` — `'both'` (default) returns the
+average result with `result.marginal.totalCO2Grams` attached so consumers display both numbers. Template for
+the marginal data SEI will provide: [`packages/co2-calculator/data/sei-marginal-factors.template.json`](packages/co2-calculator/data/sei-marginal-factors.template.json).
+
+*Until SEI factors are populated, the calculator shows the average factor and flags the gap — we will not
+invent marginal numbers.*
+
 **Source for factors**: These are simplified approximations based on:
 - IEA Electricity 2024 report [1] — time-of-day carbon intensity patterns
 - ENTSO-E transparency platform — Nordic grid demand curves

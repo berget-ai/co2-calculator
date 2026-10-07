@@ -73,6 +73,7 @@ export function CO2Calculator() {
   const [modelCategory, setModelCategory] = useState("chat");
   const [selectedModel, setSelectedModel] = useState("google/gemma-4-31B-it");
   const [region, setRegion] = useState("sweden");
+  const [accounting, setAccounting] = useState<"average" | "marginal">("average");
   const [gpuCondition, setGpuCondition] = useState<"new" | "refurbished">("new");
   // Berget's model: the supporting infrastructure (databases, logging, network
   // gear) is refurbished — that is the default a Berget-served open-weight
@@ -126,6 +127,7 @@ export function CO2Calculator() {
       modelProfile: model,
       hardware: hw,
       deploymentGrid: grid,
+      gridAccounting: accounting,
       // Use the model's own measured response time so the UI, the methodology
       // example and the article all reproduce the same figure. (Previously a
       // per-category average, which made the UI diverge from the published
@@ -142,7 +144,7 @@ export function CO2Calculator() {
       includeTraining: INCLUDE_TRAINING,
       lifetimeQueries: LIFETIME_QUERIES,
     }) as InferenceResult;
-  }, [model, grid, gpuCondition, infraCondition, category, utilization, hourOfDay]);
+  }, [model, grid, gpuCondition, infraCondition, category, utilization, hourOfDay, accounting]);
 
   const handleCategoryChange = (key: string) => {
     setModelCategory(key);
@@ -180,12 +182,14 @@ export function CO2Calculator() {
   const state: CalculatorState = {
     modelCategory, selectedModel, region,
     gpuCondition, infraCondition, utilization, hourOfDay,
+    accounting,
   };
 
   const actions: CalculatorActions = {
     setModelCategory: handleCategoryChange,
     setSelectedModel: handleModelSelect,
     setRegion: handleRegion,
+    setAccounting,
     setGpuCondition: handleGpuCondition,
     setInfraCondition: handleInfraCondition,
     setUtilization: handleUtilization,

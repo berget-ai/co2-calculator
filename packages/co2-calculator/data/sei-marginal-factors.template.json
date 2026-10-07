@@ -1,0 +1,149 @@
+{
+  "$comment": "Template for marginal grid impact factors (SEI best-practice consultation, 2026-10). One entry per calculator region. Fill 'marginal', 'marginalSource' and 'marginalYear' (and optionally 'marginalHourly', 24 entries g CO2e/kWh indexed by hour of day 0-23) for each region — the calculator picks them up from here. Where a country grid is heterogeneous, add sub-national boundary entries (see 'boundaries') and tell us which boundary is the most conservative fallback for unknown-deployment rollups. 'average' values are our current published baseline (IEA 2024 / EPA eGRID 2023 / Hydro-Québec 2024) — please sanity-check them while you are in there.",
+  "methodNote": "Marginal impact = the emissions an additional kWh of demand causes: the dispatchable fossil plant that runs, or the capacity that gets built (e.g. more coal fired in DE, more gas capacity installed in VA). Avoid continental-scale marginal numbers where intra-market spread is large (US: use PJM/ERCOT/CAISO-class boundaries, not a single US number).",
+  "regions": {
+    "sweden": {
+      "average": 8,
+      "marginal": null,
+      "marginalHourly": null,
+      "marginalSource": null,
+      "marginalYear": null,
+      "boundary": "country",
+      "country": "SE"
+    },
+    "norway": {
+      "average": 15,
+      "marginal": null,
+      "marginalHourly": null,
+      "marginalSource": null,
+      "marginalYear": null,
+      "boundary": "country",
+      "country": "NO"
+    },
+    "france": {
+      "average": 30,
+      "marginal": null,
+      "marginalHourly": null,
+      "marginalSource": null,
+      "marginalYear": null,
+      "boundary": "country",
+      "country": "FR"
+    },
+    "quebec": {
+      "average": 40,
+      "marginal": null,
+      "marginalHourly": null,
+      "marginalSource": null,
+      "marginalYear": null,
+      "boundary": "sub-national",
+      "market": "Hydro-Québec",
+      "country": "CA"
+    },
+    "ireland": {
+      "average": 150,
+      "marginal": null,
+      "marginalHourly": null,
+      "marginalSource": null,
+      "marginalYear": null,
+      "boundary": "country",
+      "country": "IE"
+    },
+    "germany": {
+      "average": 280,
+      "marginal": null,
+      "marginalHourly": null,
+      "marginalSource": null,
+      "marginalYear": null,
+      "boundary": "country",
+      "country": "DE"
+    },
+    "usa": {
+      "average": 380,
+      "marginal": null,
+      "marginalHourly": null,
+      "marginalSource": null,
+      "marginalYear": null,
+      "boundary": "country",
+      "country": "US"
+    },
+    "useast": {
+      "average": 400,
+      "marginal": null,
+      "marginalHourly": null,
+      "marginalSource": null,
+      "marginalYear": null,
+      "boundary": "sub-national",
+      "market": "PJM",
+      "country": "US"
+    },
+    "texas": {
+      "average": 420,
+      "marginal": null,
+      "marginalHourly": null,
+      "marginalSource": null,
+      "marginalYear": null,
+      "boundary": "sub-national",
+      "market": "ERCOT",
+      "country": "US"
+    },
+    "california": {
+      "average": 450,
+      "marginal": null,
+      "marginalHourly": null,
+      "marginalSource": null,
+      "marginalYear": null,
+      "boundary": "sub-national",
+      "market": "CAISO",
+      "country": "US"
+    },
+    "japan": {
+      "average": 550,
+      "marginal": null,
+      "marginalHourly": null,
+      "marginalSource": null,
+      "marginalYear": null,
+      "boundary": "country",
+      "country": "JP"
+    },
+    "india": {
+      "average": 700,
+      "marginal": null,
+      "marginalHourly": null,
+      "marginalSource": null,
+      "marginalYear": null,
+      "boundary": "country",
+      "country": "IN"
+    },
+    "poland": {
+      "average": 750,
+      "marginal": null,
+      "marginalHourly": null,
+      "marginalSource": null,
+      "marginalYear": null,
+      "boundary": "country",
+      "country": "PL"
+    },
+    "china": {
+      "average": 850,
+      "marginal": null,
+      "marginalHourly": null,
+      "marginalSource": null,
+      "marginalYear": null,
+      "boundary": "country",
+      "country": "CN"
+    },
+    "global": {
+      "average": 500,
+      "marginal": null,
+      "marginalHourly": null,
+      "marginalSource": null,
+      "marginalYear": null,
+      "boundary": "global",
+      "country": ""
+    }
+  },
+  "boundaries": {
+    "$comment": "Optional: propose additional sub-national entries where marginal spread within a country is material (e.g. US sub-regions beyond PJM/ERCOT/CAISO, or Nordic bidding zones SE1-SE4/NO1-NO5). Format: same shape as a region entry, with a unique lowercase id we can register in GRID_REGIONS.",
+    "proposed": []
+  }
+}
