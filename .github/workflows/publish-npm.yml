@@ -4,10 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       bump:
-        description: 'Version bump type'
+        description: Version bump. "none" publishes the current package.json version. Bump via a normal PR when releasing.
         required: true
         type: choice
+        default: none
         options:
+          - none
           - patch
           - minor
           - major
@@ -18,11 +20,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v2
@@ -33,25 +37,30 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run tests
-        run: pnpm --filter @berget/co2-calculator test
+        run: pnpm --filter @bergetai/co2-calculations test
 
       - name: Build package
-        run: pnpm --filter @berget/co2-calculator build
+        run: pnpm --filter @bergetai/co2-calculations build
 
   publish:
     needs: test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # OIDC trusted publishing (npmjs.com → @bergetai → Trusted Publisher:
+      # berget-ai/co2-calculator / publish-npm.yml). Same pattern as
+      # berget-ai/guardrails-md and berget-ai/cli. No NPM_TOKEN needed.
+      id-token: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: main
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Setup pnpm
@@ -63,18 +72,12 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build package
-        run: pnpm --filter @berget/co2-calculator build
+        run: pnpm --filter @bergetai/co2-calculations build
 
-      - name: Bump version
-        working-directory: packages/co2-calculator
+      # Version bumps happen via a normal PR; this workflow publishes
+      # whatever package.json currently says (bump input "none" default).
+      - name: Publish to NPM (OIDC trusted publishing)
+        working-directory: packages/co2-calculations
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          npm version ${{ inputs.bump }} -m "release: %s"
-          git push --follow-tags
-
-      - name: Publish to NPM
-        working-directory: packages/co2-calculator
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          npm install -g npm@latest   # OIDC trusted publishing needs npm >= 11.5.1
+          npm publish

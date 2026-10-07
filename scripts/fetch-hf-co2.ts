@@ -23,7 +23,7 @@ const MODELS = [
 async function fetchHFData(modelId) {
   try {
     const response = await fetch(`${HF_API_BASE}/${modelId}`, {
-      headers: { 'User-Agent': '@berget/co2-calculator/1.0' }
+      headers: { 'User-Agent': '@bergetai/co2-calculations/1.0' }
     });
     if (!response.ok) return null;
     const data = await response.json();

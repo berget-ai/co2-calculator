@@ -63,9 +63,9 @@ importers:
 
   apps/demo:
     dependencies:
-      '@berget/co2-calculator':
+      '@bergetai/co2-calculations':
         specifier: workspace:*
-        version: link:../../packages/co2-calculator
+        version: link:../../packages/co2-calculations
       '@radix-ui/react-checkbox':
         specifier: ^1.3.3
         version: 1.3.3(@types/react-dom@18.3.7(@types/react@18.3.29))(@types/react@18.3.29)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -143,7 +143,7 @@ importers:
         specifier: ^5.0.8
         version: 5.4.21(@types/node@20.19.41)(lightningcss@1.32.0)
 
-  packages/co2-calculator:
+  packages/co2-calculations:
     devDependencies:
       tsup:
         specifier: ^8.0.0
