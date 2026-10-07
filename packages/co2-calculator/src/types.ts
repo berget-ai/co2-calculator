@@ -113,7 +113,7 @@ export interface MarginalIntensity {
    *  When absent, `gPerKwh` applies to all hours. The demand-curve based
    *  low/peak factors still apply on top. */
   hourly?: number[];
-  /** Data source, e.g. "SEI internal estimate 2026" or "Babis 2026 (PJM)". */
+  /** Data source, e.g. "SEI internal estimate 2026" or "SEI 2026, PJM boundary estimate". */
   source: string;
   /** Year the factor refers to. */
   year: number;

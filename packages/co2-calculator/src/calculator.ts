@@ -534,7 +534,7 @@ function calculateInferenceCore(params: InferenceParams): InferenceResult {
   // where activeSecondsPerQuery accounts for the GPU being "reserved" for this
   // query's share of lifetime capacity.
   //
-  // Reference: SEI review (Babis, 2026) — "The simplest tweak seems to be
+  // Reference: SEI review (2026) — "The simplest tweak seems to be
   // dividing total embodied emissions by projected lifetime utilization in
   // GPU-seconds"
   const PROJECTED_LIFETIME_UTILIZATION = 0.50; // 50% active over 5 years

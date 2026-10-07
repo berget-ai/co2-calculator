@@ -432,7 +432,7 @@ incrementalPerGpuWatts = ((nodePeakWatts - nodeIdleWatts) / gpuCount) × utiliza
 - Idle baseline: 800W total → **100W per GPU**, drawn around the clock regardless of load
 - Incremental at 25% utilisation: (5,000 − 800) / 8 × 0.25 = **131W per GPU**, drawn only while processing
 
-*Previous versions used parameter-based tiers (15%/25%/35% based on model size). This was removed following SEI review (Babis, 2026) noting that LLMCO2 advises against primitive estimations of utilisation based on model attributes.*
+*Previous versions used parameter-based tiers (15%/25%/35% based on model size). This was removed following SEI review (2026) noting that LLMCO2 advises against primitive estimations of utilisation based on model attributes.*
 
 ### 3.5 Energy Calculation (compute + idle baseline)
 
@@ -512,7 +512,7 @@ If we amortised per actual query GPU-time (which reflects only 10-35% utilisatio
 - Per active second: (1,000 × 1,000) / 78,840,000 = **0.0127 g CO₂/s**
 - For 2.5s GPU time on 1 GPU shared by 6: 0.0127 × 2.5 / 6 = **0.0053 g CO₂**
 
-**Note**: This approach was adopted following SEI review (Babis, 2026): *"The simplest tweak seems to be dividing total embodied emissions by projected lifetime utilisation in GPU-seconds."* The further division by the productive batch (Section 3.2a) was added after review noted that the un-shared form counts the same manufacturing carbon once per concurrent request.
+**Note**: This approach was adopted following SEI review (2026): *"The simplest tweak seems to be dividing total embodied emissions by projected lifetime utilisation in GPU-seconds."* The further division by the productive batch (Section 3.2a) was added after review noted that the un-shared form counts the same manufacturing carbon once per concurrent request.
 
 ### 4.2 Hardware Configurations
 
