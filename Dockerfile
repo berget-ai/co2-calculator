@@ -19,7 +19,7 @@ COPY packages/co2-calculations/ ./packages/co2-calculations/
 COPY apps/demo/ ./apps/demo/
 
 # Build packages and app
-RUN pnpm --filter @berget/co2-calculator build
+RUN pnpm --filter @bergetai/co2-calculations build
 RUN pnpm --filter @berget/co2-calculator-demo build
 
 # Production stage - nginx
