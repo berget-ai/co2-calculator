@@ -77,5 +77,6 @@
       "import": "./dist/api/index.js",
       "require": "./dist/api/index.js"
     }
-  }
+  },
+  "private": true
 }
