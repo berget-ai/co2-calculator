@@ -9,7 +9,7 @@ COPY packages/co2-calculations/package.json ./packages/co2-calculations/
 COPY apps/demo/package.json ./apps/demo/
 
 # Install pnpm
-RUN npm install -g pnpm
+RUN npm install -g pnpm@10.30.3
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
