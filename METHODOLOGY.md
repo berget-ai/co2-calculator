@@ -820,6 +820,18 @@ The two ratios answer different questions, and we report both deliberately: **~6
 
 ---
 
+### 8.1 Weekly energy reality-check
+
+Measured GPU energy (DCGM and AMD energy counters via Prometheus) is compared
+with the per-request estimates on a weekly cycle — see
+[`scripts/energy-reality-check.mjs`](packages/co2-calculator/scripts/energy-reality-check.mjs).
+
+Published output is **sanitised by design**: ratios, per-GPU sustained
+averages and per-request figures only — never fleet totals, request counts
+or node counts (platform privacy). The ratio identifies how much of the
+per-request GPU-shard time is shared across concurrent requests and acts as
+the calibration factor for concurrency-aware accounting.
+
 ## 9. Limitations & Uncertainties
 
 1. **Training data**: Extrapolated values may vary ±50% from actuals. Disclosed data preferred where available.
