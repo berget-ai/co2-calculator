@@ -68,6 +68,25 @@ export const MODEL_PROFILES: Record<string, ModelProfile> = {
     defaultConcurrency: 1, // Measured ~0.9 via Little's Law (30d)
     cachedPromptFraction: 0, // Prefix cache disabled on the SGLang B300 deployment
   },
+  "zai-org/GLM-5.3-Flash": {
+    modelId: "zai-org/GLM-5.3-Flash",
+    displayName: "GLM 5.3 Flash (320B MoE)",
+    architecture: "mixture-of-experts",
+    parameters: 320_000_000_000, // 320B total params, 18B active (Z.ai model card)
+    modelSizeBytes: 320_000_000_000 * 1, // FP8: ~320GB
+    totalTrainingCO2Grams: 22_000_000_000, // parameter-scaling estimate (Zhipu AI undisclosed)
+    trainingSource: "Parameter-scaling estimate (Z.ai model card: 320B MoE / 18B active, FP8, 30T-token pre-training)",
+    defaultInputTokens: 12_000, // Measured p50 prompt tokens/req (cumulative) via SGLang /metrics; mean 62.5k is skewed by agentic long-context traffic
+    defaultOutputTokens: 1_245, // Measured mean output tokens/req (cumulative) via SGLang /metrics
+    defaultResponseTimeSeconds: 5.2, // Measured p50 e2e latency, queue negligible (cumulative) via SGLang /metrics
+    defaultConcurrency: 1, // Measured ~1.0 running requests via Little's Law (cumulative)
+    cachedPromptFraction: 0.89, // Measured: 89% of prompt tokens from KV cache (cumulative, SGLang radix cache)
+    minGpus: 4, // Deployed TP4 on 4× B300 (berget-gpu-airon)
+    popularity: {
+      downloadsPerMonth: 6_574_089,
+      hfLikes: 2_876,
+    },
+  },
   "google/gemma-4-31B-it": {
     modelId: "google/gemma-4-31B-it",
     displayName: "Gemma 4 31B",
