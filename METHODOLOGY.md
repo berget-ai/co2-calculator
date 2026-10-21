@@ -49,9 +49,9 @@ Additional adaptations:
 - Production-calibrated concurrency and response time models
 - **Measured production values** for Berget's own models (GPU time, output tokens, concurrency, cache-hit rate), pulled from our Prometheus metrics rather than estimated — see Section 3.0
 
-**Key finding**: A single query to Gemma 4 31B on Berget's infrastructure produces approximately **24.7 mg CO₂e** in total emissions excluding training, compared to ~120.5 mg on the US average grid. For **operational** emissions only (energy consumed during inference) the reduction is **~62×** (1.57 mg vs 97.3 mg), demonstrating the impact of grid decarbonisation; including the grid-independent embodied cost, the total reduction is **~4.9×**. Because the Swedish grid is so clean, the embodied share of hardware manufacturing and supporting infrastructure is the dominant part of the remaining total (~94%).
+**Key finding**: A single query to Gemma 4 31B on Berget's infrastructure produces approximately **43.4 mg CO₂e** in total emissions excluding training, compared to ~311 mg on the US average grid. For **operational** emissions only (energy consumed during inference) the reduction is **~56.7×** (4.8 mg vs 273 mg), demonstrating the impact of grid decarbonisation; including the grid-independent embodied cost, the total reduction is **~7.2×**. Because the Swedish grid is so clean, the embodied share of hardware manufacturing and supporting infrastructure is the dominant part of the remaining total (~89%).
 
-**Why the difference between ~62× and ~4.9×?** Operational emissions (compute + idle + server + cooling energy) depend on the grid carbon intensity, so Sweden's clean grid gives a ~62× advantage. However, embodied emissions (hardware manufacturing) are **independent of the inference grid** — they depend on where the hardware was manufactured, not where inference runs. Since embodied emissions are the same regardless of inference location, they dilute the operational advantage to ~4.9× when comparing total emissions (training excluded from both figures). We report both numbers rather than only the larger one.
+**Why the difference between ~56.7× and ~7.2×?** Operational emissions (compute + idle + server + cooling energy) depend on the grid carbon intensity, so Sweden's clean grid gives a ~56.7× advantage. However, embodied emissions (hardware manufacturing) are **independent of the inference grid** — they depend on where the hardware was manufactured, not where inference runs. Since embodied emissions are the same regardless of inference location, they dilute the operational advantage to ~7.2× when comparing total emissions (training excluded from both figures). We report both numbers rather than only the larger one.
 
 ---
 
@@ -82,11 +82,11 @@ Berget's datacenters draw electricity from the Swedish national grid with 100% f
 2. **Conservative accounting** — using grid intensity rather than PPA intensity avoids undercounting emissions
 3. **Comparability** — all regions in the calculator use grid intensity, enabling apples-to-apples comparisons
 
-**The 8 g figure — source, method and date.** Rather than derive our own production-mix weighted average (which is sensitive to whether hydro/wind are counted at 0 operational or at lifecycle ~10-12 g, and to how upstream infrastructure is allocated), we adopt an externally-published, dated figure so a reader can check it against a known methodology. We use **8 g CO₂e/kWh**, the location-based, production-mix average for Sweden reported by **Electricity Maps (2024 annual average)** [1a]. This is a consumption-side, location-based intensity (no green-tariff or PPA adjustment), consistent with how we treat every other region.
+**The 8 g figure — source, method and date.** Rather than derive our own production-mix weighted average (which is sensitive to whether hydro/wind are counted at 0 operational or at lifecycle ~10-12 g, and to how upstream infrastructure is allocated), we adopt an externally-published, dated figure so a reader can check it against a known methodology. We use **8 g CO₂e/kWh**, the location-based emissions factor for Swedish electricity reported by the **IEA (Emissions Factors 2024)** [1a]. This is a location-based intensity (no green-tariff or PPA adjustment), consistent with how we treat every other region.
 
 Two honesty notes:
 
-- **Location-based vs lifecycle.** A pure *operational* Swedish mix (hydro, wind, nuclear at ~0 direct emissions) computes to ~2-3 g; a full *lifecycle* figure (including plant construction and fuel supply, hydro ~10, wind ~12, nuclear ~5, solar ~40 g) computes to ~12 g. Our 8 g sits between these — it reflects Electricity Maps' location-based accounting, which includes some but not all upstream. We flag this because it is the single number a procurement team will cross-check, and the answer changes with the methodology chosen.
+- **Location-based vs lifecycle (and the bioenergy convention).** A pure *operational* Swedish mix (hydro, wind, nuclear at ~0 direct emissions) computes to ~2-3 g; a full *lifecycle* figure (including plant construction and fuel supply, hydro ~10, wind ~12, nuclear ~5, solar ~40 g) computes to ~12 g. Ember reports a higher Sweden figure (~35 g, 2024) because it counts biogenic CO₂ from biomass and waste CHP combustion as positive emissions; Electricity Maps' lifecycle accounting lands around ~20-40 g. Our 8 g follows the IEA convention (direct, fossil-only), which is also the basis for the other regions in the calculator (eGRID, SEAI and Ember figures outside the Nordics differ by only a few percent between conventions). We flag this because it is the single number a procurement team will cross-check, and the answer changes with the methodology chosen.
 - **No double-counting with time-of-day.** We deliberately do **not** inflate the average further for "marginal peak demand" here, because Section 3.7 already applies a separate time-of-day peak factor (×1.15). Transmission/distribution losses (~6%) are within the source figure's own uncertainty and are not added separately.
 
 **Note on PPAs**: While Berget holds PPAs for 100% fossil-free electricity, we do not use a PPA-adjusted intensity of 0 g/kWh. This would undercount the actual grid-level emissions associated with electricity consumption. The PPA ensures that renewable energy is added to the grid equivalent to our consumption, but the calculator reports the physical grid intensity for transparency and comparability.
@@ -135,21 +135,21 @@ The calculator supports 15 grid regions with IEA emission factors and climate-sp
 
 | Region | Key | Intensity (g/kWh) | PUE | Characteristics |
 |--------|-----|-------------------|-----|-----------------|
-| Sweden | `sweden` | 8 | 1.15 | Hydro, nuclear, wind |
-| Norway | `norway` | 15 | 1.15 | Hydro-dominant |
-| France | `france` | 30 | 1.30 | Nuclear-dominant |
-| Quebec | `quebec` | 40 | 1.15 | Hydro |
-| Ireland | `ireland` | 150 | 1.25 | Mixed, data center hub |
-| Germany | `germany` | 280 | 1.35 | 20% renewable |
-| US Average | `usa` | 380 | 1.50 | Mixed |
-| US East (PJM) | `useast` | 400 | 1.60 | Gas + nuclear + coal |
-| Texas (ERCOT) | `texas` | 420 | 1.80 | Gas + wind |
-| California (CAISO) | `california` | 450 | 1.50 | Gas + solar |
-| Japan | `japan` | 550 | 1.60 | Mixed, post-Fukushima |
-| India | `india` | 700 | 2.00 | Coal-heavy |
-| Poland | `poland` | 750 | 1.40 | Coal-dominant |
-| China | `china` | 850 | 1.60 | Coal-heavy |
-| Global Average | `global` | 500 | 1.50 | IEA world average |
+| Sweden | `sweden` | 8 | 1.15 | Hydro, nuclear, wind (IEA 2024) |
+| Norway | `norway` | 15 | 1.15 | Hydro-dominant (IEA 2024) |
+| France | `france` | 30 | 1.30 | Nuclear-dominant (IEA 2024) |
+| Quebec | `quebec` | 1.3 | 1.15 | Hydro (Hydro-Québec 2024, direct) |
+| Ireland | `ireland` | 224 | 1.25 | Mixed, data center hub (SEAI 2024) |
+| Germany | `germany` | 337 | 1.35 | Wind + solar ~44% (Ember 2024) |
+| US Average | `usa` | 348 | 1.50 | Mixed (EPA eGRID 2023) |
+| US East (PJM) | `useast` | 400 | 1.60 | Gas + nuclear + coal (EPA eGRID 2023) |
+| Texas (ERCOT) | `texas` | 333 | 1.80 | Gas + wind (EPA eGRID 2023) |
+| California (CAISO) | `california` | 194 | 1.50 | Gas + solar (EPA eGRID 2023) |
+| Japan | `japan` | 484 | 1.60 | Mixed, post-Fukushima (Ember 2024) |
+| India | `india` | 700 | 2.00 | Coal-heavy (Ember 2024) |
+| Poland | `poland` | 608 | 1.40 | Coal-dominant (Ember 2024) |
+| China | `china` | 556 | 1.60 | Coal-heavy (Ember 2024) |
+| Global Average | `global` | 472 | 1.50 | Ember 2024 world average |
 
 ### 2.5 Time-of-Day Variation
 
@@ -657,7 +657,7 @@ Where:
 - `P_params` = number of parameters (in billions). This is the model's total parameter count (e.g., 70 for a 70B model)
 - `0.15` = estimated GPU power per billion parameters during training (kW/B params). This is derived from observed training power consumption: a 70B model typically trains on ~256 H100 GPUs drawing ~700W each = ~180 kW total, or ~2.6 kW per billion parameters. The 0.15 factor accounts for the fact that not all GPUs are at peak power throughout training (checkpointing, evaluation, debugging)
 - `T_hours` = estimated training duration in hours. This is inferred from model size and publicly available training compute estimates (e.g., Chinchilla scaling laws suggest ~20 tokens per parameter for optimal training)
-- `CI_training` = carbon intensity of the grid where training occurred (g/kWh). When unknown, we assume US average (380 g/kWh) as a conservative estimate
+- `CI_training` = carbon intensity of the grid where training occurred (g/kWh). When unknown, we assume US average (348 g/kWh, EPA eGRID 2023) as a conservative estimate
 - `/ 1e6` = converts grams to tonnes
 
 **Important**: This formula has ±50% uncertainty (see Section 9). Disclosed training data is always preferred when available.
@@ -791,30 +791,30 @@ We publish the reconciliation script so the reader can re-run it against the sam
 
 On Berget's infrastructure, Gemma 4 31B, 600 tokens in / 482 tokens out, NVIDIA B300, shared node (70% utilization), caching enabled. **Figures generated from the calculator** (`scripts/generate-methodology-example.mjs`):
 
-| Component | Sweden (8 g/kWh, PUE 1.15) | US Average (380 g/kWh, PUE 1.50) |
+| Component | Sweden (8 g/kWh, PUE 1.15) | US Average (348 g/kWh, PUE 1.50) |
 |-----------|---------------------------|----------------------------------|
-| GPU compute | 321 µg | 15.24 mg |
-| GPU idle baseline | 528 µg | 25.07 mg |
-| Server | 3.333 mg | 158.31 mg |
-| Cooling overhead | 627 µg | 99.31 mg |
-| **Operational subtotal** | **≈ 4.81 mg** | **≈ 297.93 mg** |
+| GPU compute | 321 µg | 13.95 mg |
+| GPU idle baseline | 528 µg | 22.96 mg |
+| Server | 3.333 mg | 144.98 mg |
+| Cooling overhead | 627 µg | 90.95 mg |
+| **Operational subtotal** | **≈ 4.81 mg** | **≈ 272.84 mg** |
 | Embodied GPU | 7.72 mg | 7.72 mg |
 | Embodied supporting infra | 30.88 mg | 30.88 mg |
-| **TOTAL (excl. training)** | **≈ 43.41 mg** | **≈ 336.52 mg** |
+| **TOTAL (excl. training)** | **≈ 43.41 mg** | **≈ 311.43 mg** |
 
-**Key insight**: operational emissions (the energy consumed during inference: compute + idle + server + cooling) are **~62×** lower on the Swedish grid, because they scale directly with grid carbon intensity. Embodied carbon is **independent of the grid** — it depends on hardware manufacturing, not where inference runs — so it does not change between columns. That holds for both embodied terms: the GPU node's own manufacturing (7.72 mg) and the supporting infrastructure (30.88 mg — databases, logging/storage and network gear, Section 4.2b), which is roughly equivalent wherever the service runs.
+**Key insight**: operational emissions (the energy consumed during inference: compute + idle + server + cooling) are **~56.7×** lower on the Swedish grid, because they scale directly with grid carbon intensity. Embodied carbon is **independent of the grid** — it depends on hardware manufacturing, not where inference runs — so it does not change between columns. That holds for both embodied terms: the GPU node's own manufacturing (7.72 mg) and the supporting infrastructure (30.88 mg — databases, logging/storage and network gear, Section 4.2b), which is roughly equivalent wherever the service runs.
 
 For a fair comparison of **operational efficiency only** (excluding the fixed embodied cost):
 - Sweden: **≈ 4.81 mg** operational CO₂e
-- US Average: **≈ 297.93 mg** operational CO₂e
-- **Reduction: ~62×**
+- US Average: **≈ 272.84 mg** operational CO₂e
+- **Reduction: ~56.7×**
 
 For **total emissions** (including embodied, excluding training):
 - Sweden: **≈ 43.41 mg** total CO₂e
-- US Average: **≈ 336.52 mg** total CO₂e
-- **Reduction: ~7.8×**
+- US Average: **≈ 311.43 mg** total CO₂e
+- **Reduction: ~7.2×**
 
-The two ratios answer different questions, and we report both deliberately: **~62×** is the operational (grid-driven) advantage; **~7.8×** is the all-in advantage once the grid-independent embodied cost (GPU node + supporting infrastructure) is included. Quoting only the larger number would overstate the case.
+The two ratios answer different questions, and we report both deliberately: **~56.7×** is the operational (grid-driven) advantage; **~7.2×** is the all-in advantage once the grid-independent embodied cost (GPU node + supporting infrastructure) is included. Quoting only the larger number would overstate the case.
 
 **Climate advantage compounds the grid advantage**: Sweden's free-air cooling (PUE 1.15 → 0.15 cooling per unit of IT work) vs US mechanical cooling (PUE 1.50 → 0.50) means ~3.3× less cooling energy, in addition to the cleaner grid.
 
@@ -910,7 +910,11 @@ interface InferenceResult {
 
 [1] **IEA (2024).** "Electricity Emissions Factors by Country". International Energy Agency. https://www.iea.org/data-and-statistics
 
-[1a] **Electricity Maps (2024).** "Sweden — annual average carbon intensity, location-based production mix". https://app.electricitymaps.com/zone/SE (used for the 8 g CO₂e/kWh Swedish figure; see §2.1 for the location-based vs lifecycle caveat)
+[1a] **IEA (2024).** "Emissions Factors 2024" — Sweden electricity, location-based. https://www.iea.org/data-and-statistics (used for the 8 g CO₂e/kWh Swedish figure; see §2.1 for the location-based vs lifecycle caveat and the bioenergy convention)
+
+[1b] **Ember (2025).** "Yearly Electricity Data" — CO₂ intensity (gCO₂/kWh), data year 2024. https://ember-energy.org/data/yearly-electricity-data/ (Germany 337, Japan 484, India 707, Poland 608, China 556, World 472)
+
+[1c] **SEAI (2025).** "CO₂ intensity of electricity" — Ireland, data year 2024 (224 gCO₂/kWh). https://www.seai.ie/data-and-insights/seai-statistics/key-statistics/electricity/
 
 [2] **Uptime Institute (2024).** "Global Data Center Survey 2024". https://uptimeinstitute.com/resources/research-and-reports
 
