@@ -7,6 +7,9 @@ import { calculateInference, MODEL_PROFILES, HARDWARE_CONFIGS, GRID_REGIONS } fr
  * the best and worst option (as a multiplier of the best), so a buyer can see
  * where the big emissions levers actually sit. Computed live from the
  * calculator, not hard-coded.
+ *
+ * All levers are anchored at our home grid (Sweden): it is where we and our
+ * customers actually run, and the baseline every figure we publish uses.
  */
 
 interface Lever {
@@ -52,30 +55,35 @@ function computeLevers(): Lever[] {
   const SMALL = byParams[0]?.modelId ?? REF;
   const LARGE = byParams[byParams.length - 1]?.modelId ?? REF;
 
-  // Find the cleanest and dirtiest grids dynamically too.
+  // The Grid lever spans our home grid (Sweden) to the dirtiest grid known to
+  // the calculator (dynamic — currently India). Every OTHER lever is computed
+  // at the Sweden anchor too. Anchoring at the globally *cleanest* grid made
+  // these spans swing whenever a source updated — Quebec 40 -> 1.3 g/kWh
+  // pushed "refurbished -> new" from 9x to 50x — which reads as instability
+  // rather than insight, and Quebec is not a grid we or our customers run on.
   const grids = Object.entries(GRID_REGIONS) as [string, any][];
   const byIntensity = [...grids].sort(
     (a, b) => (a[1].intensityGPerKwh ?? 0) - (b[1].intensityGPerKwh ?? 0)
   );
-  const cleanestGrid = byIntensity[0]?.[0] ?? "sweden";
   const dirtiestGrid = byIntensity[byIntensity.length - 1]?.[0] ?? "china";
+  const anchorGrid = GRID_REGIONS.sweden ? "sweden" : (byIntensity[0]?.[0] ?? "sweden");
 
-  const gridBest = run(REF, cleanestGrid, hwNew);
+  const gridBest = run(REF, anchorGrid, hwNew);
   const gridWorst = run(REF, dirtiestGrid, hwNew);
 
-  const hwBest = run(REF, cleanestGrid, hwRefurb);
-  const hwWorst = run(REF, cleanestGrid, hwNew);
+  const hwBest = run(REF, anchorGrid, hwRefurb);
+  const hwWorst = run(REF, anchorGrid, hwNew);
 
-  const modelBest = run(SMALL, cleanestGrid, hwNew);
-  const modelWorst = run(LARGE, cleanestGrid, hwNew);
+  const modelBest = run(SMALL, anchorGrid, hwNew);
+  const modelWorst = run(LARGE, anchorGrid, hwNew);
 
-  const deployBest = run(REF, cleanestGrid, hwNew);
-  const deployWorst = run(REF, cleanestGrid, hwNew, { deployment: "onprem" });
+  const deployBest = run(REF, anchorGrid, hwNew);
+  const deployWorst = run(REF, anchorGrid, hwNew, { deployment: "onprem" });
 
-  const cacheBest = run(REF, cleanestGrid, hwNew, { caching: true });
-  const cacheWorst = run(REF, cleanestGrid, hwNew, { caching: false });
+  const cacheBest = run(REF, anchorGrid, hwNew, { caching: true });
+  const cacheWorst = run(REF, anchorGrid, hwNew, { caching: false });
 
-  const cleanestName = GRID_REGIONS[cleanestGrid]?.name ?? cleanestGrid;
+  const anchorName = GRID_REGIONS[anchorGrid]?.name ?? anchorGrid;
   const dirtiestName = GRID_REGIONS[dirtiestGrid]?.name ?? dirtiestGrid;
 
   // Guard each ratio: a failed lookup returns 0, which would give Infinity /
@@ -88,7 +96,7 @@ function computeLevers(): Lever[] {
   return [
     { label: "Model", best: byParams[0]?.displayName ?? "smallest", worst: byParams[byParams.length - 1]?.displayName ?? "largest", ratio: safeRatio(modelWorst, modelBest) },
     { label: "Hardware", best: "refurbished", worst: "new", ratio: safeRatio(hwWorst, hwBest) },
-    { label: "Grid", best: cleanestName, worst: dirtiestName, ratio: safeRatio(gridWorst, gridBest) },
+    { label: "Grid", best: anchorName, worst: dirtiestName, ratio: safeRatio(gridWorst, gridBest) },
     { label: "Sharing", best: "shared", worst: "on-prem", ratio: safeRatio(deployWorst, deployBest) },
     { label: "Caching", best: "on", worst: "off", ratio: safeRatio(cacheWorst, cacheBest) },
   ];
@@ -207,8 +215,10 @@ export function LeversDonut() {
         ))}
       </div>
       <div style={{ marginTop: "0.5rem", fontSize: "0.65rem", color: C.muted, textAlign: "center", maxWidth: 480, fontStyle: "italic" }}>
-        The model span ends at a closed frontier model; closed-model figures are EcoLogits estimates, not measured on
-        our own hardware, so that end of the span carries more uncertainty than the others.
+        Spans are computed on our home grid (Sweden, 8 g CO₂e/kWh) — the grid we operate on; the Grid lever runs from
+        Sweden to the dirtiest grid we track. The model span ends at a closed frontier model; closed-model figures are
+        EcoLogits estimates, not measured on our own hardware, so that end of the span carries more uncertainty than the
+        others.
       </div>
     </div>
   );
