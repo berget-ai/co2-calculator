@@ -85,8 +85,8 @@ import { GridRegion } from "@berget/co2-emissions-calculator";
 // Example: Germany (2024 data)
 const germany2024: GridRegion = {
   name: "Germany",
-  fullLabel: "Germany · 380 g/kWh",
-  intensityGPerKwh: 380,
+  fullLabel: "Germany · 337 g/kWh",
+  intensityGPerKwh: 337,
   demandCurve: [
     0.15, 0.12, 0.10, 0.09, 0.10, 0.15, // 00-05: Low wind
     0.30, 0.50, 0.65, 0.75, 0.80, 0.78, // 06-11: Morning ramp

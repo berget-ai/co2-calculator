@@ -124,12 +124,12 @@ export function ResultsPanel({ result, model, grid }: Props) {
           // Contrast against the OTHER side of the open/closed divide. A
           // Berget-served open-weight model runs on Sweden's clean grid (8
           // g/kWh); a closed frontier model runs on a US hyperscaler grid
-          // (Texas, 420 g/kWh). Contrasting the two shows the grid lever in
+          // (Texas, 333 g/kWh). Contrasting the two shows the grid lever in
           // the direction that matters for the selected scenario. The
           // multiplier applies only to the operational (energy) part, since
           // embodied hardware emissions are location-independent.
           const SWEDEN = { name: "Sweden", intensity: 8 };
-          const TEXAS = { name: "Texas (a US hyperscaler)", intensity: 420 };
+          const TEXAS = { name: "Texas (a US hyperscaler)", intensity: 333 };
           const currentIntensity = grid?.intensityGPerKwh ?? SWEDEN.intensity;
           // Contrast against the dirtier of the two reference grids unless we
           // are already on it — then contrast against the cleaner one.

@@ -138,15 +138,15 @@ The calculator follows the **SCI-AI specification** with these components:
 - Water usage tracking (0 L for free-air cooling)
 - Time-of-day grid intensity variation
 
-**Key finding** (Gemma 4 31B, 600 in / 482 out tokens, H200, training excluded — as in the live calculator):
+**Key finding** (Gemma 4 31B, 600 in / 482 out tokens, B300, training excluded — as in the live calculator):
 
 | Location | Operational | Embodied | **Total (excl. training)** |
 |----------|-------------|----------|---------------------------|
-| Sweden (8 g/kWh, PUE 1.15) | 1.57 mg | 23.2 mg | **~24.7 mg** |
-| US Average (380 g/kWh, PUE 1.50) | 97.3 mg | 23.2 mg | **~120.5 mg** |
-| **Reduction** | **~62×** | 1× | **~4.9×** |
+| Sweden (8 g/kWh, PUE 1.15) | 4.81 mg | 38.6 mg | **~43.4 mg** |
+| US Average (348 g/kWh, PUE 1.50) | 272.8 mg | 38.6 mg | **~311.4 mg** |
+| **Reduction** | **~56.7×** | 1× | **~7.2×** |
 
-The **operational** part (the energy burned during inference) scales directly with grid carbon intensity, so it is ~62× lower on Sweden's fossil-free grid. The **embodied** part (hardware manufacturing + supporting infrastructure) is location-independent, so it does not change between columns — which is why the *total* ratio (4.9×) is smaller than the operational one. We report both, honestly.
+The **operational** part (the energy burned during inference) scales directly with grid carbon intensity, so it is ~56.7× lower on Sweden's fossil-free grid. The **embodied** part (hardware manufacturing + supporting infrastructure) is location-independent, so it does not change between columns — which is why the *total* ratio (7.2×) is smaller than the operational one. We report both, honestly.
 
 **Why training is excluded by default:** amortised training would dominate the total (for many models it dwarfs per-query inference) and is not comparable across open and closed models — the party that trained the model is often not the party serving it, and undisclosed training figures are parameter-scaling guesses at best. See METHODOLOGY §5 for the full reasoning and what including it would add.
 
@@ -196,20 +196,20 @@ See **[METHODOLOGY.md](./METHODOLOGY.md)** for full details.
 | Sweden | `sweden` | 8 g/kWh | 1.15 | Free-air | 0.0 L/kWh |
 | Norway | `norway` | 15 g/kWh | 1.15 | Free-air | 0.0 L/kWh |
 | France | `france` | 30 g/kWh | 1.30 | Mixed | 0.2 L/kWh |
-| Quebec | `quebec` | 40 g/kWh | 1.15 | Free-air | 0.0 L/kWh |
-| Ireland | `ireland` | 150 g/kWh | 1.25 | Temperate | 0.3 L/kWh |
-| Germany | `germany` | 280 g/kWh | 1.35 | Mechanical | 0.5 L/kWh |
-| US Average | `usa` | 380 g/kWh | 1.50 | Mechanical | 0.8 L/kWh |
+| Quebec | `quebec` | 1.3 g/kWh | 1.15 | Free-air | 0.0 L/kWh |
+| Ireland | `ireland` | 224 g/kWh | 1.25 | Temperate | 0.3 L/kWh |
+| Germany | `germany` | 337 g/kWh | 1.35 | Mechanical | 0.5 L/kWh |
+| US Average | `usa` | 348 g/kWh | 1.50 | Mechanical | 0.8 L/kWh |
 | US East (PJM) | `useast` | 400 g/kWh | 1.60 | Mechanical | 1.0 L/kWh |
-| Texas (ERCOT) | `texas` | 420 g/kWh | 1.80 | Extreme | 1.5 L/kWh |
-| California (CAISO) | `california` | 450 g/kWh | 1.50 | Moderate | 0.7 L/kWh |
-| Japan | `japan` | 550 g/kWh | 1.60 | Mechanical | 0.8 L/kWh |
+| Texas (ERCOT) | `texas` | 333 g/kWh | 1.80 | Extreme | 1.5 L/kWh |
+| California (CAISO) | `california` | 194 g/kWh | 1.50 | Moderate | 0.7 L/kWh |
+| Japan | `japan` | 484 g/kWh | 1.60 | Mechanical | 0.8 L/kWh |
 | India | `india` | 700 g/kWh | 2.00 | Extreme | 2.0 L/kWh |
-| Poland | `poland` | 750 g/kWh | 1.40 | Mechanical | 0.5 L/kWh |
-| China | `china` | 850 g/kWh | 1.60 | Mechanical | 1.0 L/kWh |
-| Global Average | `global` | 500 g/kWh | 1.50 | Mixed | 0.8 L/kWh |
+| Poland | `poland` | 608 g/kWh | 1.40 | Mechanical | 0.5 L/kWh |
+| China | `china` | 556 g/kWh | 1.60 | Mechanical | 1.0 L/kWh |
+| Global Average | `global` | 472 g/kWh | 1.50 | Mixed | 0.8 L/kWh |
 
-Sources: IEA 2024, EPA eGRID 2023, Hydro-Québec 2024.
+Sources: IEA 2024, EPA eGRID 2023, Ember 2024, SEAI 2024, Hydro-Québec 2024. Per-region sourcing in METHODOLOGY §2.4.
 
 [Full list →](./packages/co2-calculator/src/grids.ts)
 

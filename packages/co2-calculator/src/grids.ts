@@ -3,8 +3,8 @@
  * 
  * ⚠️  AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
  * 
- * Generated: 2026-06-05T15:47:06.548Z
- * Sources: IEA 2024, Hydro-Québec 2024, EPA eGRID 2023
+ * Generated: 2026-10-21T06:52:38.689Z
+ * Sources: IEA 2024, Hydro-Québec 2024, SEAI 2024, Ember 2024, EPA eGRID 2023
  * Live data: 0 regions
  * 
  * To update this file, run:
@@ -25,8 +25,8 @@ import { DEFAULT_DEMAND_CURVE } from "./hardware.js";
 export const GRID_REGIONS: Record<string, GridRegion> = {
   sweden: {
     // Source: IEA 2024
-    // Last verified: 2026-06-05
-    // Energy mix: hydro: 45%, wind: 40%, nuclear: 10%, solar: 5%
+    // Last verified: 2026-10-21
+    // Energy mix: hydro: 38%, nuclear: 29%, wind: 24%, bioenergy: 6%, solar: 2%
     // Climate: Cold, free-air cooling year-round
     // Water: No water used for cooling (free-air)
     name: "Sweden",
@@ -38,14 +38,14 @@ export const GRID_REGIONS: Record<string, GridRegion> = {
     lowPeriodFactor: 0.7,
     peakPeriodFactor: 1.15,
     lowPeriodThreshold: 0.20,
-    coolingFactor: 1.0,
+    coolingFactor: 1,
     typicalPue: 1.15,
-    waterLitersPerKwh: 0.0,
+    waterLitersPerKwh: 0,
   },
   norway: {
     // Source: IEA 2024
-    // Last verified: 2026-06-05
-    // Energy mix: hydro: 88%, wind: 8%, fossil: 4%
+    // Last verified: 2026-10-21
+    // Energy mix: hydro: 89%, wind: 9%
     // Climate: Cold, free-air cooling year-round
     // Water: No water used for cooling (free-air)
     name: "Norway",
@@ -57,14 +57,14 @@ export const GRID_REGIONS: Record<string, GridRegion> = {
     lowPeriodFactor: 0.7,
     peakPeriodFactor: 1.15,
     lowPeriodThreshold: 0.20,
-    coolingFactor: 1.0,
+    coolingFactor: 1,
     typicalPue: 1.15,
-    waterLitersPerKwh: 0.0,
+    waterLitersPerKwh: 0,
   },
   france: {
     // Source: IEA 2024
-    // Last verified: 2026-06-05
-    // Energy mix: nuclear: 70%, hydro: 12%, wind: 10%, solar: 5%, fossil: 3%
+    // Last verified: 2026-10-21
+    // Energy mix: nuclear: 68%, hydro: 13%, wind: 8%, solar: 4%, gas: 3%
     // Climate: Temperate, some free-air cooling possible
     // Water: Minimal (mixed cooling)
     name: "France",
@@ -77,37 +77,37 @@ export const GRID_REGIONS: Record<string, GridRegion> = {
     peakPeriodFactor: 1.15,
     lowPeriodThreshold: 0.20,
     coolingFactor: 1.3,
-    typicalPue: 1.30,
+    typicalPue: 1.3,
     waterLitersPerKwh: 0.2,
   },
   quebec: {
     // Source: Hydro-Québec 2024
-    // Last verified: 2026-06-05
+    // Last verified: 2026-10-21
     // Energy mix: hydro: 95%, wind: 4%, biomass: 1%
     // Climate: Cold, free-air cooling year-round
     // Water: No water used for cooling (free-air)
     name: "Quebec",
-    fullLabel: "Quebec · 40 g/kWh",
-    intensityGPerKwh: 40,
+    fullLabel: "Quebec · 1.3 g/kWh",
+    intensityGPerKwh: 1.3,
     countryCode: "CA",
     boundary: {"level": "sub-national", "market": "Hydro-Québec"},
     demandCurve: DEFAULT_DEMAND_CURVE,
     lowPeriodFactor: 0.7,
     peakPeriodFactor: 1.15,
     lowPeriodThreshold: 0.20,
-    coolingFactor: 1.0,
+    coolingFactor: 1,
     typicalPue: 1.15,
-    waterLitersPerKwh: 0.0,
+    waterLitersPerKwh: 0,
   },
   ireland: {
-    // Source: IEA 2024
-    // Last verified: 2026-06-05
-    // Energy mix: gas: 45%, wind: 35%, coal: 15%, oil: 5%
+    // Source: SEAI 2024
+    // Last verified: 2026-10-21
+    // Energy mix: gas: 49%, wind: 37%, solar: 4%, bioenergy: 3%, hydro: 2%, coal: 2%
     // Climate: Temperate maritime, moderate cooling needs
     // Water: Low (temperate climate)
     name: "Ireland",
-    fullLabel: "Ireland · 150 g/kWh",
-    intensityGPerKwh: 150,
+    fullLabel: "Ireland · 224 g/kWh",
+    intensityGPerKwh: 224,
     countryCode: "IE",
     boundary: {"level": "country"},
     demandCurve: DEFAULT_DEMAND_CURVE,
@@ -119,14 +119,14 @@ export const GRID_REGIONS: Record<string, GridRegion> = {
     waterLitersPerKwh: 0.3,
   },
   germany: {
-    // Source: IEA 2024
-    // Last verified: 2026-06-05
-    // Energy mix: coal: 30%, wind: 25%, solar: 12%, gas: 18%, biomass: 10%, hydro: 5%
+    // Source: Ember 2024
+    // Last verified: 2026-10-21
+    // Energy mix: wind: 29%, coal: 21%, gas: 16%, solar: 15%, bioenergy: 10%, hydro: 5%
     // Climate: Temperate, significant cooling in summer
     // Water: Moderate (cooling towers with recirculation)
     name: "Germany",
-    fullLabel: "Germany · 280 g/kWh",
-    intensityGPerKwh: 280,
+    fullLabel: "Germany · 337 g/kWh",
+    intensityGPerKwh: 337,
     countryCode: "DE",
     boundary: {"level": "country"},
     demandCurve: DEFAULT_DEMAND_CURVE,
@@ -139,13 +139,13 @@ export const GRID_REGIONS: Record<string, GridRegion> = {
   },
   usa: {
     // Source: EPA eGRID 2023
-    // Last verified: 2026-06-05
-    // Energy mix: gas: 40%, coal: 20%, nuclear: 20%, wind: 10%, solar: 6%, hydro: 4%
+    // Last verified: 2026-10-21
+    // Energy mix: gas: 43%, nuclear: 19%, coal: 16%, wind: 10%, hydro: 6%, solar: 4%
     // Climate: Mixed, hot summers in many regions
     // Water: Moderate-high (mechanical cooling)
     name: "US Average",
-    fullLabel: "US Average · 380 g/kWh",
-    intensityGPerKwh: 380,
+    fullLabel: "US Average · 348 g/kWh",
+    intensityGPerKwh: 348,
     countryCode: "US",
     boundary: {"level": "country", "conservativeFallback": false},
     demandCurve: DEFAULT_DEMAND_CURVE,
@@ -153,13 +153,13 @@ export const GRID_REGIONS: Record<string, GridRegion> = {
     peakPeriodFactor: 1.15,
     lowPeriodThreshold: 0.20,
     coolingFactor: 1.5,
-    typicalPue: 1.50,
+    typicalPue: 1.5,
     waterLitersPerKwh: 0.8,
   },
   useast: {
     // Source: EPA eGRID 2023
-    // Last verified: 2026-06-05
-    // Energy mix: gas: 45%, coal: 25%, nuclear: 20%, renewables: 10%
+    // Last verified: 2026-10-21
+    // Energy mix: gas: 40%, nuclear: 33%, coal: 20%, renewables: 7%
     // Climate: Hot humid summers, significant cooling load
     // Water: High (cooling towers)
     name: "US East (PJM)",
@@ -172,37 +172,37 @@ export const GRID_REGIONS: Record<string, GridRegion> = {
     peakPeriodFactor: 1.15,
     lowPeriodThreshold: 0.20,
     coolingFactor: 1.6,
-    typicalPue: 1.60,
-    waterLitersPerKwh: 1.0,
+    typicalPue: 1.6,
+    waterLitersPerKwh: 1,
   },
   texas: {
     // Source: EPA eGRID 2023
-    // Last verified: 2026-06-05
-    // Energy mix: gas: 50%, wind: 25%, coal: 15%, solar: 8%, nuclear: 2%
+    // Last verified: 2026-10-21
+    // Energy mix: gas: 46%, wind: 24%, coal: 14%, solar: 9%, nuclear: 7%
     // Climate: Very hot, extreme cooling needs
     // Water: Very high (evaporative cooling in dry climate)
     name: "Texas (ERCOT)",
-    fullLabel: "Texas (ERCOT) · 420 g/kWh",
-    intensityGPerKwh: 420,
+    fullLabel: "Texas (ERCOT) · 333 g/kWh",
+    intensityGPerKwh: 333,
     countryCode: "US",
     boundary: {"level": "sub-national", "market": "ERCOT", "conservativeFallback": true},
     demandCurve: DEFAULT_DEMAND_CURVE,
     lowPeriodFactor: 0.85,
     peakPeriodFactor: 1.2,
     lowPeriodThreshold: 0.20,
-    coolingFactor: 2.0,
-    typicalPue: 1.80,
+    coolingFactor: 2,
+    typicalPue: 1.8,
     waterLitersPerKwh: 1.5,
   },
   california: {
     // Source: EPA eGRID 2023
-    // Last verified: 2026-06-05
-    // Energy mix: gas: 40%, solar: 20%, wind: 12%, nuclear: 10%, hydro: 10%, imports: 8%
+    // Last verified: 2026-10-21
+    // Energy mix: gas: 36%, solar: 25%, hydro: 13%, nuclear: 9%, wind: 8%, imports: 9%
     // Climate: Warm, moderate cooling needs
     // Water: Moderate (coastal cooling possible)
     name: "California (CAISO)",
-    fullLabel: "California (CAISO) · 450 g/kWh",
-    intensityGPerKwh: 450,
+    fullLabel: "California (CAISO) · 194 g/kWh",
+    intensityGPerKwh: 194,
     countryCode: "US",
     boundary: {"level": "sub-national", "market": "CAISO", "conservativeFallback": true},
     demandCurve: DEFAULT_DEMAND_CURVE,
@@ -210,18 +210,18 @@ export const GRID_REGIONS: Record<string, GridRegion> = {
     peakPeriodFactor: 1.2,
     lowPeriodThreshold: 0.20,
     coolingFactor: 1.5,
-    typicalPue: 1.50,
+    typicalPue: 1.5,
     waterLitersPerKwh: 0.7,
   },
   japan: {
-    // Source: IEA 2024
-    // Last verified: 2026-06-05
-    // Energy mix: coal: 30%, gas: 35%, oil: 5%, nuclear: 10%, renewables: 20%
+    // Source: Ember 2024
+    // Last verified: 2026-10-21
+    // Energy mix: gas: 34%, coal: 32%, solar: 10%, nuclear: 8%, hydro: 8%, bioenergy: 4%
     // Climate: Temperate, hot humid summers
     // Water: Moderate-high (cooling towers)
     name: "Japan",
-    fullLabel: "Japan · 550 g/kWh",
-    intensityGPerKwh: 550,
+    fullLabel: "Japan · 484 g/kWh",
+    intensityGPerKwh: 484,
     countryCode: "JP",
     boundary: {"level": "country"},
     demandCurve: DEFAULT_DEMAND_CURVE,
@@ -229,13 +229,13 @@ export const GRID_REGIONS: Record<string, GridRegion> = {
     peakPeriodFactor: 1.15,
     lowPeriodThreshold: 0.20,
     coolingFactor: 1.6,
-    typicalPue: 1.60,
+    typicalPue: 1.6,
     waterLitersPerKwh: 0.8,
   },
   india: {
-    // Source: IEA 2024
-    // Last verified: 2026-06-05
-    // Energy mix: coal: 75%, solar: 10%, wind: 8%, hydro: 5%, gas: 2%
+    // Source: Ember 2024
+    // Last verified: 2026-10-21
+    // Energy mix: coal: 75%, hydro: 8%, solar: 7%, wind: 4%, gas: 3%, nuclear: 3%
     // Climate: Very hot, extreme cooling needs
     // Water: Very high (evaporative cooling, water scarcity issues)
     name: "India",
@@ -248,18 +248,18 @@ export const GRID_REGIONS: Record<string, GridRegion> = {
     peakPeriodFactor: 1.15,
     lowPeriodThreshold: 0.20,
     coolingFactor: 2.5,
-    typicalPue: 2.00,
-    waterLitersPerKwh: 2.0,
+    typicalPue: 2,
+    waterLitersPerKwh: 2,
   },
   poland: {
-    // Source: IEA 2024
-    // Last verified: 2026-06-05
-    // Energy mix: coal: 70%, gas: 10%, wind: 12%, solar: 5%, biomass: 3%
+    // Source: Ember 2024
+    // Last verified: 2026-10-21
+    // Energy mix: coal: 54%, wind: 15%, gas: 12%, solar: 10%, bioenergy: 5%
     // Climate: Temperate, moderate cooling
     // Water: Moderate (cooling towers with recirculation)
     name: "Poland",
-    fullLabel: "Poland · 750 g/kWh",
-    intensityGPerKwh: 750,
+    fullLabel: "Poland · 608 g/kWh",
+    intensityGPerKwh: 608,
     countryCode: "PL",
     boundary: {"level": "country"},
     demandCurve: DEFAULT_DEMAND_CURVE,
@@ -267,18 +267,18 @@ export const GRID_REGIONS: Record<string, GridRegion> = {
     peakPeriodFactor: 1.15,
     lowPeriodThreshold: 0.20,
     coolingFactor: 1.4,
-    typicalPue: 1.40,
+    typicalPue: 1.4,
     waterLitersPerKwh: 0.5,
   },
   china: {
-    // Source: IEA 2024
-    // Last verified: 2026-06-05
-    // Energy mix: coal: 60%, hydro: 15%, wind: 10%, solar: 8%, gas: 5%, nuclear: 2%
+    // Source: Ember 2024
+    // Last verified: 2026-10-21
+    // Energy mix: coal: 58%, hydro: 13%, wind: 10%, solar: 8%, nuclear: 4%, gas: 3%
     // Climate: Mixed, hot humid summers in east
     // Water: Moderate-high (cooling towers)
     name: "China",
-    fullLabel: "China · 850 g/kWh",
-    intensityGPerKwh: 850,
+    fullLabel: "China · 556 g/kWh",
+    intensityGPerKwh: 556,
     countryCode: "CN",
     boundary: {"level": "country"},
     demandCurve: DEFAULT_DEMAND_CURVE,
@@ -286,18 +286,18 @@ export const GRID_REGIONS: Record<string, GridRegion> = {
     peakPeriodFactor: 1.15,
     lowPeriodThreshold: 0.20,
     coolingFactor: 1.6,
-    typicalPue: 1.60,
-    waterLitersPerKwh: 1.0,
+    typicalPue: 1.6,
+    waterLitersPerKwh: 1,
   },
   global: {
-    // Source: IEA 2024
-    // Last verified: 2026-06-05
-    // Energy mix: coal: 35%, gas: 25%, hydro: 15%, nuclear: 10%, wind: 8%, solar: 5%, oil: 2%
+    // Source: Ember 2024
+    // Last verified: 2026-10-21
+    // Energy mix: coal: 34%, gas: 22%, hydro: 14%, nuclear: 9%, wind: 8%, solar: 7%, bioenergy: 3%, oil: 2%
     // Climate: Global average
     // Water: Moderate (global average)
     name: "Global Average",
-    fullLabel: "Global Average · 500 g/kWh",
-    intensityGPerKwh: 500,
+    fullLabel: "Global Average · 472 g/kWh",
+    intensityGPerKwh: 472,
     countryCode: "",
     boundary: {"level": "global", "country": ""},
     demandCurve: DEFAULT_DEMAND_CURVE,
@@ -305,15 +305,15 @@ export const GRID_REGIONS: Record<string, GridRegion> = {
     peakPeriodFactor: 1.15,
     lowPeriodThreshold: 0.20,
     coolingFactor: 1.5,
-    typicalPue: 1.50,
+    typicalPue: 1.5,
     waterLitersPerKwh: 0.8,
   },
 };
 
 // ─── Metadata ───
 export const GRID_METADATA = {
-  lastUpdated: "2026-06-05T15:47:06.548Z",
-  sources: ["IEA 2024","Hydro-Québec 2024","EPA eGRID 2023"],
+  lastUpdated: "2026-10-21T06:52:38.689Z",
+  sources: ["IEA 2024","Hydro-Québec 2024","SEAI 2024","Ember 2024","EPA eGRID 2023"],
   liveRegions: 0,
-  version: "2026-06-05",
+  version: "2026-10-21",
 };

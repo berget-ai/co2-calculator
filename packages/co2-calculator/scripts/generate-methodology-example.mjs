@@ -105,7 +105,7 @@ for (const [label, u] of [["on-prem", 0.10], ["shared (Berget)", 0.70], ["hypers
 
 console.log("\n### §8.2 Sweden vs US (generated)");
 console.log("");
-console.log("| Component | Sweden (8 g/kWh, PUE 1.15) | US Average (380 g/kWh, PUE 1.50) |");
+console.log(`| Component | Sweden (${GRID_REGIONS.sweden.intensityGPerKwh} g/kWh, PUE ${GRID_REGIONS.sweden.typicalPue}) | US Average (${GRID_REGIONS.usa.intensityGPerKwh} g/kWh, PUE ${GRID_REGIONS.usa.typicalPue}) |`);
 console.log("|-----------|---------------------------|----------------------------------|");
 const us = run("usa", SHARED_UTILIZATION);
 const uc = us.components;

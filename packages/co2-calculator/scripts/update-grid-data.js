@@ -240,21 +240,45 @@ async function scrapeElectricityMapPublic() {
 
 // ─── Reference Data (fallback) ───
 const REFERENCE_DATA = {
-  sweden: { intensity: 8, source: "IEA 2024", mix: "hydro: 45%, wind: 40%, nuclear: 10%, solar: 5%" },
-  norway: { intensity: 15, source: "IEA 2024", mix: "hydro: 88%, wind: 8%, fossil: 4%" },
-  france: { intensity: 30, source: "IEA 2024", mix: "nuclear: 70%, hydro: 12%, wind: 10%, solar: 5%, fossil: 3%" },
-  quebec: { intensity: 40, source: "Hydro-Québec 2024", mix: "hydro: 95%, wind: 4%, biomass: 1%" },
-  ireland: { intensity: 150, source: "IEA 2024", mix: "gas: 45%, wind: 35%, coal: 15%, oil: 5%" },
-  germany: { intensity: 280, source: "IEA 2024", mix: "coal: 30%, wind: 25%, solar: 12%, gas: 18%, biomass: 10%, hydro: 5%" },
-  usa: { intensity: 380, source: "EPA eGRID 2023", mix: "gas: 40%, coal: 20%, nuclear: 20%, wind: 10%, solar: 6%, hydro: 4%" },
-  useast: { intensity: 400, source: "EPA eGRID 2023", mix: "gas: 45%, coal: 25%, nuclear: 20%, renewables: 10%" },
-  texas: { intensity: 420, source: "EPA eGRID 2023", mix: "gas: 50%, wind: 25%, coal: 15%, solar: 8%, nuclear: 2%" },
-  california: { intensity: 450, source: "EPA eGRID 2023", mix: "gas: 40%, solar: 20%, wind: 12%, nuclear: 10%, hydro: 10%, imports: 8%" },
-  japan: { intensity: 550, source: "IEA 2024", mix: "coal: 30%, gas: 35%, oil: 5%, nuclear: 10%, renewables: 20%" },
-  india: { intensity: 700, source: "IEA 2024", mix: "coal: 75%, solar: 10%, wind: 8%, hydro: 5%, gas: 2%" },
-  poland: { intensity: 750, source: "IEA 2024", mix: "coal: 70%, gas: 10%, wind: 12%, solar: 5%, biomass: 3%" },
-  china: { intensity: 850, source: "IEA 2024", mix: "coal: 60%, hydro: 15%, wind: 10%, solar: 8%, gas: 5%, nuclear: 2%" },
-  global: { intensity: 500, source: "IEA 2024", mix: "coal: 35%, gas: 25%, hydro: 15%, nuclear: 10%, wind: 8%, solar: 5%, oil: 2%" },
+  sweden: { intensity: 8, source: "IEA 2024", mix: "hydro: 38%, nuclear: 29%, wind: 24%, bioenergy: 6%, solar: 2%" },
+  norway: { intensity: 15, source: "IEA 2024", mix: "hydro: 89%, wind: 9%" },
+  france: { intensity: 30, source: "IEA 2024", mix: "nuclear: 68%, hydro: 13%, wind: 8%, solar: 4%, gas: 3%" },
+  quebec: { intensity: 1.3, source: "Hydro-Québec 2024", mix: "hydro: 95%, wind: 4%, biomass: 1%" },
+  ireland: { intensity: 224, source: "SEAI 2024", mix: "gas: 49%, wind: 37%, solar: 4%, bioenergy: 3%, hydro: 2%, coal: 2%" },
+  germany: { intensity: 337, source: "Ember 2024", mix: "wind: 29%, coal: 21%, gas: 16%, solar: 15%, bioenergy: 10%, hydro: 5%" },
+  usa: { intensity: 348, source: "EPA eGRID 2023", mix: "gas: 43%, nuclear: 19%, coal: 16%, wind: 10%, hydro: 6%, solar: 4%" },
+  useast: { intensity: 400, source: "EPA eGRID 2023", mix: "gas: 40%, nuclear: 33%, coal: 20%, renewables: 7%" },
+  texas: { intensity: 333, source: "EPA eGRID 2023", mix: "gas: 46%, wind: 24%, coal: 14%, solar: 9%, nuclear: 7%" },
+  california: { intensity: 194, source: "EPA eGRID 2023", mix: "gas: 36%, solar: 25%, hydro: 13%, nuclear: 9%, wind: 8%, imports: 9%" },
+  japan: { intensity: 484, source: "Ember 2024", mix: "gas: 34%, coal: 32%, solar: 10%, nuclear: 8%, hydro: 8%, bioenergy: 4%" },
+  india: { intensity: 700, source: "Ember 2024", mix: "coal: 75%, hydro: 8%, solar: 7%, wind: 4%, gas: 3%, nuclear: 3%" },
+  poland: { intensity: 608, source: "Ember 2024", mix: "coal: 54%, wind: 15%, gas: 12%, solar: 10%, bioenergy: 5%" },
+  china: { intensity: 556, source: "Ember 2024", mix: "coal: 58%, hydro: 13%, wind: 10%, solar: 8%, nuclear: 4%, gas: 3%" },
+  global: { intensity: 472, source: "Ember 2024", mix: "coal: 34%, gas: 22%, hydro: 14%, nuclear: 9%, wind: 8%, solar: 7%, bioenergy: 3%, oil: 2%" },
+};
+
+// ─── Static per-region fields ───
+// Fields the GridRegion type requires but open data does not provide:
+// PUE, water use, cooling factor, country code and boundary. Values are
+// documented in METHODOLOGY.md §2.2-2.3 (Uptime Institute 2024, IEA
+// Electricity 2024). Keep in sync with the type — grids.ts must stay
+// complete after regeneration.
+const REGION_STATIC = {
+  sweden:    { countryCode: '"SE"', boundary: '{"level": "country"}', coolingFactor: 1.0, typicalPue: 1.15, waterLitersPerKwh: 0.0, climate: "Cold, free-air cooling year-round", water: "No water used for cooling (free-air)" },
+  norway:    { countryCode: '"NO"', boundary: '{"level": "country"}', coolingFactor: 1.0, typicalPue: 1.15, waterLitersPerKwh: 0.0, climate: "Cold, free-air cooling year-round", water: "No water used for cooling (free-air)" },
+  france:    { countryCode: '"FR"', boundary: '{"level": "country"}', coolingFactor: 1.3, typicalPue: 1.30, waterLitersPerKwh: 0.2, climate: "Temperate, some free-air cooling possible", water: "Minimal (mixed cooling)" },
+  quebec:    { countryCode: '"CA"', boundary: '{"level": "sub-national", "market": "Hydro-Québec"}', coolingFactor: 1.0, typicalPue: 1.15, waterLitersPerKwh: 0.0, climate: "Cold, free-air cooling year-round", water: "No water used for cooling (free-air)" },
+  ireland:   { countryCode: '"IE"', boundary: '{"level": "country"}', coolingFactor: 1.2, typicalPue: 1.25, waterLitersPerKwh: 0.3, climate: "Temperate maritime, moderate cooling needs", water: "Low (temperate climate)" },
+  germany:   { countryCode: '"DE"', boundary: '{"level": "country"}', coolingFactor: 1.4, typicalPue: 1.35, waterLitersPerKwh: 0.5, climate: "Temperate, significant cooling in summer", water: "Moderate (cooling towers with recirculation)" },
+  usa:       { countryCode: '"US"', boundary: '{"level": "country", "conservativeFallback": false}', coolingFactor: 1.5, typicalPue: 1.50, waterLitersPerKwh: 0.8, climate: "Mixed, hot summers in many regions", water: "Moderate-high (mechanical cooling)" },
+  useast:    { countryCode: '"US"', boundary: '{"level": "sub-national", "market": "PJM", "conservativeFallback": true}', coolingFactor: 1.6, typicalPue: 1.60, waterLitersPerKwh: 1.0, climate: "Hot humid summers, significant cooling load", water: "High (cooling towers)" },
+  texas:     { countryCode: '"US"', boundary: '{"level": "sub-national", "market": "ERCOT", "conservativeFallback": true}', coolingFactor: 2.0, typicalPue: 1.80, waterLitersPerKwh: 1.5, climate: "Very hot, extreme cooling needs", water: "Very high (evaporative cooling in dry climate)" },
+  california:{ countryCode: '"US"', boundary: '{"level": "sub-national", "market": "CAISO", "conservativeFallback": true}', coolingFactor: 1.5, typicalPue: 1.50, waterLitersPerKwh: 0.7, climate: "Warm, moderate cooling needs", water: "Moderate (coastal cooling possible)" },
+  japan:     { countryCode: '"JP"', boundary: '{"level": "country"}', coolingFactor: 1.6, typicalPue: 1.60, waterLitersPerKwh: 0.8, climate: "Temperate, hot humid summers", water: "Moderate-high (cooling towers)" },
+  india:     { countryCode: '"IN"', boundary: '{"level": "country"}', coolingFactor: 2.5, typicalPue: 2.00, waterLitersPerKwh: 2.0, climate: "Very hot, extreme cooling needs", water: "Very high (evaporative cooling, water scarcity issues)" },
+  poland:    { countryCode: '"PL"', boundary: '{"level": "country"}', coolingFactor: 1.4, typicalPue: 1.40, waterLitersPerKwh: 0.5, climate: "Temperate, moderate cooling", water: "Moderate (cooling towers with recirculation)" },
+  china:     { countryCode: '"CN"', boundary: '{"level": "country"}', coolingFactor: 1.6, typicalPue: 1.60, waterLitersPerKwh: 1.0, climate: "Mixed, hot humid summers in east", water: "Moderate-high (cooling towers)" },
+  global:    { countryCode: '""', boundary: '{"level": "global", "country": ""}', coolingFactor: 1.5, typicalPue: 1.50, waterLitersPerKwh: 0.8, climate: "Global average", water: "Moderate (global average)" },
 };
 
 // ─── Merge Data ───
@@ -323,18 +347,27 @@ export const GRID_REGIONS: Record<string, GridRegion> = {
 
   for (const [key, regionData] of Object.entries(mergedData)) {
     const liveMarker = regionData.isLive ? " 🟢 LIVE" : "";
-    
+    const s = REGION_STATIC[key];
+    if (!s) throw new Error(`REGION_STATIC missing entry for region "${key}"`);
+
     fileContent += `  ${key}: {
     // Source: ${regionData.source}${liveMarker}
     // Last verified: ${dateStr}
     // Energy mix: ${regionData.mix}
+    // Climate: ${s.climate}
+    // Water: ${s.water}
     name: "${getRegionName(key)}",
     fullLabel: "${getRegionName(key)} · ${regionData.intensityGPerKwh} g/kWh",
     intensityGPerKwh: ${regionData.intensityGPerKwh},
+    countryCode: ${s.countryCode},
+    boundary: ${s.boundary},
     demandCurve: DEFAULT_DEMAND_CURVE,
     lowPeriodFactor: ${getLowPeriodFactor(key)},
     peakPeriodFactor: ${getPeakPeriodFactor(key)},
     lowPeriodThreshold: 0.20,
+    coolingFactor: ${s.coolingFactor},
+    typicalPue: ${s.typicalPue},
+    waterLitersPerKwh: ${s.waterLitersPerKwh},
   },
 `;
   }
