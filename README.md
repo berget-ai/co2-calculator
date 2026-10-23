@@ -318,6 +318,6 @@ A `CITATION.cff` file is included in the repository root for one-click citation 
 
 ---
 
-**Built by Berget AI** · [berget.ai](https://berget.ai) · [API Docs](https://berget.ai/docs)
+**Built by Berget AI** · [berget.ai](https://berget.ai) · [API Docs](https://docs.berget.ai)
 
 *With thanks to a researcher at the Stockholm Environment Institute (SEI) for targeted comments on the embodied-carbon and utilisation sections.*

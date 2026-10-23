@@ -742,7 +742,7 @@ export function GuideMode({
             <span>GitHub Repository</span>
           </a>
           <a
-            href="https://berget.ai/docs"
+            href="https://docs.berget.ai"
             target="_blank"
             rel="noopener noreferrer"
             style={{
