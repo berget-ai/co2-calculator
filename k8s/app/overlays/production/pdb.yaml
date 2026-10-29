@@ -1,0 +1,12 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: co2-calculator
+spec:
+  # Never take more than one pod out of service for voluntary disruptions
+  # (rollouts, node drains). With minReplicas 3 from the HPA this keeps at
+  # least two pods serving throughout a deploy.
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: co2-calculator

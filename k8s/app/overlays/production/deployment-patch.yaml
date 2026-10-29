@@ -3,7 +3,9 @@ kind: Deployment
 metadata:
   name: co2-calculator
 spec:
-  replicas: 3
+  # replicas is intentionally not set here: the HPA (hpa.yaml) owns the
+  # replica count. If it were set, every Flux reconciliation would reset the
+  # count and fight the autoscaler.
   template:
     spec:
       containers:
@@ -11,7 +13,10 @@ spec:
           resources:
             requests:
               memory: "64Mi"
-              cpu: "50m"
+              # HPA scales at 70% of this. Static file serving is
+              # sendfile-bound; the headroom above is for spike absorption
+              # between HPA scale-up events.
+              cpu: "100m"
             limits:
               memory: "128Mi"
-              cpu: "200m"
+              cpu: "500m"
