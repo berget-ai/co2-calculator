@@ -12,10 +12,15 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          // Separate Three.js and globe visualization into its own chunk
-          'globe-viz': ['react-globe.gl', 'three'],
-          // React and related libraries
+          // React and related libraries — used by every chunk, stable across
+          // deploys, so worth its own long-cache entry.
           'react-vendor': ['react', 'react-dom'],
+          // NOTE: no manual chunk for react-globe.gl/three. GlobeSelector is
+          // loaded via React.lazy, so rollup naturally splits the globe stack
+          // into the lazy chunk. Forcing it via manualChunks pulled shared
+          // deps (react internals) into that chunk, made the entry import it,
+          // and defeated the laziness (vite then modulepreloaded 1.8 MB of
+          // globe code on initial page load).
         },
       },
     },

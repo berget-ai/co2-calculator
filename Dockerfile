@@ -22,6 +22,15 @@ COPY apps/demo/ ./apps/demo/
 RUN pnpm --filter @bergetai/co2-calculator build
 RUN pnpm --filter @berget/co2-calculator-demo build
 
+# Precompress static assets with gzip -9. nginx serves these via gzip_static,
+# so compression happens once at build time instead of on every request —
+# this removes the per-request gzip CPU cost that throttled the pods under
+# the HN launch traffic.
+RUN find /app/apps/demo/dist -type f \
+      \( -name '*.js' -o -name '*.css' -o -name '*.html' -o -name '*.json' \
+         -o -name '*.svg' -o -name '*.md' -o -name '*.txt' \) \
+      -exec gzip -9 -k -f {} \;
+
 # Production stage - nginx
 FROM nginx:alpine
 

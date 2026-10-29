@@ -2,6 +2,12 @@ import { useRef, useEffect, useState, useCallback } from "react";
 import Globe from "react-globe.gl";
 import { GRID_REGIONS } from "@bergetai/co2-calculator";
 import { useIsMobile } from "./useMediaQuery";
+// Globe assets are bundled locally (hashed, same-origin, immutable cache)
+// rather than fetched from the unpkg CDN — removes a third-party SPOF and
+// lets nginx cache them hard.
+import earthDarkUrl from "../assets/globe/earth-dark.jpg?url";
+import earthTopologyUrl from "../assets/globe/earth-topology.png?url";
+import countriesTopoUrl from "world-atlas/countries-110m.json?url";
 
 // Geo coordinates for all grid regions
 const REGION_COORDS: Record<string, { lat: number; lng: number }> = {
@@ -228,11 +234,11 @@ export function GlobeSelector({
   }, []);
 
   // Fetch country polygons (GeoJSON) once, to colour each country by its
-  // grid's carbon intensity. Loaded from the same unpkg world-atlas the
-  // react-globe.gl examples use; failures leave the points-only view.
+  // grid's carbon intensity. The TopoJSON is bundled as a local hashed asset
+  // (same-origin, immutable cache); failures leave the points-only view.
   useEffect(() => {
     let cancelled = false;
-    fetch("//unpkg.com/world-atlas@2/countries-110m.json")
+    fetch(countriesTopoUrl)
       .then((r) => r.json())
       .then((topo: any) => {
         if (cancelled) return;
@@ -337,8 +343,8 @@ export function GlobeSelector({
         width={width}
         height={420}
         backgroundColor="rgba(0,0,0,0)"
-        globeImageUrl="//unpkg.com/three-globe/example/img/earth-dark.jpg"
-        bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
+        globeImageUrl={earthDarkUrl}
+        bumpImageUrl={earthTopologyUrl}
         polygonsData={countries}
         polygonCapColor={polygonColor}
         polygonSideColor={() => "rgba(0,0,0,0.15)"}

@@ -5,7 +5,9 @@ metadata:
   labels:
     app: co2-calculator
 spec:
-  replicas: 2
+  # replicas is intentionally unset: the production overlay's HPA owns the
+  # replica count. Setting it here would make every Flux reconciliation
+  # reset the count and fight the autoscaler.
   selector:
     matchLabels:
       app: co2-calculator
