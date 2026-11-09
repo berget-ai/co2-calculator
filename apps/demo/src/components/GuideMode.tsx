@@ -613,6 +613,79 @@ export function GuideMode({
         />
       </Section>
 
+      {/* ═══ DEVELOPMENT-PHASE AI FOOTPRINT ═══ */}
+      <Section id="development-footprint">
+        <div style={prose.kicker}>Our own development footprint</div>
+        <h2 style={prose.h2}>The AI used to build this service, reported too</h2>
+        <p style={prose.p}>
+          AI assistance helped draft and iterate this article, the UI copy and much of the code, with human review and
+          editing. The same transparency standard should apply to the project itself — so we reconstructed the logged
+          OpenCode sessions and ran them through our own calculator.
+        </p>
+        <p style={prose.p}>
+          The central estimate for the recorded development work from 18 May to 9 November 2026 is:
+        </p>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+            gap: "0.75rem",
+            margin: "1.5rem 0",
+          }}
+        >
+          {[
+            { value: "~50 kWh", label: "IT energy" },
+            { value: "~60 kWh", label: "Including cooling" },
+            { value: "~6 kg CO₂e", label: "Total, training excluded" },
+          ].map((stat) => (
+            <div
+              key={stat.label}
+              style={{
+                border: `1px solid ${C.borderMoss}`,
+                borderRadius: 10,
+                padding: "1rem",
+                background: C.ghost,
+              }}
+            >
+              <div style={{ fontSize: "1.35rem", fontWeight: 700, color: C.peak, marginBottom: "0.35rem" }}>
+                {stat.value}
+              </div>
+              <div style={{ fontSize: "0.75rem", color: C.muted }}>{stat.label}</div>
+            </div>
+          ))}
+        </div>
+
+        <p style={prose.p}>
+          The central estimate comprises roughly <strong>0.4 kg operational CO₂e</strong> and <strong>5 kg allocated
+          embodied CO₂e</strong>. Sensitivity analyses across response-time and cache assumptions give a range of
+          <strong> ~3–15 kg CO₂e</strong> — not a confidence interval. This is a modelled estimate of 7,237 logged
+          inference responses, not metered energy for every historical response.
+        </p>
+        <p style={{ ...prose.p, color: C.muted }}>
+          Scope: this project's recorded OpenCode history on one development machine. It excludes model training,
+          other tools and machines, image generation, CI/build infrastructure, hosting, workstations and human labour.
+          We also cannot see or include any AI our external partners may have used during their review work. The
+          figures are therefore best read as the logged development inference we can account for, not the total AI
+          footprint of everyone who contributed. It is not a full lifecycle assessment, and we do not claim a
+          numerical human-writing or human-coding counterfactual without the person-hours and a matching system boundary.
+        </p>
+
+        <MethodPanel
+          assumptions={[
+            "Inputs: 373.6M uncached input tokens, 716.6M cached prompt reads and 2.61M output/reasoning tokens, from a frozen snapshot covering 18 May–9 November 2026.",
+            "Each response uses its actual cache-read fraction. K2.6 uses its historical H200 profile; K3 and GLM 5.2 use B300 profiles; K3.1 Pro is approximated with K3. Swedish average grid, PUE 1.15, shared deployment at 70% utilisation, training excluded.",
+            "Rounded sensitivity scenarios: observed median assistant-message latency gives ~3 kg CO₂e; the central production-profile estimate gives ~6 kg; treating every cached token as new prefill gives ~15 kg.",
+            "The analysis used metadata only — model identifiers, timestamps and token counts, never prompt contents.",
+          ]}
+          reasoning="Publishing a single precise-looking figure would overstate what the logs support. The aggregate inputs, model proxies, cache treatment and exclusions are therefore public, alongside alternative scenarios. The no-cache scenario is a conservative counterfactual, not an upper confidence bound."
+          sources={[
+            { label: "METHODOLOGY §8.3 — full inputs, calculation choices and limitations", url: "https://github.com/berget-ai/co2-calculator/blob/main/METHODOLOGY.md#83-development-phase-ai-inference-the-footprint-of-building-this-service" },
+            { label: "Open-source calculator library (@bergetai/co2-calculator)", url: "https://github.com/berget-ai/co2-calculator" },
+          ]}
+        />
+      </Section>
+
       {/* ═══ THE ASK ═══ */}
       <Section id="the-standard">
         <div style={prose.kicker}>The standard we propose</div>

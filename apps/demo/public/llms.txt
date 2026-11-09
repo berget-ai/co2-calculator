@@ -6,8 +6,8 @@ This site is a client-rendered React app, so its prose is not in the served HTML
 
 ## Reading the site
 
-- [Article (the full argument, as Markdown)](https://co2.berget.ai/index.html.md): the complete prose of the interactive guide — the call to action, the problem, the four levers (model, grid, sharing, hardware), and the proposal. Start here for the narrative.
-- [Methodology (METHODOLOGY.md)](https://github.com/berget-ai/co2-calculator/blob/main/METHODOLOGY.md): the full technical method — system boundary, measured calibration from production, embodied carbon accounting, and worked examples generated from the same code that runs the site.
+- [Article (the full argument, as Markdown)](https://co2.berget.ai/index.html.md): the complete prose of the interactive guide — the call to action, the problem, the four levers (model, grid, sharing, hardware), our own development-phase AI footprint, and the proposal. Start here for the narrative.
+- [Methodology (METHODOLOGY.md)](https://github.com/berget-ai/co2-calculator/blob/main/METHODOLOGY.md): the full technical method — system boundary, measured calibration from production, embodied carbon accounting, and worked examples generated from the same code that runs the site. [Section 8.3](https://github.com/berget-ai/co2-calculator/blob/main/METHODOLOGY.md#83-development-phase-ai-inference-the-footprint-of-building-this-service) contains the inputs, estimate and limitations for the AI inference used to develop the service itself.
 - [Advanced usage (ADVANCED_USAGE.md)](https://github.com/berget-ai/co2-calculator/blob/main/ADVANCED_USAGE.md): how to run the calculator on your own infrastructure, with drop-in integrations for Express, FastAPI and Prometheus.
 
 ## Code & data
