@@ -1,6 +1,6 @@
 # Methodology: AI CO₂ Impact Calculator for Berget AI
 
-**Document Version**: 3.3
+**Document Version**: 3.4
 
 **Date**: 2026-11-09
 
@@ -9,6 +9,9 @@
 **External input**: Developed with researchers from the Stockholm Environment Institute (SEI), WattTime and Klimatkollen. SEI has provided targeted comments on embodied amortisation, utilisation and grid accounting; WattTime contributes scientific expertise on grid-emissions accounting; Klimatkollen contributes the Garbo AI partner use case. Partner input does not constitute institutional endorsement of every estimate or judgement call in this document.
 
 **License**: CC BY 4.0
+
+**Changes in 3.4** (uncertainty-aware development-footprint figures):
+- §8.3 energy and CO₂e results are rounded to reflect model and coverage uncertainty, and the boundary now explicitly excludes any AI used by external partners during their review work.
 
 **Changes in 3.3** (development-phase disclosure and partner attribution):
 - External input updated to reflect the collaboration with researchers from SEI, WattTime and Klimatkollen.
@@ -860,11 +863,13 @@ This is a **modelled estimate of the logged development-phase AI inference**, no
 | Uncached input tokens | 373,595,044 |
 | Cached prompt tokens read | 716,633,152 |
 | Output + reasoning tokens | 2,609,628 |
-| IT energy | 46.76 kWh |
-| Facility energy (PUE 1.15) | 53.77 kWh |
-| Operational CO₂e | 0.444 kg |
-| Allocated embodied CO₂e (GPU + supporting infrastructure) | 5.140 kg |
-| **Total CO₂e (training excluded)** | **5.584 kg** |
+| IT energy | ~50 kWh |
+| Facility energy (PUE 1.15) | ~60 kWh |
+| Operational CO₂e | ~0.4 kg |
+| Allocated embodied CO₂e (GPU + supporting infrastructure) | ~5 kg |
+| **Total CO₂e (training excluded)** | **~6 kg** |
+
+The token counts are recorded inputs and are therefore stated exactly. Energy and emissions are model outputs and are deliberately rounded: the underlying coverage and response-time uncertainty does not support false precision.
 
 **Calculation choices.** Each response uses its actual cache-read fraction, so cached prompt tokens are not treated as new prefill. Output and reasoning tokens are both counted as generated tokens. Kimi K2.6 uses its historical H200 profile; Kimi K3 and GLM 5.2 use their B300 profiles; Kimi K3.1 Pro is approximated with the K3 profile because no dedicated calculator profile exists yet. The calculation uses the Swedish average grid factor (8 g CO₂e/kWh), PUE 1.15, shared deployment at 70% utilisation, the response's local hour in Europe/Stockholm, and excludes training. Baseline response times come from the production model profiles rather than per-response energy metering.
 
@@ -872,13 +877,13 @@ This is a **modelled estimate of the logged development-phase AI inference**, no
 
 | Scenario | IT energy | Facility energy | Total CO₂e |
 |----------|----------:|----------------:|-----------:|
-| Baseline response times recalibrated to the observed median assistant-message latency | 31.44 kWh | 36.16 kWh | 3.350 kg |
-| **Central estimate: production response-time profiles + actual cache fractions** | **46.76 kWh** | **53.77 kWh** | **5.584 kg** |
-| Counterfactual: every cached prompt token treated as uncached prefill | 138.11 kWh | 158.83 kWh | 14.159 kg |
+| Baseline response times recalibrated to the observed median assistant-message latency | ~30 kWh | ~40 kWh | ~3 kg |
+| **Central estimate: production response-time profiles + actual cache fractions** | **~50 kWh** | **~60 kWh** | **~6 kg** |
+| Counterfactual: every cached prompt token treated as uncached prefill | ~140 kWh | ~160 kWh | ~15 kg |
 
 The observed-latency scenario includes network and queueing time and is not a pure GPU-time measurement. The no-cache scenario is a deliberately conservative counterfactual, not an upper confidence bound.
 
-**Boundary and exclusions.** The dataset covers this project's recorded OpenCode history on one development machine. It does not cover other machines or AI tools, image generation, CI/CD or build infrastructure, hosting, developer workstations, model training or human labour. No numeric human-writing or human-coding counterfactual is presented: the necessary person-hours were not recorded, and a comparison without the same system boundary would be misleading.
+**Boundary and exclusions.** The dataset covers this project's recorded OpenCode history on one development machine. It does not cover other machines or AI tools, image generation, CI/CD or build infrastructure, hosting, developer workstations, model training or human labour. We also cannot see or include any AI our external partners may have used during their review work. The figures are therefore best read as the logged development inference we can account for, not the total AI footprint of everyone who contributed. No numeric human-writing or human-coding counterfactual is presented: the necessary person-hours were not recorded, and a comparison without the same system boundary would be misleading.
 
 ## 9. Limitations & Uncertainties
 
@@ -888,7 +893,7 @@ The observed-latency scenario includes network and queueing time and is not a pu
 4. **Time-of-day**: Marginal CI factors are simplified from complex power market dynamics.
 5. **Model-specific efficiency**: Architecture factors are heuristic, calibrated against benchmarks but not exact.
 6. **Concurrency model**: Logarithmic delay factor is empirically fitted; actual behavior varies by framework.
-7. **Development-phase AI estimate**: Section 8.3 uses recorded token metadata, not per-response energy metering, and covers one machine's OpenCode history. Its response-time and cache sensitivities are published explicitly; it is not a full project lifecycle assessment.
+7. **Development-phase AI estimate**: Section 8.3 uses recorded token metadata, not per-response energy metering, and covers one machine's OpenCode history. External partners' AI use is not visible and is excluded. Energy and CO₂e results are rounded to reflect this coverage and model uncertainty. Response-time and cache sensitivities are published explicitly; it is not a full project lifecycle assessment.
 
 ---
 

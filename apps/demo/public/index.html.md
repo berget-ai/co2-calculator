@@ -102,6 +102,18 @@ Doing that reconciliation in real time is hard, though. A full month's total emi
 
 ---
 
+## Our own development footprint: The AI used to build this service, reported too
+
+AI assistance helped draft and iterate this article, the UI copy and much of the code, with human review and editing. The same transparency standard should apply to the project itself — so we reconstructed the logged OpenCode sessions and ran them through our own calculator.
+
+The central estimate for the recorded development work from 18 May to 9 November 2026 is **~50 kWh of IT energy**, **~60 kWh including cooling**, and **~6 kg CO₂e** with training excluded. It comprises roughly **0.4 kg operational CO₂e** and **5 kg allocated embodied CO₂e**. Sensitivity analyses across response-time and cache assumptions give a range of **~3–15 kg CO₂e** — not a confidence interval. This is a modelled estimate of 7,237 logged inference responses, not metered energy for every historical response.
+
+Scope: this project's recorded OpenCode history on one development machine. It excludes model training, other tools and machines, image generation, CI/build infrastructure, hosting, workstations and human labour. We also cannot see or include any AI our external partners may have used during their review work. The figures are therefore best read as the logged development inference we can account for, not the total AI footprint of everyone who contributed. It is not a full lifecycle assessment, and we do not claim a numerical human-writing or human-coding counterfactual without the person-hours and a matching system boundary.
+
+> **Method — development-phase estimate.** Inputs: 373.6M uncached input tokens, 716.6M cached prompt reads and 2.61M output/reasoning tokens, from a frozen snapshot covering 18 May–9 November 2026. Each response uses its actual cache-read fraction. K2.6 uses its historical H200 profile; K3 and GLM 5.2 use B300 profiles; K3.1 Pro is approximated with K3. Swedish average grid, PUE 1.15, shared deployment at 70% utilisation, training excluded. Rounded sensitivity scenarios: observed median assistant-message latency gives ~3 kg CO₂e; the central production-profile estimate gives ~6 kg; treating every cached token as new prefill gives ~15 kg. The analysis used metadata only — model identifiers, timestamps and token counts, never prompt contents. Full inputs and limitations: [METHODOLOGY §8.3](https://github.com/berget-ai/co2-calculator/blob/main/METHODOLOGY.md#83-development-phase-ai-inference-the-footprint-of-building-this-service).
+
+---
+
 ## The standard we propose: What we're asking for
 
 Now that you've seen how the numbers work, the natural question is: what do we do about it? A good first step is simply to make the figures easy to compare — request by request. There's real confusion about AI's emissions, and the reason is a lack of transparency: almost no provider publishes the number. That responsibility doesn't sit with the person typing a prompt; it sits with the companies that choose where to run their servers, and the buyers who procure AI without asking. So we now urge the industry to openly show emissions per request — to make it easy for everyone to compare.
