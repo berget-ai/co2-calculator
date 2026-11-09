@@ -1,10 +1,18 @@
 # Methodology: AI CO₂ Impact Calculator for Berget AI
 
-**Document Version**: 3.2  
-**Date**: 2026-08-14  
-**Authors**: Christian Landgren, Berget AI  
-**External input**: Comments on specific sections (embodied amortisation, utilisation) from a researcher at the Stockholm Environment Institute (SEI); these were targeted suggestions, not a full-institute review or endorsement of the document.  
+**Document Version**: 3.3
+
+**Date**: 2026-11-09
+
+**Authors**: Christian Landgren, Berget AI
+
+**External input**: Developed with researchers from the Stockholm Environment Institute (SEI), WattTime and Klimatkollen. SEI has provided targeted comments on embodied amortisation, utilisation and grid accounting; WattTime contributes scientific expertise on grid-emissions accounting; Klimatkollen contributes the Garbo AI partner use case. Partner input does not constitute institutional endorsement of every estimate or judgement call in this document.
+
 **License**: CC BY 4.0
+
+**Changes in 3.3** (development-phase disclosure and partner attribution):
+- External input updated to reflect the collaboration with researchers from SEI, WattTime and Klimatkollen.
+- §8.3 (new): a retrospective estimate of the AI inference used to develop the service itself, based on recorded OpenCode token metadata and calculated with this library.
 
 **Changes in 3.2** (utilization replaces deployment profiles):
 - §3.2c (rewritten): the deployment difference is now modelled by a single physical variable — **utilization** (the fraction of the node's lifetime it is actively serving). It scales the fixed *energy* costs (GPU idle + server chassis) by 1/utilization; embodied carbon stays amortised over the 5-year lifetime at a fixed rate, utilization-independent. This replaces the earlier per-profile multipliers (concurrency floor, packing factor, GPU-time discount, PUE overrides), which conflated mechanisms and made a large model's embodied cost explode unrealistically on a solo node.
@@ -839,6 +847,39 @@ check as multipliers over GPU energy, with the measured-vs-design gap made
 explicit. Instrumenting host power (Redfish/iLO) and PDU metering is on the
 roadmap so the ancillary side can be reality-checked exactly like GPUs.
 
+### 8.3 Development-phase AI inference: the footprint of building this service
+
+AI assistance was used to draft and iterate the article, UI copy and much of the code, with human review and editing. Following external feedback on the need to disclose that use, we reconstructed the project's logged OpenCode sessions and applied this calculator to the recorded inference. The analysis used a frozen database snapshot and **metadata only** — model identifiers, timestamps and token counts, never prompt contents.
+
+This is a **modelled estimate of the logged development-phase AI inference**, not a full lifecycle assessment of building the service.
+
+| Input or result | Value |
+|-----------------|------:|
+| Logged period | 18 May–9 November 2026 |
+| Inference responses with recorded token usage | 7,237 |
+| Uncached input tokens | 373,595,044 |
+| Cached prompt tokens read | 716,633,152 |
+| Output + reasoning tokens | 2,609,628 |
+| IT energy | 46.76 kWh |
+| Facility energy (PUE 1.15) | 53.77 kWh |
+| Operational CO₂e | 0.444 kg |
+| Allocated embodied CO₂e (GPU + supporting infrastructure) | 5.140 kg |
+| **Total CO₂e (training excluded)** | **5.584 kg** |
+
+**Calculation choices.** Each response uses its actual cache-read fraction, so cached prompt tokens are not treated as new prefill. Output and reasoning tokens are both counted as generated tokens. Kimi K2.6 uses its historical H200 profile; Kimi K3 and GLM 5.2 use their B300 profiles; Kimi K3.1 Pro is approximated with the K3 profile because no dedicated calculator profile exists yet. The calculation uses the Swedish average grid factor (8 g CO₂e/kWh), PUE 1.15, shared deployment at 70% utilisation, the response's local hour in Europe/Stockholm, and excludes training. Baseline response times come from the production model profiles rather than per-response energy metering.
+
+**Sensitivity, not a confidence interval.** Agentic coding traffic has unusually long context, so response-time and cache assumptions matter. We therefore publish alternative scenarios rather than only the central estimate:
+
+| Scenario | IT energy | Facility energy | Total CO₂e |
+|----------|----------:|----------------:|-----------:|
+| Baseline response times recalibrated to the observed median assistant-message latency | 31.44 kWh | 36.16 kWh | 3.350 kg |
+| **Central estimate: production response-time profiles + actual cache fractions** | **46.76 kWh** | **53.77 kWh** | **5.584 kg** |
+| Counterfactual: every cached prompt token treated as uncached prefill | 138.11 kWh | 158.83 kWh | 14.159 kg |
+
+The observed-latency scenario includes network and queueing time and is not a pure GPU-time measurement. The no-cache scenario is a deliberately conservative counterfactual, not an upper confidence bound.
+
+**Boundary and exclusions.** The dataset covers this project's recorded OpenCode history on one development machine. It does not cover other machines or AI tools, image generation, CI/CD or build infrastructure, hosting, developer workstations, model training or human labour. No numeric human-writing or human-coding counterfactual is presented: the necessary person-hours were not recorded, and a comparison without the same system boundary would be misleading.
+
 ## 9. Limitations & Uncertainties
 
 1. **Training data**: Extrapolated values may vary ±50% from actuals. Disclosed data preferred where available.
@@ -847,6 +888,7 @@ roadmap so the ancillary side can be reality-checked exactly like GPUs.
 4. **Time-of-day**: Marginal CI factors are simplified from complex power market dynamics.
 5. **Model-specific efficiency**: Architecture factors are heuristic, calibrated against benchmarks but not exact.
 6. **Concurrency model**: Logarithmic delay factor is empirically fitted; actual behavior varies by framework.
+7. **Development-phase AI estimate**: Section 8.3 uses recorded token metadata, not per-response energy metering, and covers one machine's OpenCode history. Its response-time and cache sensitivities are published explicitly; it is not a full project lifecycle assessment.
 
 ---
 
