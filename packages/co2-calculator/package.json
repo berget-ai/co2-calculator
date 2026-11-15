@@ -23,7 +23,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "update-grid-data": "node scripts/update-grid-data.js",
-    "update-grid-data:dry": "node scripts/update-grid-data.js --dry-run"
+    "update-grid-data:dry": "node scripts/update-grid-data.js --dry-run",
+    "sync-sei-template": "pnpm build && node scripts/sync-sei-template.mjs"
   },
   "dependencies": {},
   "devDependencies": {
