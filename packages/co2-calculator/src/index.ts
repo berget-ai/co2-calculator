@@ -4,7 +4,7 @@ export { toApiEmissions, METHODOLOGY_URL, CALCULATOR_VERSION } from "./api-emiss
 export type { ApiEmissions } from "./api-emissions.js";
 export { MODEL_PROFILES, getModelsByCategory } from "./models.js";
 export { HARDWARE_CONFIGS } from "./hardware.js";
-export { GRID_REGIONS } from "./grids.js";
+export { GRID_REGIONS } from "./marginal-factors.js";
 export { OPENROUTER_STATS, getEstimatedLifetimeQueries } from "./openrouter-stats.js";
 
 // Export traffic pattern for UI
