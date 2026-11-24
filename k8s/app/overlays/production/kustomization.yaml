@@ -8,7 +8,6 @@ resources:
   - pdb.yaml
 patches:
   - path: deployment-patch.yaml
-  - path: ingress-patch.yaml
 images:
   - name: ghcr.io/berget-ai/co2-calculator
     newTag: 1.0.10-rc.22 # {"$imagepolicy": "flux-system:co2-calculator-production:tag"}
