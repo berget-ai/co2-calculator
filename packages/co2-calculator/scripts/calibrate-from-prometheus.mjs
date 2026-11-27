@@ -38,7 +38,7 @@ const MODEL_SOURCES = {
   "mistralai/Mistral-Small-3.2-24B-Instruct-2506": { engine: "vllm", match: "Mistral-Small-3.2-24B" },
   "mistralai/Mistral-Medium-3.5-128B": { engine: "vllm", match: "Mistral-Medium-3.5-128B" },
   "zai-org/GLM-5.2": { engine: "sglang", match: "GLM-5.2" },
-  "moonshotai/Kimi-K3": { engine: "sglang", match: "Kimi-K3" },
+  "moonshotai/Kimi-K3.1-Pro": { engine: "sglang", match: "Kimi-K3.1-Pro" },
 };
 
 // ─── Prometheus helpers ───

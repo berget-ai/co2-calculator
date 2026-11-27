@@ -38,13 +38,13 @@ const MODEL_CATEGORIES: ModelCategories = {
     models: [
       { id: "google/gemma-4-31B-it", name: "Gemma 4 31B" },
       { id: "zai-org/GLM-5.2", name: "GLM 5.2 753B" },
-      { id: "moonshotai/Kimi-K3", name: "Kimi K3" },
+      { id: "moonshotai/Kimi-K3.1-Pro", name: "Kimi K3.1 Pro" },
       { id: "openai/gpt-5-pro", name: "GPT-5 Pro" },
       { id: "anthropic/claude-opus-4-5", name: "Claude Opus 4.5" },
       { id: "google/gemini-2.5-pro", name: "Gemini 2.5 Pro" },
       { id: "mistralai/mistral-large-2512", name: "Mistral Large 123B" },
     ],
-    defaultModel: "moonshotai/Kimi-K3",
+    defaultModel: "moonshotai/Kimi-K3.1-Pro",
     responseTime: 3.5,
   },
 };

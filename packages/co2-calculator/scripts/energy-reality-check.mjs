@@ -28,7 +28,8 @@ const SERVED = [
   { profile: "mistralai/Mistral-Small-3.2-24B-Instruct-2506", hw: "b300", prom: "vllm:request_inference_time_seconds_count", filter: 'model_name="mistralai/Mistral-Small-3.2-24B-Instruct-2506"' },
   { profile: "google/gemma-4-31B-it", hw: "b300", prom: "sglang_num_requests_total", filter: 'model="gemma-4-31b"' },
   { profile: "zai-org/GLM-5.2", hw: "b300", prom: "sglang_num_requests_total", filter: 'model="glm-5-3-flash"' },
-  { profile: "moonshotai/Kimi-K3", hw: "b300", prom: "sglang_num_requests_total", filter: 'model="kimi-k3"' },
+  // K3.1 Pro replaced K3 but retains the public serving alias "kimi-k3".
+  { profile: "moonshotai/Kimi-K3.1-Pro", hw: "b300", prom: "sglang_num_requests_total", filter: 'model="kimi-k3"' },
 ];
 
 const q = async (query) => {
