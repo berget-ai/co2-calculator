@@ -674,7 +674,7 @@ export function GuideMode({
         <MethodPanel
           assumptions={[
             "Inputs: 373.6M uncached input tokens, 716.6M cached prompt reads and 2.61M output/reasoning tokens, from a frozen snapshot covering 18 May–9 November 2026.",
-            "Each response uses its actual cache-read fraction. K2.6 uses its historical H200 profile; K3 and GLM 5.2 use B300 profiles; K3.1 Pro is approximated with K3. Swedish average grid, PUE 1.15, shared deployment at 70% utilisation, training excluded.",
+            "Each response uses its actual cache-read fraction. K2.6 uses its historical H200 profile; K3 and GLM 5.2 use B300 profiles; K3.1 Pro uses the explicit K3 proxy profile on the same 8×B300 node. Swedish average grid, PUE 1.15, shared deployment at 70% utilisation, training excluded.",
             "Rounded sensitivity scenarios: observed median assistant-message latency gives ~3 kg CO₂e; the central production-profile estimate gives ~6 kg; treating every cached token as new prefill gives ~15 kg.",
             "The analysis used metadata only — model identifiers, timestamps and token counts, never prompt contents.",
           ]}

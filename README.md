@@ -156,7 +156,7 @@ See **[METHODOLOGY.md](./METHODOLOGY.md)** for full details.
 
 ## Pre-Configured Data
 
-### Models (14)
+### Models (15)
 
 **Text generation**
 
@@ -170,6 +170,7 @@ See **[METHODOLOGY.md](./METHODOLOGY.md)** for full details.
 | Gemma 4 31B | 31B | 61 GB (FP16) | 4,100 t CO₂e | Google DeepMind |
 | GLM 5.2 753B | 753B (MoE) | 377 GB (INT4) | 52,000 t CO₂e | Parameter-scaling estimate |
 | Kimi K3 2.8T | 2.8T (MoE) | 1,400 GB (INT4) | 140,000 t CO₂e | Parameter-scaling estimate |
+| Kimi K3.1 Pro | 2.8T (MoE, proxy) | 1,400 GB (proxy) | 140,000 t CO₂e (proxy) | K3 profile; same 8×B300 node, calibration pending |
 
 **Embeddings & reranking**
 

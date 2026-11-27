@@ -6,7 +6,7 @@ import type { InferenceResult } from "./types.js";
  * workflow) rather than a runtime package.json read, so the ESM/CJS/DTS builds
  * stay clean and bundler-friendly.
  */
-export const CALCULATOR_VERSION = "1.0.0";
+export const CALCULATOR_VERSION = "1.1.2";
 
 /**
  * The public, versioned shape we ask providers to return inside the OpenAI

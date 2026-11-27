@@ -76,6 +76,35 @@ describe("toApiEmissions", () => {
     expect(api.methodology_version).toBe("9.9.9");
   });
 
+  it("reports Kimi K3.1 Pro through the versioned schema on its 8×B300 node", () => {
+    const modelProfile = MODEL_PROFILES["moonshotai/Kimi-K3.1-Pro"];
+    expect(modelProfile).toBeDefined();
+
+    // Mirror the inference API path: actual request duration and token counts,
+    // no generic concurrency override, and training excluded.
+    const result = calculateInference({
+      modelProfile,
+      hardware: HARDWARE_CONFIGS.b300,
+      deploymentGrid: GRID_REGIONS.sweden,
+      measuredResponseTimeSeconds: 6.65,
+      inputTokens: 5_000,
+      outputTokens: 387,
+      utilization: 0.7,
+      caching: true,
+      hourOfDay: 14,
+      includeTraining: false,
+      lifetimeQueries: 0,
+    });
+    const api = toApiEmissions(result, "sweden");
+
+    expect(result.gpusAllocated).toBe(8);
+    expect(api.methodology_version).toBe("1.1.2");
+    expect(api.co2e_grams).toBeGreaterThan(0);
+    expect(api.energy_kwh).toBeGreaterThan(0);
+    expect(api.operational.co2e_grams).toBeGreaterThan(0);
+    expect(api.embodied.co2e_grams).toBeGreaterThan(0);
+  });
+
   it("uses grams and kWh (readable magnitudes at per-request scale)", () => {
     const result = calculateInference(baseParams());
     const api = toApiEmissions(result, "sweden", "1.0.0");

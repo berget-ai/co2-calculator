@@ -124,6 +124,25 @@ export const MODEL_PROFILES: Record<string, ModelProfile> = {
     // not the weights.
     minGpus: 8,
   },
+  "moonshotai/Kimi-K3.1-Pro": {
+    modelId: "moonshotai/Kimi-K3.1-Pro",
+    displayName: "Kimi K3.1 Pro",
+    architecture: "mixture-of-experts",
+    // Explicit K3 proxy until K3.1 Pro has its own exported production
+    // calibration. The inference API supplies actual duration and token counts
+    // per request; these defaults must not be presented as K3.1 Pro measurements.
+    parameters: 2_800_000_000_000,
+    modelSizeBytes: 2_800_000_000_000 * 0.5,
+    totalTrainingCO2Grams: 140_000_000_000,
+    trainingSource: "Kimi K3 parameter-scaling proxy (Moonshot AI undisclosed; K3.1 Pro calibration pending)",
+    defaultInputTokens: 5_000,
+    defaultOutputTokens: 387, // K3 proxy, not a K3.1 Pro measurement
+    defaultResponseTimeSeconds: 6.65, // K3 proxy; the inference API uses actual request duration
+    defaultConcurrency: 3, // K3 proxy until K3.1 Pro concurrency is exported
+    cachedPromptFraction: 0, // Conservative K3 proxy until K3.1 Pro cache data is exported
+    // Production serves K3.1 Pro on the same full node as K3: 8× B300.
+    minGpus: 8,
+  },
 
   // -----------------------------------------------------------------------
   // Frontier / Closed Models
